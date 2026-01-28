@@ -30,16 +30,10 @@ Visit the GitHub Pages site to get started:
 Copy and paste this prompt into your AI editor:
 
 ```
-You are an AI coding agent.
+Integrate the OneSignal SDK into this codebase.
 
-Read and follow the integration instructions at:
+Follow the instructions at:
 https://onesignal.github.io/sdk-ai-prompts/integrate.html?platform=android
-
-Fetch and read both of these files:
-- https://onesignal.github.io/sdk-ai-prompts/shared/guidelines.md
-- https://onesignal.github.io/sdk-ai-prompts/android/integrate.md
-
-Then integrate the OneSignal SDK into this codebase following all instructions.
 ```
 
 Replace `android` with your platform: `ios`, `flutter`, `unity`, or `react-native`.
