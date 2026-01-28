@@ -34,7 +34,7 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 4. **Is this a new integration or migrating from an older OneSignal SDK?**
    - New integration (default)
-   - Migration from SDK v4.x or earlier
+   - Migration from SDK v4.x or earlier *(not currently supported — choose "New integration")*
 
 ---
 
