@@ -1,14 +1,51 @@
-# The structure of this file is documented on the mkdocs site - https://www.mkdocs.org/user-guide/configuration/
+# MkDocs configuration for GitHub Pages deployment
+# https://www.mkdocs.org/user-guide/configuration/
 
-site_name: 'sdk ai prompts'
+site_name: 'OneSignal SDK AI Prompts'
+site_description: 'AI-powered SDK integration prompts for OneSignal'
+site_url: 'https://onesignal.github.io/sdk-ai-prompts/'
+
+repo_name: 'OneSignal/sdk-ai-prompts'
+repo_url: 'https://github.com/OneSignal/sdk-ai-prompts'
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: pink
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: pink
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - content.code.copy
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - admonition
+  - pymdownx.details
 
 nav:
   - Home: index.md
-  - Section:
-    - subsection-01.md
-    - subsection-02.md
-
-plugins:
-  - techdocs-core
-  - kroki:
-      FencePrefix: ''
+  - Integration:
+    - Shared Guidelines: shared/guidelines.md
+    - Android: android/integrate.md
+    - iOS: ios/integrate.md
+    - Flutter: flutter/integrate.md
+    - Unity: unity/integrate.md
+    - React Native: react-native/integrate.md

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OneSignal SDK AI Prompts</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="https://onesignal.com/favicon.ico">
+</head>
+<body>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+    <span id="themeIcon">🌙</span>
+  </button>
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="8" fill="#E54B4D"/>
+          <path d="M16 6C10.477 6 6 10.477 6 16C6 21.523 10.477 26 16 26C21.523 26 26 21.523 26 16C26 10.477 21.523 6 16 6ZM16 22C12.686 22 10 19.314 10 16C10 12.686 12.686 10 16 10C19.314 10 22 12.686 22 16C22 19.314 19.314 22 16 22Z" fill="white"/>
+          <circle cx="16" cy="16" r="3" fill="white"/>
+        </svg>
+        <span class="logo-text">OneSignal AI Prompts</span>
+      </div>
+      <h1>SDK Integration Prompts</h1>
+      <p>AI-powered SDK integration for your mobile and web apps. Copy a prompt into your AI-enabled editor and let it handle the rest.</p>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <p class="section-title">Select Your Platform</p>
+      
+      <div class="platform-grid">
+        <a href="integrate.html?platform=android" class="platform-card">
+          <div class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 16V8a7 7 0 0 1 14 0v8"/>
+              <path d="M3 16h18v2a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-2z"/>
+              <circle cx="8.5" cy="10" r="1" fill="currentColor"/>
+              <circle cx="15.5" cy="10" r="1" fill="currentColor"/>
+              <path d="M6 3l2 3"/>
+              <path d="M18 3l-2 3"/>
+            </svg>
+          </div>
+          <div class="platform-card-content">
+            <h3>Android</h3>
+            <p>Step-by-step SDK setup for Kotlin and Java applications.</p>
+          </div>
+        </a>
+
+        <a href="integrate.html?platform=ios" class="platform-card">
+          <div class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a8.5 8.5 0 0 0-8.5 8.5c0 4.5 3.5 8 8.5 11.5 5-3.5 8.5-7 8.5-11.5A8.5 8.5 0 0 0 12 2z"/>
+              <path d="M12 2v4"/>
+            </svg>
+          </div>
+          <div class="platform-card-content">
+            <h3>iOS</h3>
+            <p>Complete integration guide for Swift and Objective-C projects.</p>
+          </div>
+        </a>
+
+        <a href="integrate.html?platform=flutter" class="platform-card">
+          <div class="icon">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M14.314 0L2.3 12 6 15.7 21.684.013h-7.357L14.314 0zm.014 11.072L7.857 17.53l6.47 6.47H21.7l-6.46-6.468 6.46-6.46h-7.37z"/>
+            </svg>
+          </div>
+          <div class="platform-card-content">
+            <h3>Flutter</h3>
+            <p>Cross-platform SDK setup for Dart applications.</p>
+          </div>
+        </a>
+
+        <a href="integrate.html?platform=unity" class="platform-card">
+          <div class="icon">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M10.4 17.8l-6.2-3.6v-4.4l6.2 3.6v4.4zm.6-5.5L4.8 8.7l6.2-3.6 6.2 3.6-6.2 3.6zm7.2 1.9l-6.2 3.6v-4.4l6.2-3.6v4.4zm1.4-6.4L12 12.8 4.4 7.8 12 2.8l7.6 5z"/>
+            </svg>
+          </div>
+          <div class="platform-card-content">
+            <h3>Unity</h3>
+            <p>Game engine SDK setup for C# Unity projects.</p>
+          </div>
+        </a>
+
+        <a href="integrate.html?platform=react-native" class="platform-card">
+          <div class="icon">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="2.5"/>
+              <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="1.5" transform="rotate(60 12 12)"/>
+              <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="1.5" transform="rotate(120 12 12)"/>
+            </svg>
+          </div>
+          <div class="platform-card-content">
+            <h3>React Native</h3>
+            <p>Mobile SDK integration for JavaScript and TypeScript apps.</p>
+          </div>
+        </a>
+      </div>
+
+      <section class="how-it-works">
+        <h2>How It Works</h2>
+        <ol class="steps-list">
+          <li><strong>Select your platform</strong> from the cards above to get the integration prompt</li>
+          <li><strong>Copy the AI prompt</strong> that appears on the integration page</li>
+          <li><strong>Paste into your AI editor</strong> — Cursor, GitHub Copilot Chat, or similar</li>
+          <li><strong>Answer a few questions</strong> about your App ID and preferences</li>
+          <li><strong>Let the AI integrate</strong> the OneSignal SDK into your codebase</li>
+          <li><strong>Review the Pull Request</strong> with all changes ready to merge</li>
+        </ol>
+      </section>
+
+      <section class="links-section">
+        <h2>Resources</h2>
+        <div class="external-links">
+          <a href="https://documentation.onesignal.com" class="external-link" target="_blank">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            Documentation
+          </a>
+          <a href="https://github.com/OneSignal/sdk-ai-prompts" class="external-link" target="_blank">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.605-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/>
+            </svg>
+            GitHub
+          </a>
+          <a href="https://onesignal.com" class="external-link" target="_blank">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M2 12h20"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            OneSignal.com
+          </a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>© 2024 OneSignal</span>
+      <div class="footer-links">
+        <a href="https://onesignal.com/privacy" target="_blank">Privacy</a>
+        <a href="https://onesignal.com/terms" target="_blank">Terms</a>
+        <a href="https://documentation.onesignal.com" target="_blank">Docs</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Theme toggle functionality
+    const themeToggle = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+
+    function getPreferredTheme() {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    function setTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+
+    setTheme(getPreferredTheme());
+
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      setTheme(current === 'dark' ? 'light' : 'dark');
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (!localStorage.getItem('theme')) {
+        setTheme(e.matches ? 'dark' : 'light');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OneSignal SDK Integration Prompt</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="https://onesignal.com/favicon.ico">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" media="(prefers-color-scheme: light)">
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+</head>
+<body>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+    <span id="themeIcon">🌙</span>
+  </button>
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="8" fill="#E54B4D"/>
+          <path d="M16 6C10.477 6 6 10.477 6 16C6 21.523 10.477 26 16 26C21.523 26 26 21.523 26 16C26 10.477 21.523 6 16 6ZM16 22C12.686 22 10 19.314 10 16C10 12.686 12.686 10 16 10C19.314 10 22 12.686 22 16C22 19.314 19.314 22 16 22Z" fill="white"/>
+          <circle cx="16" cy="16" r="3" fill="white"/>
+        </svg>
+        <span class="logo-text">OneSignal AI Prompts</span>
+      </div>
+      <h1 id="pageTitle">SDK Integration</h1>
+      <p id="pageDescription">Copy this prompt into your AI-enabled editor to integrate the OneSignal SDK.</p>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <a href="index.html" class="back-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5"/>
+          <path d="M12 19l-7-7 7-7"/>
+        </svg>
+        Back to platforms
+      </a>
+
+      <!-- Bootstrap prompt -->
+      <section class="prompt-container">
+        <div class="prompt-header">
+          <h2>Quick Start Prompt</h2>
+          <button class="copy-btn" id="copyBootstrap">Copy</button>
+        </div>
+        <p class="prompt-description">
+          Copy this prompt and paste it into your AI-enabled editor (Cursor, Copilot Chat, etc.):
+        </p>
+        <div class="code-block">
+          <pre id="bootstrapPrompt">Loading...</pre>
+        </div>
+      </section>
+
+      <div class="info-callout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 16v-4"/>
+          <path d="M12 8h.01"/>
+        </svg>
+        <p>The AI will ask for your OneSignal App ID and language preference, then create a branch, integrate the SDK, add tests, and open a Pull Request.</p>
+      </div>
+
+      <!-- Full prompt display -->
+      <section class="prompt-container">
+        <div class="prompt-header">
+          <h2>Full Integration Prompt</h2>
+          <button class="copy-btn" id="copyFull">Copy Full Prompt</button>
+        </div>
+        <p class="prompt-description">
+          This is the complete prompt that the AI will follow. You can also copy this directly.
+        </p>
+        <div id="promptContent" class="markdown-content">
+          <div class="loading">
+            <div class="spinner"></div>
+            <span>Loading prompt...</span>
+          </div>
+        </div>
+      </section>
+
+      <section style="display: none;" id="rawSection">
+        <pre id="rawMarkdown"></pre>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>© 2024 OneSignal</span>
+      <div class="footer-links">
+        <a href="https://documentation.onesignal.com" target="_blank">Documentation</a>
+        <a href="https://github.com/OneSignal/sdk-ai-prompts" target="_blank">GitHub</a>
+        <a href="https://onesignal.com" target="_blank">OneSignal</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Theme toggle
+    const themeToggle = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+
+    function getPreferredTheme() {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    function setTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+
+    setTheme(getPreferredTheme());
+
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      setTheme(current === 'dark' ? 'light' : 'dark');
+    });
+
+    // Platform configuration
+    const platforms = {
+      android: { 
+        name: 'Android', 
+        description: 'Kotlin & Java SDK integration with MVVM architecture support.',
+        icon: 'android'
+      },
+      ios: { 
+        name: 'iOS', 
+        description: 'Swift & Objective-C SDK integration with SwiftUI and UIKit support.',
+        icon: 'apple'
+      },
+      flutter: { 
+        name: 'Flutter', 
+        description: 'Cross-platform Dart SDK integration for iOS and Android.',
+        icon: 'flutter'
+      },
+      unity: { 
+        name: 'Unity', 
+        description: 'C# game engine SDK integration for mobile games.',
+        icon: 'unity'
+      },
+      'react-native': { 
+        name: 'React Native', 
+        description: 'JavaScript & TypeScript SDK integration for cross-platform apps.',
+        icon: 'react'
+      }
+    };
+
+    // Get platform from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const platform = urlParams.get('platform') || 'android';
+    const platformInfo = platforms[platform] || platforms.android;
+
+    // Update page content
+    document.getElementById('pageTitle').textContent = `${platformInfo.name} SDK Integration`;
+    document.getElementById('pageDescription').textContent = platformInfo.description;
+    document.title = `${platformInfo.name} SDK Integration - OneSignal AI Prompts`;
+
+    // URLs
+    const isLocal = window.location.protocol === 'file:' || 
+                    window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1';
+    
+    const siteUrl = 'https://onesignal.github.io/sdk-ai-prompts';
+    
+    // Generate bootstrap prompt
+    const bootstrapPrompt = `You are an AI coding agent.
+
+Read and follow the integration instructions at:
+${siteUrl}/integrate.html?platform=${platform}
+
+Fetch and read both of these files:
+- ${siteUrl}/shared/guidelines.md (main integration steps)
+- ${siteUrl}/${platform}/integrate.md (platform-specific details)
+
+Then integrate the OneSignal SDK into this codebase following all instructions.`;
+
+    document.getElementById('bootstrapPrompt').textContent = bootstrapPrompt;
+
+    // Fetch and combine prompts
+    async function loadPrompts() {
+      const contentDiv = document.getElementById('promptContent');
+      const rawMarkdownPre = document.getElementById('rawMarkdown');
+      
+      try {
+        let sharedUrl, platformUrl;
+        if (isLocal) {
+          sharedUrl = `shared/guidelines.md`;
+          platformUrl = `${platform}/integrate.md`;
+        } else {
+          const baseUrl = 'https://raw.githubusercontent.com/OneSignal/sdk-ai-prompts/main/docs';
+          sharedUrl = `${baseUrl}/shared/guidelines.md`;
+          platformUrl = `${baseUrl}/${platform}/integrate.md`;
+        }
+
+        const [sharedResponse, platformResponse] = await Promise.all([
+          fetch(sharedUrl),
+          fetch(platformUrl)
+        ]);
+
+        if (!sharedResponse.ok) {
+          throw new Error(`Failed to load shared guidelines: ${sharedResponse.status}`);
+        }
+        if (!platformResponse.ok) {
+          throw new Error(`Failed to load ${platform} integration guide: ${platformResponse.status}`);
+        }
+
+        const sharedMd = await sharedResponse.text();
+        const platformMd = await platformResponse.text();
+
+        const combinedMd = `${sharedMd}\n\n---\n\n# Platform-Specific: ${platformInfo.name}\n\n${platformMd}`;
+
+        rawMarkdownPre.textContent = combinedMd;
+        contentDiv.innerHTML = marked.parse(combinedMd);
+
+        contentDiv.querySelectorAll('pre code').forEach((block) => {
+          hljs.highlightElement(block);
+        });
+
+      } catch (error) {
+        console.error('Error loading prompts:', error);
+        contentDiv.innerHTML = `
+          <div class="error">
+            <p><strong>Error loading prompt:</strong> ${error.message}</p>
+            <p style="margin-top: 12px;">
+              Try viewing the raw files on 
+              <a href="https://github.com/OneSignal/sdk-ai-prompts/tree/main/docs" target="_blank">GitHub</a>.
+            </p>
+          </div>
+        `;
+      }
+    }
+
+    // Copy functionality
+    function copyToClipboard(text, button) {
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        button.classList.add('copied');
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.classList.remove('copied');
+        }, 2000);
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy. Please select and copy manually.');
+      });
+    }
+
+    document.getElementById('copyBootstrap').addEventListener('click', function() {
+      copyToClipboard(bootstrapPrompt, this);
+    });
+
+    document.getElementById('copyFull').addEventListener('click', function() {
+      const rawMd = document.getElementById('rawMarkdown').textContent;
+      copyToClipboard(rawMd, this);
+    });
+
+    // Load prompts on page load
+    loadPrompts();
+  </script>
+</body>
+</html>
