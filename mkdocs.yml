@@ -1,6 +1,6 @@
 # The structure of this file is documented on the mkdocs site - https://www.mkdocs.org/user-guide/configuration/
 
-site_name: '{{spaced_name}}'
+site_name: 'sdk ai prompts'
 
 nav:
   - Home: index.md

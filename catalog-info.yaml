@@ -1,11 +1,22 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: documentation-wiki-template
-  description: Github template repository that teams can use to create new documentation wikis in backstage
+  name: sdk-ai-prompts
+  # TODO: this field should contain a simple one-sentance description of what
+  # your gRPC service accomplishes. For example the entitlements service has
+  # the description "Stores and retrieves information about application plans
+  # and the limits associated with them"
+  description: TODO
   annotations:
-    github.com/project-slug: 'OneSignal/backstage-doc-wiki-template'
+    github.com/project-slug: 'OneSignal/sdk-ai-prompts'
+    backstage.io/techdocs-ref: dir:.
 spec:
-  type: template
-  lifecycle: production
-  owner: eng-core-services
+  type: documentation
+  # TODO: the name of the owning team must go here! "all of engineering" is not
+  # an acceptable owner for a system. You can find the names of teams at
+  # https://backstage.onesignal.io/catalog?filters%5Bkind%5D=group
+  owner: eng
+  # TODO: documentation, like systems, starts out as "experimental" before it is
+  # adopted as standard practice. Once that happens, you can update the
+  # lifecycle here to "production".
+  lifecycle: experimental
