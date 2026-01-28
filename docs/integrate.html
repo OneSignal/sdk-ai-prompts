@@ -168,12 +168,11 @@
     
     const siteUrl = 'https://onesignal.github.io/sdk-ai-prompts';
     
-    // Generate bootstrap prompt - clean and simple
+    // Generate bootstrap prompt - single URL, page handles the rest
     const bootstrapPrompt = `Integrate the OneSignal SDK into this codebase.
 
 Follow the instructions at:
-${siteUrl}/shared/guidelines.md
-${siteUrl}/${platform}/integrate.md`;
+${siteUrl}/integrate.html?platform=${platform}`;
 
     document.getElementById('bootstrapPrompt').textContent = bootstrapPrompt;
 
