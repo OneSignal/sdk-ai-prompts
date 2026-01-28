@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# script/bootstrap is used to setup the project environment locally
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+npm install -g @techdocs/cli

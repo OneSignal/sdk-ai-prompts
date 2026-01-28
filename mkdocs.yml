@@ -1,0 +1,14 @@
+# The structure of this file is documented on the mkdocs site - https://www.mkdocs.org/user-guide/configuration/
+
+site_name: '{{spaced_name}}'
+
+nav:
+  - Home: index.md
+  - Section:
+    - subsection-01.md
+    - subsection-02.md
+
+plugins:
+  - techdocs-core
+  - kroki:
+      FencePrefix: ''

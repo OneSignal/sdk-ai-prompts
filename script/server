@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# script/server starts a local mkdocs server to verify your changes
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+techdocs-cli serve --docker-image europe-west4-docker.pkg.dev/core-infra-onesignal/development/techdocs:0.1

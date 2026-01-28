@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: documentation-wiki-template
+  description: Github template repository that teams can use to create new documentation wikis in backstage
+  annotations:
+    github.com/project-slug: 'OneSignal/backstage-doc-wiki-template'
+spec:
+  type: template
+  lifecycle: production
+  owner: eng-core-services

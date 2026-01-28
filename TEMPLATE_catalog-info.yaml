@@ -1,0 +1,22 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: {{dashed_name}}
+  # TODO: this field should contain a simple one-sentance description of what
+  # your gRPC service accomplishes. For example the entitlements service has
+  # the description "Stores and retrieves information about application plans
+  # and the limits associated with them"
+  description: TODO
+  annotations:
+    github.com/project-slug: 'OneSignal/{{repo_name}}'
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: documentation
+  # TODO: the name of the owning team must go here! "all of engineering" is not
+  # an acceptable owner for a system. You can find the names of teams at
+  # https://backstage.onesignal.io/catalog?filters%5Bkind%5D=group
+  owner: eng
+  # TODO: documentation, like systems, starts out as "experimental" before it is
+  # adopted as standard practice. Once that happens, you can update the
+  # lifecycle here to "production".
+  lifecycle: experimental

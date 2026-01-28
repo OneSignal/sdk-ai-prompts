@@ -1,0 +1,40 @@
+name: Setup repository from template
+
+on: [push]
+
+permissions: write-all
+
+jobs:
+  setup-repository-from-template:
+    if: ${{ !contains (github.repository, '/grpc-service-template') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # by default, it uses a depth of 1
+          # this fetches all history so that we can read each commit
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      # This is just to ensure we have a clean workspace.
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - run: echo "REPOSITORY_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Repository requires setup?
+        id: requires_setup
+        run: echo "::set-output name=requires_setup::$(ls .github/workflows/setup_repository.yml &> /dev/null && echo true || echo false)"
+
+      - name: Setup repository
+        if: steps.requires_setup.outputs.requires_setup == 'true'
+        run: |
+          echo "Setting up repository with -n(name) ${{ env.REPOSITORY_NAME }}"
+          .github/setup_repository.sh -n ${{ env.REPOSITORY_NAME }}
+
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "prepare repo by removing template files and replacing variables"
+          push_options: --force
