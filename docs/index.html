@@ -287,11 +287,13 @@
                       window.location.hostname === 'localhost' || 
                       window.location.hostname === '127.0.0.1';
       
-      // Generate bootstrap prompt
+      // Generate bootstrap prompt - points to raw markdown files for AI agents
+      const rawBaseUrl = 'https://raw.githubusercontent.com/OneSignal/sdk-ai-prompts/main/docs';
       const bootstrapPrompt = `Integrate the OneSignal SDK into this codebase.
 
 Follow the instructions at:
-${siteUrl}?platform=${platform}`;
+${rawBaseUrl}/shared/guidelines.md
+${rawBaseUrl}/${platform}/integrate.md`;
 
       document.getElementById('bootstrapPrompt').textContent = bootstrapPrompt;
 
