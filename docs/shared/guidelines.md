@@ -25,7 +25,7 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
    - React Native: JavaScript or TypeScript
 
 2. **What is your OneSignal App ID?**
-   - If the user says "use demo" or doesn't have one, use the demo App ID: `77e32082-ea27-42e3-a898-c72e141824ef`
+   - If the user says "use demo" or doesn't have one, use the demo App ID: `1db1662c-7609-4a90-b0ad-15b45407d628`
    - When using the demo App ID, you MUST also create a Welcome View (see Demo Mode section below)
 
 3. **Which SDK track should I use?**
