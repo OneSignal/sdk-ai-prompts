@@ -6,6 +6,10 @@
   <title>OneSignal SDK AI Prompts</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="https://onesignal.com/favicon.ico">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" media="(prefers-color-scheme: light)">
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 </head>
 <body>
   <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
@@ -22,124 +26,182 @@
         </svg>
         <span class="logo-text">OneSignal AI Prompts</span>
       </div>
-      <h1>SDK Integration Prompts</h1>
-      <p>AI-powered SDK integration for your mobile and web apps. Copy a prompt into your AI-enabled editor and let it handle the rest.</p>
+      <h1 id="pageTitle">SDK Integration Prompts</h1>
+      <p id="pageDescription">AI-powered SDK integration for your mobile and web apps. Copy a prompt into your AI-enabled editor and let it handle the rest.</p>
     </div>
   </header>
 
   <main>
     <div class="container">
-      <p class="section-title">Select Your Platform</p>
-      
-      <div class="platform-grid">
-        <a href="integrate.html?platform=android" class="platform-card">
-          <div class="icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M5 16V8a7 7 0 0 1 14 0v8"/>
-              <path d="M3 16h18v2a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-2z"/>
-              <circle cx="8.5" cy="10" r="1" fill="currentColor"/>
-              <circle cx="15.5" cy="10" r="1" fill="currentColor"/>
-              <path d="M6 3l2 3"/>
-              <path d="M18 3l-2 3"/>
-            </svg>
-          </div>
-          <div class="platform-card-content">
-            <h3>Android</h3>
-            <p>Step-by-step SDK setup for Kotlin and Java applications.</p>
-          </div>
-        </a>
-
-        <a href="integrate.html?platform=ios" class="platform-card">
-          <div class="icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2a8.5 8.5 0 0 0-8.5 8.5c0 4.5 3.5 8 8.5 11.5 5-3.5 8.5-7 8.5-11.5A8.5 8.5 0 0 0 12 2z"/>
-              <path d="M12 2v4"/>
-            </svg>
-          </div>
-          <div class="platform-card-content">
-            <h3>iOS</h3>
-            <p>Complete integration guide for Swift and Objective-C projects.</p>
-          </div>
-        </a>
-
-        <a href="integrate.html?platform=flutter" class="platform-card">
-          <div class="icon">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M14.314 0L2.3 12 6 15.7 21.684.013h-7.357L14.314 0zm.014 11.072L7.857 17.53l6.47 6.47H21.7l-6.46-6.468 6.46-6.46h-7.37z"/>
-            </svg>
-          </div>
-          <div class="platform-card-content">
-            <h3>Flutter</h3>
-            <p>Cross-platform SDK setup for Dart applications.</p>
-          </div>
-        </a>
-
-        <a href="integrate.html?platform=unity" class="platform-card">
-          <div class="icon">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M10.4 17.8l-6.2-3.6v-4.4l6.2 3.6v4.4zm.6-5.5L4.8 8.7l6.2-3.6 6.2 3.6-6.2 3.6zm7.2 1.9l-6.2 3.6v-4.4l6.2-3.6v4.4zm1.4-6.4L12 12.8 4.4 7.8 12 2.8l7.6 5z"/>
-            </svg>
-          </div>
-          <div class="platform-card-content">
-            <h3>Unity</h3>
-            <p>Game engine SDK setup for C# Unity projects.</p>
-          </div>
-        </a>
-
-        <a href="integrate.html?platform=react-native" class="platform-card">
-          <div class="icon">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="12" cy="12" r="2.5"/>
-              <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
-              <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="1.5" transform="rotate(60 12 12)"/>
-              <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="1.5" transform="rotate(120 12 12)"/>
-            </svg>
-          </div>
-          <div class="platform-card-content">
-            <h3>React Native</h3>
-            <p>Mobile SDK integration for JavaScript and TypeScript apps.</p>
-          </div>
-        </a>
-      </div>
-
-      <section class="how-it-works">
-        <h2>How It Works</h2>
-        <ol class="steps-list">
-          <li><strong>Select your platform</strong> from the cards above to get the integration prompt</li>
-          <li><strong>Copy the AI prompt</strong> that appears on the integration page</li>
-          <li><strong>Paste into your AI editor</strong> — Cursor, GitHub Copilot Chat, or similar</li>
-          <li><strong>Answer a few questions</strong> about your App ID and preferences</li>
-          <li><strong>Let the AI integrate</strong> the OneSignal SDK into your codebase</li>
-          <li><strong>Review the Pull Request</strong> with all changes ready to merge</li>
-        </ol>
-      </section>
-
-      <section class="links-section">
-        <h2>Resources</h2>
-        <div class="external-links">
-          <a href="https://documentation.onesignal.com" class="external-link" target="_blank">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-            </svg>
-            Documentation
+      <!-- Landing view (no platform selected) -->
+      <div id="landingView">
+        <p class="section-title">Select Your Platform</p>
+        
+        <div class="platform-grid">
+          <a href="?platform=android" class="platform-card">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 16V8a7 7 0 0 1 14 0v8"/>
+                <path d="M3 16h18v2a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-2z"/>
+                <circle cx="8.5" cy="10" r="1" fill="currentColor"/>
+                <circle cx="15.5" cy="10" r="1" fill="currentColor"/>
+                <path d="M6 3l2 3"/>
+                <path d="M18 3l-2 3"/>
+              </svg>
+            </div>
+            <div class="platform-card-content">
+              <h3>Android</h3>
+              <p>Step-by-step SDK setup for Kotlin and Java applications.</p>
+            </div>
           </a>
-          <a href="https://github.com/OneSignal/sdk-ai-prompts" class="external-link" target="_blank">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.605-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/>
-            </svg>
-            GitHub
+
+          <a href="?platform=ios" class="platform-card">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a8.5 8.5 0 0 0-8.5 8.5c0 4.5 3.5 8 8.5 11.5 5-3.5 8.5-7 8.5-11.5A8.5 8.5 0 0 0 12 2z"/>
+                <path d="M12 2v4"/>
+              </svg>
+            </div>
+            <div class="platform-card-content">
+              <h3>iOS</h3>
+              <p>Complete integration guide for Swift and Objective-C projects.</p>
+            </div>
           </a>
-          <a href="https://onesignal.com" class="external-link" target="_blank">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M2 12h20"/>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-            </svg>
-            OneSignal.com
+
+          <a href="?platform=flutter" class="platform-card">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14.314 0L2.3 12 6 15.7 21.684.013h-7.357L14.314 0zm.014 11.072L7.857 17.53l6.47 6.47H21.7l-6.46-6.468 6.46-6.46h-7.37z"/>
+              </svg>
+            </div>
+            <div class="platform-card-content">
+              <h3>Flutter</h3>
+              <p>Cross-platform SDK setup for Dart applications.</p>
+            </div>
+          </a>
+
+          <a href="?platform=unity" class="platform-card">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M10.4 17.8l-6.2-3.6v-4.4l6.2 3.6v4.4zm.6-5.5L4.8 8.7l6.2-3.6 6.2 3.6-6.2 3.6zm7.2 1.9l-6.2 3.6v-4.4l6.2-3.6v4.4zm1.4-6.4L12 12.8 4.4 7.8 12 2.8l7.6 5z"/>
+              </svg>
+            </div>
+            <div class="platform-card-content">
+              <h3>Unity</h3>
+              <p>Game engine SDK setup for C# Unity projects.</p>
+            </div>
+          </a>
+
+          <a href="?platform=react-native" class="platform-card">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="12" r="2.5"/>
+                <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="1.5" transform="rotate(60 12 12)"/>
+                <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" stroke-width="1.5" transform="rotate(120 12 12)"/>
+              </svg>
+            </div>
+            <div class="platform-card-content">
+              <h3>React Native</h3>
+              <p>Mobile SDK integration for JavaScript and TypeScript apps.</p>
+            </div>
           </a>
         </div>
-      </section>
+
+        <section class="how-it-works">
+          <h2>How It Works</h2>
+          <ol class="steps-list">
+            <li><strong>Select your platform</strong> from the cards above to get the integration prompt</li>
+            <li><strong>Copy the AI prompt</strong> that appears on the integration page</li>
+            <li><strong>Paste into your AI editor</strong> — Cursor, GitHub Copilot Chat, or similar</li>
+            <li><strong>Answer a few questions</strong> about your App ID and preferences</li>
+            <li><strong>Let the AI integrate</strong> the OneSignal SDK into your codebase</li>
+            <li><strong>Review the Pull Request</strong> with all changes ready to merge</li>
+          </ol>
+        </section>
+
+        <section class="links-section">
+          <h2>Resources</h2>
+          <div class="external-links">
+            <a href="https://documentation.onesignal.com" class="external-link" target="_blank">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+              Documentation
+            </a>
+            <a href="https://github.com/OneSignal/sdk-ai-prompts" class="external-link" target="_blank">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.605-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/>
+              </svg>
+              GitHub
+            </a>
+            <a href="https://onesignal.com" class="external-link" target="_blank">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M2 12h20"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+              OneSignal.com
+            </a>
+          </div>
+        </section>
+      </div>
+
+      <!-- Integration view (platform selected) -->
+      <div id="integrationView" style="display: none;">
+        <a href="./" class="back-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5"/>
+            <path d="M12 19l-7-7 7-7"/>
+          </svg>
+          Back to platforms
+        </a>
+
+        <!-- Bootstrap prompt -->
+        <section class="prompt-container">
+          <div class="prompt-header">
+            <h2>Quick Start Prompt</h2>
+            <button class="copy-btn" id="copyBootstrap">Copy</button>
+          </div>
+          <p class="prompt-description">
+            Copy this prompt and paste it into your AI-enabled editor (Cursor, Copilot Chat, etc.):
+          </p>
+          <div class="code-block">
+            <pre id="bootstrapPrompt">Loading...</pre>
+          </div>
+        </section>
+
+        <div class="info-callout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 16v-4"/>
+            <path d="M12 8h.01"/>
+          </svg>
+          <p>The AI will ask for your OneSignal App ID and language preference, then create a branch, integrate the SDK, add tests, and open a Pull Request.</p>
+        </div>
+
+        <!-- Full prompt display -->
+        <section class="prompt-container">
+          <div class="prompt-header">
+            <h2>Full Integration Prompt</h2>
+            <button class="copy-btn" id="copyFull">Copy Full Prompt</button>
+          </div>
+          <p class="prompt-description">
+            This is the complete prompt that the AI will follow. You can also copy this directly.
+          </p>
+          <div id="promptContent" class="markdown-content">
+            <div class="loading">
+              <div class="spinner"></div>
+              <span>Loading prompt...</span>
+            </div>
+          </div>
+        </section>
+
+        <section style="display: none;" id="rawSection">
+          <pre id="rawMarkdown"></pre>
+        </section>
+      </div>
     </div>
   </main>
 
@@ -147,15 +209,15 @@
     <div class="footer-inner">
       <span>© 2024 OneSignal</span>
       <div class="footer-links">
-        <a href="https://onesignal.com/privacy" target="_blank">Privacy</a>
-        <a href="https://onesignal.com/terms" target="_blank">Terms</a>
-        <a href="https://documentation.onesignal.com" target="_blank">Docs</a>
+        <a href="https://documentation.onesignal.com" target="_blank">Documentation</a>
+        <a href="https://github.com/OneSignal/sdk-ai-prompts" target="_blank">GitHub</a>
+        <a href="https://onesignal.com" target="_blank">OneSignal</a>
       </div>
     </div>
   </footer>
 
   <script>
-    // Theme toggle functionality
+    // Theme toggle
     const themeToggle = document.getElementById('themeToggle');
     const themeIcon = document.getElementById('themeIcon');
 
@@ -178,11 +240,143 @@
       setTheme(current === 'dark' ? 'light' : 'dark');
     });
 
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-      if (!localStorage.getItem('theme')) {
-        setTheme(e.matches ? 'dark' : 'light');
+    // Platform configuration
+    const platforms = {
+      android: { 
+        name: 'Android', 
+        description: 'Kotlin & Java SDK integration with MVVM architecture support.'
+      },
+      ios: { 
+        name: 'iOS', 
+        description: 'Swift & Objective-C SDK integration with SwiftUI and UIKit support.'
+      },
+      flutter: { 
+        name: 'Flutter', 
+        description: 'Cross-platform Dart SDK integration for iOS and Android.'
+      },
+      unity: { 
+        name: 'Unity', 
+        description: 'C# game engine SDK integration for mobile games.'
+      },
+      'react-native': { 
+        name: 'React Native', 
+        description: 'JavaScript & TypeScript SDK integration for cross-platform apps.'
       }
-    });
+    };
+
+    // Check for platform parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const platform = urlParams.get('platform');
+
+    const landingView = document.getElementById('landingView');
+    const integrationView = document.getElementById('integrationView');
+
+    if (platform && platforms[platform]) {
+      // Show integration view
+      landingView.style.display = 'none';
+      integrationView.style.display = 'block';
+      
+      const platformInfo = platforms[platform];
+      document.getElementById('pageTitle').textContent = `${platformInfo.name} SDK Integration`;
+      document.getElementById('pageDescription').textContent = platformInfo.description;
+      document.title = `${platformInfo.name} SDK Integration - OneSignal AI Prompts`;
+
+      // URLs
+      const siteUrl = 'https://onesignal.github.io/sdk-ai-prompts';
+      const isLocal = window.location.protocol === 'file:' || 
+                      window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1';
+      
+      // Generate bootstrap prompt
+      const bootstrapPrompt = `Integrate the OneSignal SDK into this codebase.
+
+Follow the instructions at:
+${siteUrl}?platform=${platform}`;
+
+      document.getElementById('bootstrapPrompt').textContent = bootstrapPrompt;
+
+      // Fetch and combine prompts
+      async function loadPrompts() {
+        const contentDiv = document.getElementById('promptContent');
+        const rawMarkdownPre = document.getElementById('rawMarkdown');
+        
+        try {
+          let sharedUrl, platformUrl;
+          if (isLocal) {
+            sharedUrl = `shared/guidelines.md`;
+            platformUrl = `${platform}/integrate.md`;
+          } else {
+            const baseUrl = 'https://raw.githubusercontent.com/OneSignal/sdk-ai-prompts/main/docs';
+            sharedUrl = `${baseUrl}/shared/guidelines.md`;
+            platformUrl = `${baseUrl}/${platform}/integrate.md`;
+          }
+
+          const [sharedResponse, platformResponse] = await Promise.all([
+            fetch(sharedUrl),
+            fetch(platformUrl)
+          ]);
+
+          if (!sharedResponse.ok) {
+            throw new Error(`Failed to load shared guidelines: ${sharedResponse.status}`);
+          }
+          if (!platformResponse.ok) {
+            throw new Error(`Failed to load ${platform} integration guide: ${platformResponse.status}`);
+          }
+
+          const sharedMd = await sharedResponse.text();
+          const platformMd = await platformResponse.text();
+
+          const combinedMd = `${sharedMd}\n\n---\n\n# Platform-Specific: ${platformInfo.name}\n\n${platformMd}`;
+
+          rawMarkdownPre.textContent = combinedMd;
+          contentDiv.innerHTML = marked.parse(combinedMd);
+
+          contentDiv.querySelectorAll('pre code').forEach((block) => {
+            hljs.highlightElement(block);
+          });
+
+        } catch (error) {
+          console.error('Error loading prompts:', error);
+          contentDiv.innerHTML = `
+            <div class="error">
+              <p><strong>Error loading prompt:</strong> ${error.message}</p>
+              <p style="margin-top: 12px;">
+                Try viewing the raw files on 
+                <a href="https://github.com/OneSignal/sdk-ai-prompts/tree/main/docs" target="_blank">GitHub</a>.
+              </p>
+            </div>
+          `;
+        }
+      }
+
+      // Copy functionality
+      function copyToClipboard(text, button) {
+        navigator.clipboard.writeText(text).then(() => {
+          const originalText = button.textContent;
+          button.textContent = 'Copied!';
+          button.classList.add('copied');
+          setTimeout(() => {
+            button.textContent = originalText;
+            button.classList.remove('copied');
+          }, 2000);
+        }).catch(err => {
+          console.error('Failed to copy:', err);
+          alert('Failed to copy. Please select and copy manually.');
+        });
+      }
+
+      document.getElementById('copyBootstrap').addEventListener('click', function() {
+        copyToClipboard(bootstrapPrompt, this);
+      });
+
+      document.getElementById('copyFull').addEventListener('click', function() {
+        const rawMd = document.getElementById('rawMarkdown').textContent;
+        copyToClipboard(rawMd, this);
+      });
+
+      // Load prompts
+      loadPrompts();
+    }
   </script>
 </body>
 </html>

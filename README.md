@@ -33,7 +33,7 @@ Copy and paste this prompt into your AI editor:
 Integrate the OneSignal SDK into this codebase.
 
 Follow the instructions at:
-https://onesignal.github.io/sdk-ai-prompts/integrate.html?platform=android
+https://onesignal.github.io/sdk-ai-prompts?platform=android
 ```
 
 Replace `android` with your platform: `ios`, `flutter`, `unity`, or `react-native`.
