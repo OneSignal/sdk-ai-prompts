@@ -28,6 +28,11 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
+      - name: Generate combined AI prompts
+        run: |
+          chmod +x script/generate-prompts.sh
+          ./script/generate-prompts.sh
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
