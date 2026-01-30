@@ -178,10 +178,6 @@ class OneSignalManager @Inject constructor(
         OneSignal.User.addTag(key, value)
     }
     
-    suspend fun requestPermission(): Boolean = withContext(Dispatchers.IO) {
-        OneSignal.Notifications.requestPermission(true)
-    }
-    
     fun setLogLevel(level: LogLevel) {
         OneSignal.Debug.logLevel = level
     }
@@ -207,7 +203,6 @@ class MainViewModel @Inject constructor(
             // Runs on background thread via Dispatchers.IO in manager
             oneSignalManager.setLogLevel(LogLevel.VERBOSE) // Debug only
             oneSignalManager.initialize("YOUR_ONESIGNAL_APP_ID")
-            oneSignalManager.requestPermission()
         }
     }
     
