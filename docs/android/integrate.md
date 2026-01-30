@@ -141,68 +141,98 @@ dependencies {
 }
 ```
 
-### Application Class (Kotlin)
-
-```kotlin
-class MyApplication : Application() {
-    override fun onCreate() {
-        super.onCreate()
-        
-        // Initialize OneSignal
-        OneSignal.initWithContext(this, "YOUR_ONESIGNAL_APP_ID")
-        
-        // Set log level for debugging (remove in production)
-        OneSignal.Debug.logLevel = LogLevel.VERBOSE
-        
-        // Request notification permission (Android 13+)
-        CoroutineScope(Dispatchers.IO).launch {
-            OneSignal.Notifications.requestPermission(true)
-        }
-    }
-}
-```
-
 ### Centralized Manager (Kotlin)
+
+Create a singleton manager that wraps all OneSignal SDK calls:
 
 ```kotlin
 @Singleton
 class OneSignalManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    fun initialize(appId: String) {
+    private var isInitialized = false
+    
+    suspend fun initialize(appId: String) = withContext(Dispatchers.IO) {
+        if (isInitialized) return@withContext
         OneSignal.initWithContext(context, appId)
+        isInitialized = true
     }
     
-    fun login(externalId: String) {
+    suspend fun login(externalId: String) = withContext(Dispatchers.IO) {
         OneSignal.login(externalId)
     }
     
-    fun logout() {
+    suspend fun logout() = withContext(Dispatchers.IO) {
         OneSignal.logout()
     }
     
-    fun setEmail(email: String) {
+    suspend fun setEmail(email: String) = withContext(Dispatchers.IO) {
         OneSignal.User.addEmail(email)
     }
     
-    fun setSmsNumber(number: String) {
+    suspend fun setSmsNumber(number: String) = withContext(Dispatchers.IO) {
         OneSignal.User.addSms(number)
     }
     
-    fun setTag(key: String, value: String) {
+    suspend fun setTag(key: String, value: String) = withContext(Dispatchers.IO) {
         OneSignal.User.addTag(key, value)
     }
     
-    suspend fun requestPermission(): Boolean {
-        return withContext(Dispatchers.IO) {
-            OneSignal.Notifications.requestPermission(true)
-        }
+    suspend fun requestPermission(): Boolean = withContext(Dispatchers.IO) {
+        OneSignal.Notifications.requestPermission(true)
     }
     
     fun setLogLevel(level: LogLevel) {
         OneSignal.Debug.logLevel = level
     }
 }
+```
+
+### ViewModel (Kotlin)
+
+Initialize OneSignal from a ViewModel on a background thread:
+
+```kotlin
+@HiltViewModel
+class MainViewModel @Inject constructor(
+    private val oneSignalManager: OneSignalManager
+) : ViewModel() {
+    
+    init {
+        initializeOneSignal()
+    }
+    
+    private fun initializeOneSignal() {
+        viewModelScope.launch {
+            // Runs on background thread via Dispatchers.IO in manager
+            oneSignalManager.setLogLevel(LogLevel.VERBOSE) // Debug only
+            oneSignalManager.initialize("YOUR_ONESIGNAL_APP_ID")
+            oneSignalManager.requestPermission()
+        }
+    }
+    
+    fun login(externalId: String) {
+        viewModelScope.launch {
+            oneSignalManager.login(externalId)
+        }
+    }
+    
+    fun logout() {
+        viewModelScope.launch {
+            oneSignalManager.logout()
+        }
+    }
+}
+```
+
+### Application Class (Kotlin)
+
+Keep the Application class minimal - just set up Hilt:
+
+```kotlin
+@HiltAndroidApp
+class MyApplication : Application()
+```
 ```
 
 ---
