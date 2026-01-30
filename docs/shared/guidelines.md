@@ -100,15 +100,15 @@ OneSignal.User.addTag("welcome_sent", currentTimestamp)
 
 ## Step 3 — SDK Version Selection
 
-* Select the **correct SDK version** for this platform from:
-  - [OneSignal Android SDK](https://github.com/OneSignal/OneSignal-Android-SDK/releases)
-  - [OneSignal iOS SDK](https://github.com/OneSignal/OneSignal-iOS-SDK/releases)
-  - [OneSignal Flutter SDK](https://pub.dev/packages/onesignal_flutter)
-  - [OneSignal Unity SDK](https://github.com/OneSignal/OneSignal-Unity-SDK/releases)
-  - [OneSignal React Native SDK](https://www.npmjs.com/package/react-native-onesignal)
+**IMPORTANT:** Get SDK versions ONLY from this official page:
+**https://onesignal.github.io/sdk-releases/**
 
-* **Do NOT guess versions** — always check the latest release
-* Use the **Stable** track unless the user specifically requested Current
+* Do NOT search the web for SDK versions
+* Do NOT guess versions
+* Do NOT use other sources (npm, pub.dev, GitHub releases) for version numbers
+* The official releases page above has both **Stable** and **Current** versions for all platforms
+
+Use the **Stable** track unless the user specifically requested Current.
 
 ---
 
