@@ -98,6 +98,9 @@ class OneSignalManager @Inject constructor(
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) {
     suspend fun initialize(appId: String) = withContext(ioDispatcher) {
+        // Set log level for debugging (remove in production)
+        OneSignal.Debug.logLevel = LogLevel.VERBOSE
+        // Initialize OneSignal
         OneSignal.initWithContext(appContext, appId)
     }
     
@@ -115,6 +118,9 @@ public class OneSignalManager {
     
     public void initialize(Context context, String appId) {
         executor.execute(() -> {
+            // Set log level for debugging (remove in production)
+            OneSignal.getDebug().setLogLevel(LogLevel.VERBOSE);
+            // Initialize OneSignal
             OneSignal.initWithContext(context, appId);
         });
     }
@@ -154,6 +160,9 @@ class OneSignalManager @Inject constructor(
     
     suspend fun initialize(appId: String) = withContext(Dispatchers.IO) {
         if (isInitialized) return@withContext
+        // Set log level for debugging (remove in production)
+        OneSignal.Debug.logLevel = LogLevel.VERBOSE
+        // Initialize OneSignal
         OneSignal.initWithContext(context, appId)
         isInitialized = true
     }

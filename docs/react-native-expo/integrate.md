@@ -581,7 +581,9 @@ export const NotificationProvider: React.FC<ProviderProps> = ({ children, appId 
   const [hasPermission, setHasPermission] = useState(false);
 
   useEffect(() => {
+    // Set log level for debugging (remove in production)
     OneSignal.Debug.setLogLevel(LogLevel.Verbose);
+    // Initialize OneSignal
     OneSignal.initialize(appId);
     setIsInitialized(true);
 
@@ -636,7 +638,9 @@ export const useOneSignal = (appId: string) => {
   const [hasPermission, setHasPermission] = useState(false);
 
   useEffect(() => {
+    // Set log level for debugging (remove in production)
     OneSignal.Debug.setLogLevel(LogLevel.Verbose);
+    // Initialize OneSignal
     OneSignal.initialize(appId);
     setIsInitialized(true);
 

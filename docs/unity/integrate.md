@@ -198,8 +198,10 @@ public static class OneSignalBootstrap
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Initialize()
     {
+        // Set log level for debugging (remove in production)
+        OneSignal.Debug.LogLevel = LogLevel.Verbose;
+        // Initialize OneSignal
         OneSignal.Initialize(APP_ID);
-        OneSignal.Debug.LogLevel = LogLevel.VERBOSE;
     }
 }
 ```
@@ -242,6 +244,9 @@ public class OneSignalManager : MonoBehaviour
             return;
         }
         
+        // Set log level for debugging (remove in production)
+        OneSignal.Debug.LogLevel = LogLevel.Verbose;
+        // Initialize OneSignal
         OneSignal.Initialize(appId);
         SetupListeners();
     }

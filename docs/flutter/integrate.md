@@ -101,7 +101,9 @@ Use `Future`s and `async/await` for all OneSignal calls:
 ```dart
 class OneSignalService {
   Future<void> initialize(String appId) async {
-    // OneSignal Flutter SDK handles threading internally
+    // Set log level for debugging (remove in production)
+    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    // Initialize OneSignal
     OneSignal.initialize(appId);
   }
   
@@ -145,8 +147,9 @@ import 'package:onesignal_flutter/onesignal_flutter.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize OneSignal
+  // Set log level for debugging (remove in production)
   OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+  // Initialize OneSignal
   OneSignal.initialize("YOUR_ONESIGNAL_APP_ID");
   
   // Request notification permission
@@ -183,7 +186,9 @@ class OneSignalService {
   void initialize(String appId) {
     if (_isInitialized) return;
     
+    // Set log level for debugging (remove in production)
     OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    // Initialize OneSignal
     OneSignal.initialize(appId);
     _isInitialized = true;
   }
