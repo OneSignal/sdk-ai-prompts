@@ -20,9 +20,10 @@ The platform for this app (Android / iOS / Flutter / Unity / React Native) is al
 
 Your task is to **fully integrate the OneSignal SDK** into this repository using official documentation and best practices from:
 
-* [https://onesignal.com/](https://onesignal.com/)
-* [https://documentation.onesignal.com/](https://documentation.onesignal.com/)
-* [https://github.com/OneSignal](https://github.com/OneSignal)
+* [OneSignal Website](https://onesignal.com/)
+* [Mobile SDK reference](https://documentation.onesignal.com/docs/en/mobile-sdk-reference)
+* [OneSignal Documentation](https://documentation.onesignal.com/)
+* [Mobile SDKs](https://github.com/OneSignal/sdks)
 
 ---
 
@@ -36,80 +37,56 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
    - React Native: JavaScript or TypeScript
 
 2. **What is your OneSignal App ID?**
-   - If the user says "use demo" or doesn't have one, use the demo App ID: `1db1662c-7609-4a90-b0ad-15b45407d628`
+   - If the user says "use demo" or doesn't have one, use the Demo App ID: `1db1662c-7609-4a90-b0ad-15b45407d628`
    - When using the demo App ID, you MUST also create a Welcome View (see Demo Mode section below)
 
 3. **Which SDK track should I use?**
-   - **Stable** (recommended for production) — Use this by default
-   - **Current** (latest features, may have breaking changes)
+   - Each SDK version will be marked as either **Stable** or **Current**.
+   - **Stable** (recommended for production) — Use the latest Stable version by default
+   - **Current** (latest features, may have breaking changes) - Do not use this unless explicitly asked
 
 4. **Is this a new integration or migrating from an older OneSignal SDK?**
    - New integration (default)
    - Migration from SDK v4.x or earlier *(not currently supported — choose "New integration")*
 
+5. **How would you like to handle version control?** (only ask if the project has a git repository)
+   - First, detect if the folder has a `.git` directory
+   - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
+   - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
+   - **Option B: Current branch** — Write all changes directly to the current branch without stashing or creating a new branch
+   - If no git repository is detected, skip this question and proceed
+
 ---
 
 ## Demo Mode — Welcome View (When Using Demo App ID)
 
-If the user chooses to use the demo App ID, you MUST create a **Welcome View** that:
+If the user chooses to use the Demo App ID, you MUST create a **Welcome View** that:
 
-### UI Requirements
+### Requirements
 
-1. **Header Section**
-   - Title: "OneSignal Integration Complete!"
-   - Subtitle: "Test your push notification setup"
-   - Brief explanation of what will happen when they submit
+1. **Collects user information:**
+   - Email address field with validation
+   - Show validation errors inline
 
-2. **Email Input Field**
-   - Label: "Email Address"
-   - Placeholder: "you@example.com"
-   - Validation: Use regex `^[^\s@]+@[^\s@]+\.[^\s@]+$`
-   - Show inline error if invalid
-
-3. **Phone Number Input Field**
-   - Label: "Phone Number"
-   - Placeholder: "+1 555 123 4567"
-   - Validation: E.164 format (starts with +, 10-15 digits)
-   - Show inline error if invalid
-
-4. **Submit Button**
-   - Text: "Send Welcome Message"
-   - Disabled until both fields are valid
+2. **Submit flow:**
+   - Button disabled until email is valid
    - Show loading state while submitting
+   - Display success confirmation after submission
 
-5. **Success State**
-   - After successful submission, show confirmation message
-   - "Check your email and phone for a welcome message!"
+3. **On submit, call these OneSignal methods:**
+   ```
+   OneSignal.User.addEmail(emailAddress)
+   OneSignal.User.addTag("demo_user", "true")
+   OneSignal.User.addTag("welcome_sent", currentTimestamp)
+   ```
 
-### On Submit Action
+4. **Use platform-native UI components and styling**
 
-```
-// Pseudocode for submit action
-OneSignal.User.addEmail(emailAddress)
-OneSignal.User.addSms(phoneNumber)
-OneSignal.User.addTag("demo_user", "true")
-OneSignal.User.addTag("welcome_sent", currentTimestamp)
-```
-
-### Platform-Specific Styling
-
-- **Android**: Use Material Design 3 components
-- **iOS**: Use UIKit or SwiftUI with native styling
-- **Flutter**: Use Material or Cupertino widgets
-- **Unity**: Use Unity UI (Canvas-based)
-- **React Native**: Use React Native Paper or native components
+See platform-specific integration files for complete implementation examples.
 
 ---
 
-## Step 2 — Branching
-
-* Create a new git branch named: **`onesignal-integration`**
-* All changes must be committed to this branch only
-* Do NOT push to main/master directly
-
----
-
-## Step 3 — SDK Version Selection
+## Step 2 — SDK Version Selection
 
 **IMPORTANT:** Get SDK versions ONLY from this official page:
 **https://onesignal.github.io/sdk-releases/**
@@ -119,11 +96,11 @@ OneSignal.User.addTag("welcome_sent", currentTimestamp)
 * Do NOT use other sources (npm, pub.dev, GitHub releases) for version numbers
 * The official releases page above has both **Stable** and **Current** versions for all platforms
 
-Use the **Stable** track unless the user specifically requested Current.
+Use the **Stable** track unless the user specifically requested Current. Do not use a version range.
 
 ---
 
-## Step 4 — Architecture Compliance (Required)
+## Step 3 — Architecture Compliance (Required)
 
 * Follow the **existing architecture of the codebase**
 * Do NOT introduce a new architectural pattern
@@ -133,93 +110,53 @@ Platform-specific guidance is provided in the platform integration files.
 
 ---
 
-## Step 5 — Centralized OneSignal Integration (Required)
+## Step 4 — Centralized OneSignal Integration (Required)
 
-Create a **single, centralized class/module** that owns all OneSignal logic:
+Create a **single, centralized class/module** that wraps all OneSignal SDK interactions:
 
 ### Responsibilities
 
-* SDK initialization
-* Public app-facing APIs:
-  - `initialize()` - Initialize the SDK
-  - `login(externalId: String)` - Identify user
-  - `logout()` - Clear user identity
-  - `setEmail(email: String)` - Add email subscription
-  - `setSmsNumber(number: String)` - Add SMS subscription
-  - `setTag(key: String, value: String)` - Set user tag
-  - `requestPermission()` - Request push permission
-  - `setLogLevel(level: LogLevel)` - Control logging
-* Isolation of OneSignal SDK usage
+* Initialize the SDK
+* Manage user identity (login/logout)
+* Handle email and SMS subscriptions
+* Manage user tags
+* Control logging levels
+* Isolate all direct OneSignal SDK calls
 
 ### Rules
 
-* **No direct OneSignal SDK calls outside this class**
-* All OneSignal interactions go through this wrapper
+* **No direct OneSignal SDK calls outside this wrapper**
+* All OneSignal interactions go through the centralized class/module
 * Makes testing and future SDK updates easier
 
----
-
-## Step 6 — Threading & Performance (Required)
-
-* Perform OneSignal initialization and non-UI work **off the main thread**
-* Platform guidance is in the platform-specific files
-* **Do NOT block the UI thread**
+See platform integration files for specific implementation patterns and method signatures.
 
 ---
 
-## Step 7 — Integration Implementation
+## Step 5 — Integration Implementation
 
 Perform a **minimal, production-ready integration**, including:
 
 1. **Dependency configuration** (gradle, CocoaPods, pubspec, etc.)
 2. **Required app config changes** (manifest, plist, etc.)
 3. **SDK initialization** at the correct lifecycle point
-4. **Push permission handling** (request at appropriate time)
-5. **Avoid deprecated APIs** — use the latest SDK patterns
+4. **Avoid deprecated APIs** — use the latest SDK patterns
 
 ---
 
-## Step 8 — Create Pull Request
+## Step 6 — Changes Summary (Output in Chat)
 
-* Push branch **`onesignal-integration`** to remote
-* Create a Pull Request against the default branch
-* Respect any existing PR templates
-* Keep the PR description concise but complete
+Output a **clean, copy-ready Pull Request summary** in the chat.
 
----
+Do NOT automatically create a PR — let the user copy it.
 
-## Step 9 — PR Summary (Output in Chat)
+### Include in the summary:
 
-After creating the PR, output a **clean, copy-ready PR summary** in the chat.
-
-Do NOT automatically insert it into the PR description — let the user copy it.
-
-### Summary Format
-
-```markdown
-## OneSignal SDK Integration
-
-### Changes
-- [List key changes]
-
-### SDK Details
-- **Platform**: [Android/iOS/Flutter/Unity/React Native]
-- **SDK Version**: [version number]
-- **Track**: [Stable/Current]
-
-### Architecture
-- [Where OneSignal logic is placed]
-- [How it fits existing architecture]
-
-### Threading
-- [How background work is handled]
-
-### How to Verify
-1. [Step-by-step verification instructions]
-
-### Follow-ups / Risks
-- [Any known limitations or future work]
-```
+* Key changes made to the codebase
+* SDK details (platform, version, track)
+* Architecture decisions and where OneSignal logic is placed
+* Step-by-step verification instructions
+* Any follow-ups, limitations, or known risks
 
 ---
 
@@ -227,6 +164,7 @@ Do NOT automatically insert it into the PR description — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required
+* **Do NOT add code related to push notifications** including permission prompting
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)
@@ -238,7 +176,6 @@ Do NOT automatically insert it into the PR description — let the user copy it.
 ## Official Documentation
 
 * [OneSignal iOS SDK Setup](https://documentation.onesignal.com/docs/ios-sdk-setup)
-* [iOS SDK API Reference](https://documentation.onesignal.com/docs/ios-sdk-api-reference)
 * [GitHub Repository](https://github.com/OneSignal/OneSignal-iOS-SDK)
 
 ---
@@ -270,7 +207,8 @@ Before considering the integration complete, verify ALL of the following:
 
 ### Deployment Target
 
-- [ ] Minimum deployment target is iOS 11.0 or higher (iOS 14+ recommended)
+- [ ] Confirm minimum deployment target is iOS 12.0 or higher (iOS 14+ recommended)
+- [ ] Do not change if it is already set
 
 ### APNs Configuration
 
@@ -324,20 +262,25 @@ YourApp/
 
 ---
 
-## Threading Model
+## Threading Model (Optional)
+
+For advanced use cases where you need explicit threading control:
 
 ### Swift (async/await)
 
 ```swift
 actor OneSignalManager {
     static let shared = OneSignalManager()
-    
+
     func initialize(appId: String) async {
         await Task.detached(priority: .background) {
-            OneSignal.initialize(appId)
+            // Set log level for debugging (remove in production)
+            OneSignal.Debug.setLogLevel(.LL_VERBOSE)
+            // Initialize OneSignal
+            OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
         }.value
     }
-    
+
     func login(externalId: String) async {
         await Task.detached(priority: .background) {
             OneSignal.login(externalId)
@@ -352,10 +295,13 @@ actor OneSignalManager {
 class OneSignalManager {
     static let shared = OneSignalManager()
     private let queue = DispatchQueue(label: "com.app.onesignal", qos: .background)
-    
+
     func initialize(appId: String) {
         queue.async {
-            OneSignal.initialize(appId)
+            // Set log level for debugging (remove in production)
+            OneSignal.Debug.setLogLevel(.LL_VERBOSE)
+            // Initialize OneSignal
+            OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
         }
     }
 }
@@ -414,23 +360,16 @@ import OneSignalFramework
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
-    
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        
-        // Initialize OneSignal
-        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
-        
         // Set log level for debugging (remove in production)
         OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-        
-        // Request notification permission
-        OneSignal.Notifications.requestPermission({ accepted in
-            print("Notification permission accepted: \(accepted)")
-        }, fallbackToSettings: true)
-        
+        // Initialize OneSignal
+        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
+
         return true
     }
 }
@@ -444,21 +383,17 @@ import OneSignalFramework
 
 @main
 struct YourApp: App {
-    
+
     init() {
-        // Initialize OneSignal
-        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: nil)
+        // Set log level for debugging (remove in production)
         OneSignal.Debug.setLogLevel(.LL_VERBOSE)
+        // Initialize OneSignal
+        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
     }
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .onAppear {
-                    OneSignal.Notifications.requestPermission({ accepted in
-                        print("Permission: \(accepted)")
-                    }, fallbackToSettings: true)
-                }
         }
     }
 }
@@ -471,39 +406,36 @@ import OneSignalFramework
 
 final class OneSignalManager {
     static let shared = OneSignalManager()
-    
+
     private init() {}
-    
+
     func initialize(appId: String) {
-        OneSignal.initialize(appId, withLaunchOptions: nil)
+        // Set log level for debugging (remove in production)
+        OneSignal.Debug.setLogLevel(.LL_VERBOSE)
+        // Initialize OneSignal
+        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
     }
-    
+
     func login(externalId: String) {
         OneSignal.login(externalId)
     }
-    
+
     func logout() {
         OneSignal.logout()
     }
-    
+
     func setEmail(_ email: String) {
         OneSignal.User.addEmail(email)
     }
-    
+
     func setSmsNumber(_ number: String) {
         OneSignal.User.addSms(number)
     }
-    
+
     func setTag(key: String, value: String) {
         OneSignal.User.addTag(key: key, value: value)
     }
-    
-    func requestPermission(completion: @escaping (Bool) -> Void) {
-        OneSignal.Notifications.requestPermission({ accepted in
-            completion(accepted)
-        }, fallbackToSettings: true)
-    }
-    
+
     func setLogLevel(_ level: ONE_S_LOG_LEVEL) {
         OneSignal.Debug.setLogLevel(level)
     }
@@ -524,25 +456,19 @@ import OneSignalFramework
 
 struct WelcomeView: View {
     @State private var email = ""
-    @State private var phone = ""
     @State private var isLoading = false
     @State private var showSuccess = false
     @State private var errorMessage: String?
-    
+
     private var isEmailValid: Bool {
         let regex = #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#
         return email.range(of: regex, options: .regularExpression) != nil
     }
-    
-    private var isPhoneValid: Bool {
-        let regex = #"^\+[1-9]\d{9,14}$"#
-        return phone.range(of: regex, options: .regularExpression) != nil
-    }
-    
+
     private var isFormValid: Bool {
-        isEmailValid && isPhoneValid
+        isEmailValid
     }
-    
+
     var body: some View {
         NavigationView {
             VStack(spacing: 24) {
@@ -556,51 +482,39 @@ struct WelcomeView: View {
             .navigationTitle("OneSignal Demo")
         }
     }
-    
+
     private var formView: some View {
         VStack(spacing: 24) {
             VStack(spacing: 8) {
                 Text("OneSignal Integration Complete!")
                     .font(.title2)
                     .fontWeight(.bold)
-                
+
                 Text("Enter your details to receive a welcome message")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
-            
+
             VStack(alignment: .leading, spacing: 8) {
                 TextField("Email Address", text: $email)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .keyboardType(.emailAddress)
                     .autocapitalization(.none)
-                
+
                 if !email.isEmpty && !isEmailValid {
                     Text("Invalid email address")
                         .font(.caption)
                         .foregroundColor(.red)
                 }
             }
-            
-            VStack(alignment: .leading, spacing: 8) {
-                TextField("Phone Number (+1234567890)", text: $phone)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.phonePad)
-                
-                if !phone.isEmpty && !isPhoneValid {
-                    Text("Use format: +1234567890")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                }
-            }
-            
+
             if let error = errorMessage {
                 Text(error)
                     .font(.caption)
                     .foregroundColor(.red)
             }
-            
+
             Button(action: submitForm) {
                 if isLoading {
                     ProgressView()
@@ -615,38 +529,37 @@ struct WelcomeView: View {
             .foregroundColor(.white)
             .cornerRadius(10)
             .disabled(!isFormValid || isLoading)
-            
+
             Spacer()
         }
     }
-    
+
     private var successView: some View {
         VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
                 .foregroundColor(.green)
-            
+
             Text("Success!")
                 .font(.title)
                 .fontWeight(.bold)
-            
-            Text("Check your email and phone for a welcome message!")
+
+            Text("Check your email for a welcome message!")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
     }
-    
+
     private func submitForm() {
         isLoading = true
         errorMessage = nil
-        
+
         DispatchQueue.global(qos: .background).async {
             OneSignal.User.addEmail(email)
-            OneSignal.User.addSms(phone)
             OneSignal.User.addTag(key: "demo_user", value: "true")
             OneSignal.User.addTag(key: "welcome_sent", value: "\(Date().timeIntervalSince1970)")
-            
+
             DispatchQueue.main.async {
                 isLoading = false
                 showSuccess = true
@@ -667,42 +580,41 @@ import UIKit
 import OneSignalFramework
 
 class WelcomeViewController: UIViewController {
-    
+
     private let stackView = UIStackView()
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
     private let emailTextField = UITextField()
-    private let phoneTextField = UITextField()
     private let submitButton = UIButton(type: .system)
     private let activityIndicator = UIActivityIndicatorView(style: .medium)
     private let successView = UIView()
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
     }
-    
+
     private func setupUI() {
         view.backgroundColor = .systemBackground
-        
+
         // Configure stack view
         stackView.axis = .vertical
         stackView.spacing = 16
         stackView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(stackView)
-        
+
         NSLayoutConstraint.activate([
             stackView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
         ])
-        
+
         // Title
         titleLabel.text = "OneSignal Integration Complete!"
         titleLabel.font = .preferredFont(forTextStyle: .title2)
         titleLabel.textAlignment = .center
         stackView.addArrangedSubview(titleLabel)
-        
+
         // Subtitle
         subtitleLabel.text = "Enter your details to receive a welcome message"
         subtitleLabel.font = .preferredFont(forTextStyle: .subheadline)
@@ -710,7 +622,7 @@ class WelcomeViewController: UIViewController {
         subtitleLabel.textAlignment = .center
         subtitleLabel.numberOfLines = 0
         stackView.addArrangedSubview(subtitleLabel)
-        
+
         // Email field
         emailTextField.placeholder = "Email Address"
         emailTextField.borderStyle = .roundedRect
@@ -718,14 +630,7 @@ class WelcomeViewController: UIViewController {
         emailTextField.autocapitalizationType = .none
         emailTextField.addTarget(self, action: #selector(textFieldDidChange), for: .editingChanged)
         stackView.addArrangedSubview(emailTextField)
-        
-        // Phone field
-        phoneTextField.placeholder = "Phone Number (+1234567890)"
-        phoneTextField.borderStyle = .roundedRect
-        phoneTextField.keyboardType = .phonePad
-        phoneTextField.addTarget(self, action: #selector(textFieldDidChange), for: .editingChanged)
-        stackView.addArrangedSubview(phoneTextField)
-        
+
         // Submit button
         submitButton.setTitle("Send Welcome Message", for: .normal)
         submitButton.backgroundColor = .systemGray
@@ -736,61 +641,54 @@ class WelcomeViewController: UIViewController {
         submitButton.addTarget(self, action: #selector(submitTapped), for: .touchUpInside)
         stackView.addArrangedSubview(submitButton)
     }
-    
+
     @objc private func textFieldDidChange() {
-        let isValid = isEmailValid && isPhoneValid
+        let isValid = isEmailValid
         submitButton.isEnabled = isValid
         submitButton.backgroundColor = isValid ? .systemBlue : .systemGray
     }
-    
+
     private var isEmailValid: Bool {
         guard let email = emailTextField.text else { return false }
         let regex = #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#
         return email.range(of: regex, options: .regularExpression) != nil
     }
-    
-    private var isPhoneValid: Bool {
-        guard let phone = phoneTextField.text else { return false }
-        let regex = #"^\+[1-9]\d{9,14}$"#
-        return phone.range(of: regex, options: .regularExpression) != nil
-    }
-    
+
     @objc private func submitTapped() {
-        guard let email = emailTextField.text, let phone = phoneTextField.text else { return }
-        
+        guard let email = emailTextField.text else { return }
+
         submitButton.isEnabled = false
         activityIndicator.startAnimating()
-        
+
         DispatchQueue.global(qos: .background).async {
             OneSignal.User.addEmail(email)
-            OneSignal.User.addSms(phone)
             OneSignal.User.addTag(key: "demo_user", value: "true")
             OneSignal.User.addTag(key: "welcome_sent", value: "\(Date().timeIntervalSince1970)")
-            
+
             DispatchQueue.main.async { [weak self] in
                 self?.showSuccess()
             }
         }
     }
-    
+
     private func showSuccess() {
         // Replace form with success message
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        
+
         let checkmark = UIImageView(image: UIImage(systemName: "checkmark.circle.fill"))
         checkmark.tintColor = .systemGreen
         checkmark.contentMode = .scaleAspectFit
         checkmark.heightAnchor.constraint(equalToConstant: 64).isActive = true
         stackView.addArrangedSubview(checkmark)
-        
+
         let successLabel = UILabel()
         successLabel.text = "Success!"
         successLabel.font = .preferredFont(forTextStyle: .title1)
         successLabel.textAlignment = .center
         stackView.addArrangedSubview(successLabel)
-        
+
         let messageLabel = UILabel()
-        messageLabel.text = "Check your email and phone for a welcome message!"
+        messageLabel.text = "Check your email for a welcome message!"
         messageLabel.font = .preferredFont(forTextStyle: .body)
         messageLabel.textColor = .secondaryLabel
         messageLabel.textAlignment = .center
@@ -807,7 +705,6 @@ class WelcomeViewController: UIViewController {
 | Issue | Solution |
 |-------|----------|
 | Push not received | Verify APNs key/certificate is uploaded to OneSignal |
-| Permission not requested | Ensure `requestPermission` is called after initialization |
 | Background notifications fail | Check Background Modes capability has "Remote notifications" |
 | Simulator issues | Push notifications only work on physical devices |
 | Entitlements error | Regenerate provisioning profiles in Apple Developer portal |

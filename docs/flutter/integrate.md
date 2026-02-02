@@ -285,18 +285,15 @@ class WelcomeScreen extends StatefulWidget {
 class _WelcomeScreenState extends State<WelcomeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   
   bool _isLoading = false;
   bool _showSuccess = false;
   
   final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-  final _phoneRegex = RegExp(r'^\+[1-9]\d{9,14}$');
   
   @override
   void dispose() {
     _emailController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
   
@@ -310,16 +307,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     return null;
   }
   
-  String? _validatePhone(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Phone number is required';
-    }
-    if (!_phoneRegex.hasMatch(value)) {
-      return 'Use format: +1234567890';
-    }
-    return null;
-  }
-  
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -327,10 +314,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     
     try {
       final email = _emailController.text;
-      final phone = _phoneController.text;
       
       OneSignal.User.addEmail(email);
-      OneSignal.User.addSms(phone);
       OneSignal.User.addTagWithKey('demo_user', 'true');
       OneSignal.User.addTagWithKey('welcome_sent', DateTime.now().millisecondsSinceEpoch.toString());
       
@@ -399,18 +384,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             keyboardType: TextInputType.emailAddress,
             validator: _validateEmail,
           ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _phoneController,
-            decoration: const InputDecoration(
-              labelText: 'Phone Number',
-              hintText: '+1 555 123 4567',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.phone),
-            ),
-            keyboardType: TextInputType.phone,
-            validator: _validatePhone,
-          ),
           const SizedBox(height: 24),
           SizedBox(
             height: 50,
@@ -449,7 +422,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Check your email and phone for a welcome message!',
+          'Check your email for a welcome message!',
           style: TextStyle(
             fontSize: 16,
             color: Colors.grey[600],
@@ -477,32 +450,24 @@ class WelcomeScreenCupertino extends StatefulWidget {
 
 class _WelcomeScreenCupertinoState extends State<WelcomeScreenCupertino> {
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   
   bool _isLoading = false;
   bool _showSuccess = false;
   String? _emailError;
-  String? _phoneError;
   
   final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-  final _phoneRegex = RegExp(r'^\+[1-9]\d{9,14}$');
   
   bool get _isFormValid {
     final email = _emailController.text;
-    final phone = _phoneController.text;
-    return _emailRegex.hasMatch(email) && _phoneRegex.hasMatch(phone);
+    return _emailRegex.hasMatch(email);
   }
   
   void _validateFields() {
     setState(() {
       final email = _emailController.text;
-      final phone = _phoneController.text;
       
       _emailError = email.isNotEmpty && !_emailRegex.hasMatch(email)
           ? 'Enter a valid email address'
-          : null;
-      _phoneError = phone.isNotEmpty && !_phoneRegex.hasMatch(phone)
-          ? 'Use format: +1234567890'
           : null;
     });
   }
@@ -513,10 +478,8 @@ class _WelcomeScreenCupertinoState extends State<WelcomeScreenCupertino> {
     setState(() => _isLoading = true);
     
     final email = _emailController.text;
-    final phone = _phoneController.text;
     
     OneSignal.User.addEmail(email);
-    OneSignal.User.addSms(phone);
     OneSignal.User.addTagWithKey('demo_user', 'true');
     OneSignal.User.addTagWithKey('welcome_sent', DateTime.now().millisecondsSinceEpoch.toString());
     
@@ -566,22 +529,6 @@ class _WelcomeScreenCupertinoState extends State<WelcomeScreenCupertino> {
             padding: const EdgeInsets.only(top: 4),
             child: Text(_emailError!, style: const TextStyle(color: CupertinoColors.destructiveRed, fontSize: 12)),
           ),
-        const SizedBox(height: 16),
-        CupertinoTextField(
-          controller: _phoneController,
-          placeholder: 'Phone Number (+1234567890)',
-          keyboardType: TextInputType.phone,
-          onChanged: (_) => _validateFields(),
-          prefix: const Padding(
-            padding: EdgeInsets.only(left: 8),
-            child: Icon(CupertinoIcons.phone),
-          ),
-        ),
-        if (_phoneError != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(_phoneError!, style: const TextStyle(color: CupertinoColors.destructiveRed, fontSize: 12)),
-          ),
         const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
@@ -605,7 +552,7 @@ class _WelcomeScreenCupertinoState extends State<WelcomeScreenCupertino> {
         const Text('Success!', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Text(
-          'Check your email and phone for a welcome message!',
+          'Check your email for a welcome message!',
           style: TextStyle(fontSize: 16, color: CupertinoColors.systemGrey),
           textAlign: TextAlign.center,
         ),

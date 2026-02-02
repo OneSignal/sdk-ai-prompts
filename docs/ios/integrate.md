@@ -283,7 +283,6 @@ import OneSignalFramework
 
 struct WelcomeView: View {
     @State private var email = ""
-    @State private var phone = ""
     @State private var isLoading = false
     @State private var showSuccess = false
     @State private var errorMessage: String?
@@ -293,13 +292,8 @@ struct WelcomeView: View {
         return email.range(of: regex, options: .regularExpression) != nil
     }
 
-    private var isPhoneValid: Bool {
-        let regex = #"^\+[1-9]\d{9,14}$"#
-        return phone.range(of: regex, options: .regularExpression) != nil
-    }
-
     private var isFormValid: Bool {
-        isEmailValid && isPhoneValid
+        isEmailValid
     }
 
     var body: some View {
@@ -342,18 +336,6 @@ struct WelcomeView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                TextField("Phone Number (+1234567890)", text: $phone)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.phonePad)
-
-                if !phone.isEmpty && !isPhoneValid {
-                    Text("Use format: +1234567890")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                }
-            }
-
             if let error = errorMessage {
                 Text(error)
                     .font(.caption)
@@ -389,7 +371,7 @@ struct WelcomeView: View {
                 .font(.title)
                 .fontWeight(.bold)
 
-            Text("Check your email and phone for a welcome message!")
+            Text("Check your email for a welcome message!")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -402,7 +384,6 @@ struct WelcomeView: View {
 
         DispatchQueue.global(qos: .background).async {
             OneSignal.User.addEmail(email)
-            OneSignal.User.addSms(phone)
             OneSignal.User.addTag(key: "demo_user", value: "true")
             OneSignal.User.addTag(key: "welcome_sent", value: "\(Date().timeIntervalSince1970)")
 
@@ -431,7 +412,6 @@ class WelcomeViewController: UIViewController {
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
     private let emailTextField = UITextField()
-    private let phoneTextField = UITextField()
     private let submitButton = UIButton(type: .system)
     private let activityIndicator = UIActivityIndicatorView(style: .medium)
     private let successView = UIView()
@@ -478,13 +458,6 @@ class WelcomeViewController: UIViewController {
         emailTextField.addTarget(self, action: #selector(textFieldDidChange), for: .editingChanged)
         stackView.addArrangedSubview(emailTextField)
 
-        // Phone field
-        phoneTextField.placeholder = "Phone Number (+1234567890)"
-        phoneTextField.borderStyle = .roundedRect
-        phoneTextField.keyboardType = .phonePad
-        phoneTextField.addTarget(self, action: #selector(textFieldDidChange), for: .editingChanged)
-        stackView.addArrangedSubview(phoneTextField)
-
         // Submit button
         submitButton.setTitle("Send Welcome Message", for: .normal)
         submitButton.backgroundColor = .systemGray
@@ -497,7 +470,7 @@ class WelcomeViewController: UIViewController {
     }
 
     @objc private func textFieldDidChange() {
-        let isValid = isEmailValid && isPhoneValid
+        let isValid = isEmailValid
         submitButton.isEnabled = isValid
         submitButton.backgroundColor = isValid ? .systemBlue : .systemGray
     }
@@ -508,21 +481,14 @@ class WelcomeViewController: UIViewController {
         return email.range(of: regex, options: .regularExpression) != nil
     }
 
-    private var isPhoneValid: Bool {
-        guard let phone = phoneTextField.text else { return false }
-        let regex = #"^\+[1-9]\d{9,14}$"#
-        return phone.range(of: regex, options: .regularExpression) != nil
-    }
-
     @objc private func submitTapped() {
-        guard let email = emailTextField.text, let phone = phoneTextField.text else { return }
+        guard let email = emailTextField.text else { return }
 
         submitButton.isEnabled = false
         activityIndicator.startAnimating()
 
         DispatchQueue.global(qos: .background).async {
             OneSignal.User.addEmail(email)
-            OneSignal.User.addSms(phone)
             OneSignal.User.addTag(key: "demo_user", value: "true")
             OneSignal.User.addTag(key: "welcome_sent", value: "\(Date().timeIntervalSince1970)")
 
@@ -549,7 +515,7 @@ class WelcomeViewController: UIViewController {
         stackView.addArrangedSubview(successLabel)
 
         let messageLabel = UILabel()
-        messageLabel.text = "Check your email and phone for a welcome message!"
+        messageLabel.text = "Check your email for a welcome message!"
         messageLabel.font = .preferredFont(forTextStyle: .body)
         messageLabel.textColor = .secondaryLabel
         messageLabel.textAlignment = .center

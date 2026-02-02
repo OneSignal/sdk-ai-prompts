@@ -41,8 +41,8 @@ When you use these prompts, the AI will:
 If you don't have a OneSignal App ID:
 
 1. When asked for your App ID, say "use demo"
-2. The AI will create a **Welcome View** with email and phone input
-3. On submit, it triggers a welcome journey (email + SMS)
+2. The AI will create a **Welcome View** with email input
+3. On submit, it triggers a welcome email journey
 
 ## Links
 

@@ -263,20 +263,16 @@ class WelcomeFragment : Fragment() {
     
     private fun setupValidation() {
         binding.emailInput.addTextChangedListener { validateForm() }
-        binding.phoneInput.addTextChangedListener { validateForm() }
     }
     
     private fun validateForm() {
         val email = binding.emailInput.text.toString()
-        val phone = binding.phoneInput.text.toString()
         
         val emailValid = email.matches(Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
-        val phoneValid = phone.matches(Regex("^\\+[1-9]\\d{9,14}$"))
         
         binding.emailInputLayout.error = if (email.isNotEmpty() && !emailValid) "Invalid email" else null
-        binding.phoneInputLayout.error = if (phone.isNotEmpty() && !phoneValid) "Use format: +1234567890" else null
         
-        binding.submitButton.isEnabled = emailValid && phoneValid
+        binding.submitButton.isEnabled = emailValid
     }
     
     private fun setupSubmitButton() {
@@ -287,7 +283,6 @@ class WelcomeFragment : Fragment() {
     
     private fun submitForm() {
         val email = binding.emailInput.text.toString()
-        val phone = binding.phoneInput.text.toString()
         
         binding.submitButton.isEnabled = false
         binding.progressIndicator.visibility = View.VISIBLE
@@ -296,7 +291,6 @@ class WelcomeFragment : Fragment() {
             try {
                 withContext(Dispatchers.IO) {
                     oneSignalManager.setEmail(email)
-                    oneSignalManager.setSmsNumber(phone)
                     oneSignalManager.setTag("demo_user", "true")
                     oneSignalManager.setTag("welcome_sent", System.currentTimeMillis().toString())
                 }
@@ -375,21 +369,6 @@ class WelcomeFragment : Fragment() {
                 android:inputType="textEmailAddress" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/phoneInputLayout"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Phone Number"
-            android:layout_marginBottom="24dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/phoneInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="phone" />
-        </com.google.android.material.textfield.TextInputLayout>
-
         <com.google.android.material.progressindicator.LinearProgressIndicator
             android:id="@+id/progressIndicator"
             android:layout_width="match_parent"
@@ -435,7 +414,7 @@ class WelcomeFragment : Fragment() {
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Check your email and phone for a welcome message!"
+            android:text="Check your email for a welcome message!"
             android:textAppearance="?attr/textAppearanceBodyLarge"
             android:textAlignment="center" />
     </LinearLayout>
