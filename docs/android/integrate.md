@@ -228,7 +228,6 @@ Keep the Application class minimal - just set up Hilt:
 @HiltAndroidApp
 class MyApplication : Application()
 ```
-```
 
 ---
 
