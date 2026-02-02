@@ -146,26 +146,20 @@ import {
 import { OneSignal } from 'react-native-onesignal';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^\+[1-9]\d{9,14}$/;
 
 export function WelcomeScreen() {
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errors, setErrors] = useState({});
 
   const isEmailValid = EMAIL_REGEX.test(email);
-  const isPhoneValid = PHONE_REGEX.test(phone);
-  const isFormValid = isEmailValid && isPhoneValid;
+  const isFormValid = isEmailValid;
 
   const validateFields = () => {
     const newErrors = {};
     if (email && !isEmailValid) {
       newErrors.email = 'Enter a valid email address';
-    }
-    if (phone && !isPhoneValid) {
-      newErrors.phone = 'Use format: +1234567890';
     }
     setErrors(newErrors);
   };
@@ -177,7 +171,6 @@ export function WelcomeScreen() {
 
     try {
       OneSignal.User.addEmail(email);
-      OneSignal.User.addSms(phone);
       OneSignal.User.addTag('demo_user', 'true');
       OneSignal.User.addTag('welcome_sent', Date.now().toString());
 
@@ -196,7 +189,7 @@ export function WelcomeScreen() {
         <Text style={styles.checkmark}>✓</Text>
         <Text style={styles.successTitle}>Success!</Text>
         <Text style={styles.successMessage}>
-          Check your email and phone for a welcome message!
+          Check your email for a welcome message!
         </Text>
       </View>
     );
@@ -229,19 +222,6 @@ export function WelcomeScreen() {
               autoCorrect={false}
             />
             {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={[styles.input, errors.phone && styles.inputError]}
-              value={phone}
-              onChangeText={setPhone}
-              onBlur={validateFields}
-              placeholder="+1 555 123 4567"
-              keyboardType="phone-pad"
-            />
-            {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
           </View>
 
           <TouchableOpacity
@@ -374,31 +354,24 @@ import {
 import { OneSignal } from 'react-native-onesignal';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^\+[1-9]\d{9,14}$/;
 
 interface FormErrors {
   email?: string;
-  phone?: string;
 }
 
 export const WelcomeScreen: React.FC = () => {
   const [email, setEmail] = useState<string>('');
-  const [phone, setPhone] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showSuccess, setShowSuccess] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormErrors>({});
 
   const isEmailValid = EMAIL_REGEX.test(email);
-  const isPhoneValid = PHONE_REGEX.test(phone);
-  const isFormValid = isEmailValid && isPhoneValid;
+  const isFormValid = isEmailValid;
 
   const validateFields = (): void => {
     const newErrors: FormErrors = {};
     if (email && !isEmailValid) {
       newErrors.email = 'Enter a valid email address';
-    }
-    if (phone && !isPhoneValid) {
-      newErrors.phone = 'Use format: +1234567890';
     }
     setErrors(newErrors);
   };
@@ -410,7 +383,6 @@ export const WelcomeScreen: React.FC = () => {
 
     try {
       OneSignal.User.addEmail(email);
-      OneSignal.User.addSms(phone);
       OneSignal.User.addTag('demo_user', 'true');
       OneSignal.User.addTag('welcome_sent', Date.now().toString());
 
@@ -429,7 +401,7 @@ export const WelcomeScreen: React.FC = () => {
         <Text style={styles.checkmark}>✓</Text>
         <Text style={styles.successTitle}>Success!</Text>
         <Text style={styles.successMessage}>
-          Check your email and phone for a welcome message!
+          Check your email for a welcome message!
         </Text>
       </View>
     );
@@ -462,19 +434,6 @@ export const WelcomeScreen: React.FC = () => {
               autoCorrect={false}
             />
             {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={[styles.input, errors.phone && styles.inputError]}
-              value={phone}
-              onChangeText={setPhone}
-              onBlur={validateFields}
-              placeholder="+1 555 123 4567"
-              keyboardType="phone-pad"
-            />
-            {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
           </View>
 
           <TouchableOpacity

@@ -48,18 +48,16 @@ If the user chooses to use the Demo App ID, you MUST create a **Welcome View** t
 
 1. **Collects user information:**
    - Email address field with validation
-   - Phone number field with E.164 format validation
    - Show validation errors inline
 
 2. **Submit flow:**
-   - Button disabled until both fields are valid
+   - Button disabled until email is valid
    - Show loading state while submitting
    - Display success confirmation after submission
 
 3. **On submit, call these OneSignal methods:**
    ```
    OneSignal.User.addEmail(emailAddress)
-   OneSignal.User.addSms(phoneNumber)
    OneSignal.User.addTag("demo_user", "true")
    OneSignal.User.addTag("welcome_sent", currentTimestamp)
    ```

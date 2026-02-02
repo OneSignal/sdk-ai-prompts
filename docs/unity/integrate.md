@@ -317,10 +317,8 @@ public class WelcomeUI : MonoBehaviour
 {
     [Header("Form Elements")]
     [SerializeField] private TMP_InputField emailInput;
-    [SerializeField] private TMP_InputField phoneInput;
     [SerializeField] private Button submitButton;
     [SerializeField] private TMP_Text emailErrorText;
-    [SerializeField] private TMP_Text phoneErrorText;
     
     [Header("Loading")]
     [SerializeField] private GameObject loadingIndicator;
@@ -330,12 +328,10 @@ public class WelcomeUI : MonoBehaviour
     [SerializeField] private GameObject successView;
     
     private readonly Regex emailRegex = new Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-    private readonly Regex phoneRegex = new Regex(@"^\+[1-9]\d{9,14}$");
     
     private void Start()
     {
         emailInput.onValueChanged.AddListener(_ => ValidateForm());
-        phoneInput.onValueChanged.AddListener(_ => ValidateForm());
         submitButton.onClick.AddListener(OnSubmitClicked);
         
         ValidateForm();
@@ -344,16 +340,13 @@ public class WelcomeUI : MonoBehaviour
     private void ValidateForm()
     {
         string email = emailInput.text;
-        string phone = phoneInput.text;
         
         bool emailValid = string.IsNullOrEmpty(email) || emailRegex.IsMatch(email);
-        bool phoneValid = string.IsNullOrEmpty(phone) || phoneRegex.IsMatch(phone);
         
         emailErrorText.gameObject.SetActive(!emailValid);
-        phoneErrorText.gameObject.SetActive(!phoneValid);
         
-        bool formComplete = !string.IsNullOrEmpty(email) && !string.IsNullOrEmpty(phone);
-        bool formValid = emailRegex.IsMatch(email) && phoneRegex.IsMatch(phone);
+        bool formComplete = !string.IsNullOrEmpty(email);
+        bool formValid = emailRegex.IsMatch(email);
         
         submitButton.interactable = formComplete && formValid;
     }
@@ -364,13 +357,11 @@ public class WelcomeUI : MonoBehaviour
         loadingIndicator.SetActive(true);
         
         string email = emailInput.text;
-        string phone = phoneInput.text;
         
         try
         {
             // Set user data
             OneSignal.User.AddEmail(email);
-            OneSignal.User.AddSms(phone);
             OneSignal.User.AddTag("demo_user", "true");
             OneSignal.User.AddTag("welcome_sent", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
             
@@ -406,14 +397,12 @@ Canvas
 │   ├── SubtitleText ("Enter your details...")
 │   ├── EmailInputField
 │   │   └── EmailErrorText ("Invalid email address")
-│   ├── PhoneInputField
-│   │   └── PhoneErrorText ("Use format: +1234567890")
 │   ├── LoadingIndicator (Image with rotation animation)
 │   └── SubmitButton ("Send Welcome Message")
 └── SuccessView (initially disabled)
     ├── CheckmarkImage
     ├── SuccessTitleText ("Success!")
-    └── SuccessMessageText ("Check your email and phone...")
+    └── SuccessMessageText ("Check your email for a welcome message!")
 ```
 
 ### Alternative: IMGUI Version (Quick Testing)
@@ -426,12 +415,10 @@ using System.Text.RegularExpressions;
 public class WelcomeIMGUI : MonoBehaviour
 {
     private string email = "";
-    private string phone = "";
     private bool showSuccess = false;
     private bool isLoading = false;
     
     private readonly Regex emailRegex = new Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-    private readonly Regex phoneRegex = new Regex(@"^\+[1-9]\d{9,14}$");
     
     private void OnGUI()
     {
@@ -465,18 +452,9 @@ public class WelcomeIMGUI : MonoBehaviour
         if (!emailValid)
             GUILayout.Label("Invalid email address", new GUIStyle(GUI.skin.label) { normal = { textColor = Color.red } });
         
-        GUILayout.Space(10);
-        
-        GUILayout.Label("Phone Number:");
-        phone = GUILayout.TextField(phone, GUILayout.Height(30));
-        
-        bool phoneValid = string.IsNullOrEmpty(phone) || phoneRegex.IsMatch(phone);
-        if (!phoneValid)
-            GUILayout.Label("Use format: +1234567890", new GUIStyle(GUI.skin.label) { normal = { textColor = Color.red } });
-        
         GUILayout.Space(20);
         
-        bool canSubmit = emailRegex.IsMatch(email) && phoneRegex.IsMatch(phone) && !isLoading;
+        bool canSubmit = emailRegex.IsMatch(email) && !isLoading;
         
         GUI.enabled = canSubmit;
         if (GUILayout.Button(isLoading ? "Sending..." : "Send Welcome Message", GUILayout.Height(40)))
@@ -491,7 +469,7 @@ public class WelcomeIMGUI : MonoBehaviour
         GUILayout.FlexibleSpace();
         GUILayout.Label("✓", new GUIStyle(GUI.skin.label) { fontSize = 64, alignment = TextAnchor.MiddleCenter });
         GUILayout.Label("Success!", new GUIStyle(GUI.skin.label) { fontSize = 28, alignment = TextAnchor.MiddleCenter });
-        GUILayout.Label("Check your email and phone for a welcome message!",
+        GUILayout.Label("Check your email for a welcome message!",
             new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
         GUILayout.FlexibleSpace();
     }
@@ -501,7 +479,6 @@ public class WelcomeIMGUI : MonoBehaviour
         isLoading = true;
         
         OneSignal.User.AddEmail(email);
-        OneSignal.User.AddSms(phone);
         OneSignal.User.AddTag("demo_user", "true");
         OneSignal.User.AddTag("welcome_sent", System.DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
         
