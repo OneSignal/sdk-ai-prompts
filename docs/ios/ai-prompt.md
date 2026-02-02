@@ -179,16 +179,7 @@ Perform a **minimal, production-ready integration**, including:
 
 ---
 
-## Step 8 — Unit Tests (Required)
-
-* Add unit tests for the centralized OneSignal integration layer
-* Mock SDK interactions — do NOT make real network calls in tests
-* Follow existing test frameworks and conventions
-* Keep tests fast and deterministic
-
----
-
-## Step 9 — Create Pull Request
+## Step 8 — Create Pull Request
 
 * Push branch **`onesignal-integration`** to remote
 * Create a Pull Request against the default branch
@@ -197,7 +188,7 @@ Perform a **minimal, production-ready integration**, including:
 
 ---
 
-## Step 10 — PR Summary (Output in Chat)
+## Step 9 — PR Summary (Output in Chat)
 
 After creating the PR, output a **clean, copy-ready PR summary** in the chat.
 
@@ -223,12 +214,8 @@ Do NOT automatically insert it into the PR description — let the user copy it.
 ### Threading
 - [How background work is handled]
 
-### Tests Added
-- [List test files/classes added]
-
 ### How to Verify
 1. [Step-by-step verification instructions]
-2. [How to test push notifications]
 
 ### Follow-ups / Risks
 - [Any known limitations or future work]
@@ -809,32 +796,6 @@ class WelcomeViewController: UIViewController {
         messageLabel.textAlignment = .center
         messageLabel.numberOfLines = 0
         stackView.addArrangedSubview(messageLabel)
-    }
-}
-```
-
----
-
-## Testing
-
-### Unit Test Example
-
-```swift
-import XCTest
-@testable import YourApp
-
-class OneSignalManagerTests: XCTestCase {
-    
-    func testSetEmailCallsOneSignal() {
-        // Given
-        let manager = OneSignalManager.shared
-        let email = "test@example.com"
-        
-        // When
-        manager.setEmail(email)
-        
-        // Then - verify through integration test or mock
-        // For unit testing, consider using a protocol-based approach
     }
 }
 ```
