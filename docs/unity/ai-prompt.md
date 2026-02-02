@@ -20,9 +20,10 @@ The platform for this app (Android / iOS / Flutter / Unity / React Native) is al
 
 Your task is to **fully integrate the OneSignal SDK** into this repository using official documentation and best practices from:
 
-* [https://onesignal.com/](https://onesignal.com/)
-* [https://documentation.onesignal.com/](https://documentation.onesignal.com/)
-* [https://github.com/OneSignal](https://github.com/OneSignal)
+* [OneSignal Website](https://onesignal.com/)
+* [Mobile SDK reference](https://documentation.onesignal.com/docs/en/mobile-sdk-reference)
+* [OneSignal Documentation](https://documentation.onesignal.com/)
+* [Mobile SDKs](https://github.com/OneSignal/sdks)
 
 ---
 
@@ -36,80 +37,56 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
    - React Native: JavaScript or TypeScript
 
 2. **What is your OneSignal App ID?**
-   - If the user says "use demo" or doesn't have one, use the demo App ID: `1db1662c-7609-4a90-b0ad-15b45407d628`
+   - If the user says "use demo" or doesn't have one, use the Demo App ID: `1db1662c-7609-4a90-b0ad-15b45407d628`
    - When using the demo App ID, you MUST also create a Welcome View (see Demo Mode section below)
 
 3. **Which SDK track should I use?**
-   - **Stable** (recommended for production) — Use this by default
-   - **Current** (latest features, may have breaking changes)
+   - Each SDK version will be marked as either **Stable** or **Current**.
+   - **Stable** (recommended for production) — Use the latest Stable version by default
+   - **Current** (latest features, may have breaking changes) - Do not use this unless explicitly asked
 
 4. **Is this a new integration or migrating from an older OneSignal SDK?**
    - New integration (default)
    - Migration from SDK v4.x or earlier *(not currently supported — choose "New integration")*
 
+5. **How would you like to handle version control?** (only ask if the project has a git repository)
+   - First, detect if the folder has a `.git` directory
+   - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
+   - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
+   - **Option B: Current branch** — Write all changes directly to the current branch without stashing or creating a new branch
+   - If no git repository is detected, skip this question and proceed
+
 ---
 
 ## Demo Mode — Welcome View (When Using Demo App ID)
 
-If the user chooses to use the demo App ID, you MUST create a **Welcome View** that:
+If the user chooses to use the Demo App ID, you MUST create a **Welcome View** that:
 
-### UI Requirements
+### Requirements
 
-1. **Header Section**
-   - Title: "OneSignal Integration Complete!"
-   - Subtitle: "Test your push notification setup"
-   - Brief explanation of what will happen when they submit
+1. **Collects user information:**
+   - Email address field with validation
+   - Show validation errors inline
 
-2. **Email Input Field**
-   - Label: "Email Address"
-   - Placeholder: "you@example.com"
-   - Validation: Use regex `^[^\s@]+@[^\s@]+\.[^\s@]+$`
-   - Show inline error if invalid
-
-3. **Phone Number Input Field**
-   - Label: "Phone Number"
-   - Placeholder: "+1 555 123 4567"
-   - Validation: E.164 format (starts with +, 10-15 digits)
-   - Show inline error if invalid
-
-4. **Submit Button**
-   - Text: "Send Welcome Message"
-   - Disabled until both fields are valid
+2. **Submit flow:**
+   - Button disabled until email is valid
    - Show loading state while submitting
+   - Display success confirmation after submission
 
-5. **Success State**
-   - After successful submission, show confirmation message
-   - "Check your email and phone for a welcome message!"
+3. **On submit, call these OneSignal methods:**
+   ```
+   OneSignal.User.addEmail(emailAddress)
+   OneSignal.User.addTag("demo_user", "true")
+   OneSignal.User.addTag("welcome_sent", currentTimestamp)
+   ```
 
-### On Submit Action
+4. **Use platform-native UI components and styling**
 
-```
-// Pseudocode for submit action
-OneSignal.User.addEmail(emailAddress)
-OneSignal.User.addSms(phoneNumber)
-OneSignal.User.addTag("demo_user", "true")
-OneSignal.User.addTag("welcome_sent", currentTimestamp)
-```
-
-### Platform-Specific Styling
-
-- **Android**: Use Material Design 3 components
-- **iOS**: Use UIKit or SwiftUI with native styling
-- **Flutter**: Use Material or Cupertino widgets
-- **Unity**: Use Unity UI (Canvas-based)
-- **React Native**: Use React Native Paper or native components
+See platform-specific integration files for complete implementation examples.
 
 ---
 
-## Step 2 — Branching
-
-* Create a new git branch named: **`onesignal-integration`**
-* All changes must be committed to this branch only
-* Do NOT push to main/master directly
-
----
-
-## Step 3 — SDK Version Selection
+## Step 2 — SDK Version Selection
 
 **IMPORTANT:** Get SDK versions ONLY from this official page:
 **https://onesignal.github.io/sdk-releases/**
@@ -119,11 +96,11 @@ OneSignal.User.addTag("welcome_sent", currentTimestamp)
 * Do NOT use other sources (npm, pub.dev, GitHub releases) for version numbers
 * The official releases page above has both **Stable** and **Current** versions for all platforms
 
-Use the **Stable** track unless the user specifically requested Current.
+Use the **Stable** track unless the user specifically requested Current. Do not use a version range.
 
 ---
 
-## Step 4 — Architecture Compliance (Required)
+## Step 3 — Architecture Compliance (Required)
 
 * Follow the **existing architecture of the codebase**
 * Do NOT introduce a new architectural pattern
@@ -133,93 +110,53 @@ Platform-specific guidance is provided in the platform integration files.
 
 ---
 
-## Step 5 — Centralized OneSignal Integration (Required)
+## Step 4 — Centralized OneSignal Integration (Required)
 
-Create a **single, centralized class/module** that owns all OneSignal logic:
+Create a **single, centralized class/module** that wraps all OneSignal SDK interactions:
 
 ### Responsibilities
 
-* SDK initialization
-* Public app-facing APIs:
-  - `initialize()` - Initialize the SDK
-  - `login(externalId: String)` - Identify user
-  - `logout()` - Clear user identity
-  - `setEmail(email: String)` - Add email subscription
-  - `setSmsNumber(number: String)` - Add SMS subscription
-  - `setTag(key: String, value: String)` - Set user tag
-  - `requestPermission()` - Request push permission
-  - `setLogLevel(level: LogLevel)` - Control logging
-* Isolation of OneSignal SDK usage
+* Initialize the SDK
+* Manage user identity (login/logout)
+* Handle email and SMS subscriptions
+* Manage user tags
+* Control logging levels
+* Isolate all direct OneSignal SDK calls
 
 ### Rules
 
-* **No direct OneSignal SDK calls outside this class**
-* All OneSignal interactions go through this wrapper
+* **No direct OneSignal SDK calls outside this wrapper**
+* All OneSignal interactions go through the centralized class/module
 * Makes testing and future SDK updates easier
 
----
-
-## Step 6 — Threading & Performance (Required)
-
-* Perform OneSignal initialization and non-UI work **off the main thread**
-* Platform guidance is in the platform-specific files
-* **Do NOT block the UI thread**
+See platform integration files for specific implementation patterns and method signatures.
 
 ---
 
-## Step 7 — Integration Implementation
+## Step 5 — Integration Implementation
 
 Perform a **minimal, production-ready integration**, including:
 
 1. **Dependency configuration** (gradle, CocoaPods, pubspec, etc.)
 2. **Required app config changes** (manifest, plist, etc.)
 3. **SDK initialization** at the correct lifecycle point
-4. **Push permission handling** (request at appropriate time)
-5. **Avoid deprecated APIs** — use the latest SDK patterns
+4. **Avoid deprecated APIs** — use the latest SDK patterns
 
 ---
 
-## Step 8 — Create Pull Request
+## Step 6 — Changes Summary (Output in Chat)
 
-* Push branch **`onesignal-integration`** to remote
-* Create a Pull Request against the default branch
-* Respect any existing PR templates
-* Keep the PR description concise but complete
+Output a **clean, copy-ready Pull Request summary** in the chat.
 
----
+Do NOT automatically create a PR — let the user copy it.
 
-## Step 9 — PR Summary (Output in Chat)
+### Include in the summary:
 
-After creating the PR, output a **clean, copy-ready PR summary** in the chat.
-
-Do NOT automatically insert it into the PR description — let the user copy it.
-
-### Summary Format
-
-```markdown
-## OneSignal SDK Integration
-
-### Changes
-- [List key changes]
-
-### SDK Details
-- **Platform**: [Android/iOS/Flutter/Unity/React Native]
-- **SDK Version**: [version number]
-- **Track**: [Stable/Current]
-
-### Architecture
-- [Where OneSignal logic is placed]
-- [How it fits existing architecture]
-
-### Threading
-- [How background work is handled]
-
-### How to Verify
-1. [Step-by-step verification instructions]
-
-### Follow-ups / Risks
-- [Any known limitations or future work]
-```
+* Key changes made to the codebase
+* SDK details (platform, version, track)
+* Architecture decisions and where OneSignal logic is placed
+* Step-by-step verification instructions
+* Any follow-ups, limitations, or known risks
 
 ---
 
@@ -227,6 +164,7 @@ Do NOT automatically insert it into the PR description — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required
+* **Do NOT add code related to push notifications** including permission prompting
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)
@@ -552,10 +490,8 @@ public class WelcomeUI : MonoBehaviour
 {
     [Header("Form Elements")]
     [SerializeField] private TMP_InputField emailInput;
-    [SerializeField] private TMP_InputField phoneInput;
     [SerializeField] private Button submitButton;
     [SerializeField] private TMP_Text emailErrorText;
-    [SerializeField] private TMP_Text phoneErrorText;
     
     [Header("Loading")]
     [SerializeField] private GameObject loadingIndicator;
@@ -565,12 +501,10 @@ public class WelcomeUI : MonoBehaviour
     [SerializeField] private GameObject successView;
     
     private readonly Regex emailRegex = new Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-    private readonly Regex phoneRegex = new Regex(@"^\+[1-9]\d{9,14}$");
     
     private void Start()
     {
         emailInput.onValueChanged.AddListener(_ => ValidateForm());
-        phoneInput.onValueChanged.AddListener(_ => ValidateForm());
         submitButton.onClick.AddListener(OnSubmitClicked);
         
         ValidateForm();
@@ -579,16 +513,13 @@ public class WelcomeUI : MonoBehaviour
     private void ValidateForm()
     {
         string email = emailInput.text;
-        string phone = phoneInput.text;
         
         bool emailValid = string.IsNullOrEmpty(email) || emailRegex.IsMatch(email);
-        bool phoneValid = string.IsNullOrEmpty(phone) || phoneRegex.IsMatch(phone);
         
         emailErrorText.gameObject.SetActive(!emailValid);
-        phoneErrorText.gameObject.SetActive(!phoneValid);
         
-        bool formComplete = !string.IsNullOrEmpty(email) && !string.IsNullOrEmpty(phone);
-        bool formValid = emailRegex.IsMatch(email) && phoneRegex.IsMatch(phone);
+        bool formComplete = !string.IsNullOrEmpty(email);
+        bool formValid = emailRegex.IsMatch(email);
         
         submitButton.interactable = formComplete && formValid;
     }
@@ -599,13 +530,11 @@ public class WelcomeUI : MonoBehaviour
         loadingIndicator.SetActive(true);
         
         string email = emailInput.text;
-        string phone = phoneInput.text;
         
         try
         {
             // Set user data
             OneSignal.User.AddEmail(email);
-            OneSignal.User.AddSms(phone);
             OneSignal.User.AddTag("demo_user", "true");
             OneSignal.User.AddTag("welcome_sent", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
             
@@ -641,14 +570,12 @@ Canvas
 │   ├── SubtitleText ("Enter your details...")
 │   ├── EmailInputField
 │   │   └── EmailErrorText ("Invalid email address")
-│   ├── PhoneInputField
-│   │   └── PhoneErrorText ("Use format: +1234567890")
 │   ├── LoadingIndicator (Image with rotation animation)
 │   └── SubmitButton ("Send Welcome Message")
 └── SuccessView (initially disabled)
     ├── CheckmarkImage
     ├── SuccessTitleText ("Success!")
-    └── SuccessMessageText ("Check your email and phone...")
+    └── SuccessMessageText ("Check your email for a welcome message!")
 ```
 
 ### Alternative: IMGUI Version (Quick Testing)
@@ -661,12 +588,10 @@ using System.Text.RegularExpressions;
 public class WelcomeIMGUI : MonoBehaviour
 {
     private string email = "";
-    private string phone = "";
     private bool showSuccess = false;
     private bool isLoading = false;
     
     private readonly Regex emailRegex = new Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-    private readonly Regex phoneRegex = new Regex(@"^\+[1-9]\d{9,14}$");
     
     private void OnGUI()
     {
@@ -700,18 +625,9 @@ public class WelcomeIMGUI : MonoBehaviour
         if (!emailValid)
             GUILayout.Label("Invalid email address", new GUIStyle(GUI.skin.label) { normal = { textColor = Color.red } });
         
-        GUILayout.Space(10);
-        
-        GUILayout.Label("Phone Number:");
-        phone = GUILayout.TextField(phone, GUILayout.Height(30));
-        
-        bool phoneValid = string.IsNullOrEmpty(phone) || phoneRegex.IsMatch(phone);
-        if (!phoneValid)
-            GUILayout.Label("Use format: +1234567890", new GUIStyle(GUI.skin.label) { normal = { textColor = Color.red } });
-        
         GUILayout.Space(20);
         
-        bool canSubmit = emailRegex.IsMatch(email) && phoneRegex.IsMatch(phone) && !isLoading;
+        bool canSubmit = emailRegex.IsMatch(email) && !isLoading;
         
         GUI.enabled = canSubmit;
         if (GUILayout.Button(isLoading ? "Sending..." : "Send Welcome Message", GUILayout.Height(40)))
@@ -726,7 +642,7 @@ public class WelcomeIMGUI : MonoBehaviour
         GUILayout.FlexibleSpace();
         GUILayout.Label("✓", new GUIStyle(GUI.skin.label) { fontSize = 64, alignment = TextAnchor.MiddleCenter });
         GUILayout.Label("Success!", new GUIStyle(GUI.skin.label) { fontSize = 28, alignment = TextAnchor.MiddleCenter });
-        GUILayout.Label("Check your email and phone for a welcome message!",
+        GUILayout.Label("Check your email for a welcome message!",
             new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
         GUILayout.FlexibleSpace();
     }
@@ -736,7 +652,6 @@ public class WelcomeIMGUI : MonoBehaviour
         isLoading = true;
         
         OneSignal.User.AddEmail(email);
-        OneSignal.User.AddSms(phone);
         OneSignal.User.AddTag("demo_user", "true");
         OneSignal.User.AddTag("welcome_sent", System.DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
         
