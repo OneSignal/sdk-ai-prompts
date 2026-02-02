@@ -228,7 +228,6 @@ Keep the Application class minimal - just set up Hilt:
 @HiltAndroidApp
 class MyApplication : Application()
 ```
-```
 
 ---
 
@@ -441,24 +440,6 @@ class WelcomeFragment : Fragment() {
             android:textAlignment="center" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
-```
-
----
-
-## Testing
-
-### Unit Test Example
-
-```kotlin
-@Test
-fun `OneSignalManager sets email correctly`() = runTest {
-    val mockOneSignal = mockk<OneSignal>(relaxed = true)
-    val manager = OneSignalManager(context)
-    
-    manager.setEmail("test@example.com")
-    
-    verify { OneSignal.User.addEmail("test@example.com") }
-}
 ```
 
 ---

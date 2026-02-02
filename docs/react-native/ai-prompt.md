@@ -179,16 +179,7 @@ Perform a **minimal, production-ready integration**, including:
 
 ---
 
-## Step 8 — Unit Tests (Required)
-
-* Add unit tests for the centralized OneSignal integration layer
-* Mock SDK interactions — do NOT make real network calls in tests
-* Follow existing test frameworks and conventions
-* Keep tests fast and deterministic
-
----
-
-## Step 9 — Create Pull Request
+## Step 8 — Create Pull Request
 
 * Push branch **`onesignal-integration`** to remote
 * Create a Pull Request against the default branch
@@ -197,7 +188,7 @@ Perform a **minimal, production-ready integration**, including:
 
 ---
 
-## Step 10 — PR Summary (Output in Chat)
+## Step 9 — PR Summary (Output in Chat)
 
 After creating the PR, output a **clean, copy-ready PR summary** in the chat.
 
@@ -223,12 +214,8 @@ Do NOT automatically insert it into the PR description — let the user copy it.
 ### Threading
 - [How background work is handled]
 
-### Tests Added
-- [List test files/classes added]
-
 ### How to Verify
 1. [Step-by-step verification instructions]
-2. [How to test push notifications]
 
 ### Follow-ups / Risks
 - [Any known limitations or future work]
@@ -977,95 +964,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#666',
   },
-});
-```
-
----
-
-## Testing
-
-### Jest Unit Tests
-
-```typescript
-import { oneSignalService } from '../services/oneSignalService';
-import { OneSignal } from 'react-native-onesignal';
-
-jest.mock('react-native-onesignal', () => ({
-  OneSignal: {
-    initialize: jest.fn(),
-    login: jest.fn(),
-    logout: jest.fn(),
-    User: {
-      addEmail: jest.fn(),
-      addSms: jest.fn(),
-      addTag: jest.fn(),
-    },
-    Notifications: {
-      requestPermission: jest.fn().mockResolvedValue(true),
-    },
-    Debug: {
-      setLogLevel: jest.fn(),
-    },
-  },
-}));
-
-describe('OneSignalService', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-  
-  it('initializes OneSignal with app ID', () => {
-    oneSignalService.initialize('test-app-id');
-    expect(OneSignal.initialize).toHaveBeenCalledWith('test-app-id');
-  });
-  
-  it('sets email correctly', () => {
-    oneSignalService.setEmail('test@example.com');
-    expect(OneSignal.User.addEmail).toHaveBeenCalledWith('test@example.com');
-  });
-  
-  it('requests permission and returns result', async () => {
-    const result = await oneSignalService.requestPermission();
-    expect(result).toBe(true);
-  });
-});
-```
-
-### Component Tests
-
-```typescript
-import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { WelcomeScreen } from '../screens/WelcomeScreen';
-
-jest.mock('react-native-onesignal');
-
-describe('WelcomeScreen', () => {
-  it('renders form initially', () => {
-    const { getByText, getByPlaceholderText } = render(<WelcomeScreen />);
-    
-    expect(getByText('OneSignal Integration Complete!')).toBeTruthy();
-    expect(getByPlaceholderText('you@example.com')).toBeTruthy();
-    expect(getByPlaceholderText('+1 555 123 4567')).toBeTruthy();
-  });
-  
-  it('disables submit button with invalid input', () => {
-    const { getByText } = render(<WelcomeScreen />);
-    const button = getByText('Send Welcome Message');
-    
-    // Button should be disabled initially
-    expect(button.props.accessibilityState?.disabled).toBe(true);
-  });
-  
-  it('enables submit button with valid input', () => {
-    const { getByText, getByPlaceholderText } = render(<WelcomeScreen />);
-    
-    fireEvent.changeText(getByPlaceholderText('you@example.com'), 'test@example.com');
-    fireEvent.changeText(getByPlaceholderText('+1 555 123 4567'), '+14155551234');
-    
-    const button = getByText('Send Welcome Message');
-    expect(button.props.accessibilityState?.disabled).toBeFalsy();
-  });
 });
 ```
 
