@@ -38,6 +38,13 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
    - New integration (default)
    - Migration from SDK v4.x or earlier *(not currently supported — choose "New integration")*
 
+5. **How would you like to handle version control?** (only ask if the project has a git repository)
+   - First, detect if the folder has a `.git` directory
+   - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
+   - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
+   - **Option B: Current branch** — Write all changes directly to the current branch without stashing or creating a new branch
+   - If no git repository is detected, skip this question and proceed
+
 ---
 
 ## Demo Mode — Welcome View (When Using Demo App ID)
@@ -68,15 +75,7 @@ See platform-specific integration files for complete implementation examples.
 
 ---
 
-## Step 2 — Branching
-
-* Create a new git branch named: **`onesignal-integration`**
-* All changes must be committed to this branch only
-* Do NOT push to main/master directly
-
----
-
-## Step 3 — SDK Version Selection
+## Step 2 — SDK Version Selection
 
 **IMPORTANT:** Get SDK versions ONLY from this official page:
 **https://onesignal.github.io/sdk-releases/**
@@ -90,7 +89,7 @@ Use the **Stable** track unless the user specifically requested Current. Do not 
 
 ---
 
-## Step 4 — Architecture Compliance (Required)
+## Step 3 — Architecture Compliance (Required)
 
 * Follow the **existing architecture of the codebase**
 * Do NOT introduce a new architectural pattern
@@ -100,7 +99,7 @@ Platform-specific guidance is provided in the platform integration files.
 
 ---
 
-## Step 5 — Centralized OneSignal Integration (Required)
+## Step 4 — Centralized OneSignal Integration (Required)
 
 Create a **single, centralized class/module** that wraps all OneSignal SDK interactions:
 
@@ -123,7 +122,7 @@ See platform integration files for specific implementation patterns and method s
 
 ---
 
-## Step 6 — Integration Implementation
+## Step 5 — Integration Implementation
 
 Perform a **minimal, production-ready integration**, including:
 
@@ -134,7 +133,7 @@ Perform a **minimal, production-ready integration**, including:
 
 ---
 
-## Step 7 — Changes Summary (Output in Chat)
+## Step 6 — Changes Summary (Output in Chat)
 
 Output a **clean, copy-ready Pull Request summary** in the chat.
 
