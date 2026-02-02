@@ -179,16 +179,7 @@ Perform a **minimal, production-ready integration**, including:
 
 ---
 
-## Step 8 — Unit Tests (Required)
-
-* Add unit tests for the centralized OneSignal integration layer
-* Mock SDK interactions — do NOT make real network calls in tests
-* Follow existing test frameworks and conventions
-* Keep tests fast and deterministic
-
----
-
-## Step 9 — Create Pull Request
+## Step 8 — Create Pull Request
 
 * Push branch **`onesignal-integration`** to remote
 * Create a Pull Request against the default branch
@@ -197,7 +188,7 @@ Perform a **minimal, production-ready integration**, including:
 
 ---
 
-## Step 10 — PR Summary (Output in Chat)
+## Step 9 — PR Summary (Output in Chat)
 
 After creating the PR, output a **clean, copy-ready PR summary** in the chat.
 
@@ -223,12 +214,8 @@ Do NOT automatically insert it into the PR description — let the user copy it.
 ### Threading
 - [How background work is handled]
 
-### Tests Added
-- [List test files/classes added]
-
 ### How to Verify
 1. [Step-by-step verification instructions]
-2. [How to test push notifications]
 
 ### Follow-ups / Risks
 - [Any known limitations or future work]
@@ -860,64 +847,6 @@ class _WelcomeScreenCupertinoState extends State<WelcomeScreenCupertino> {
       ],
     );
   }
-}
-```
-
----
-
-## Testing
-
-### Unit Test Example
-
-```dart
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
-
-// Create a mock for testing
-class MockOneSignalService extends Mock implements OneSignalService {}
-
-void main() {
-  group('OneSignalService', () {
-    late MockOneSignalService mockService;
-    
-    setUp(() {
-      mockService = MockOneSignalService();
-    });
-    
-    test('setEmail calls OneSignal with correct email', () {
-      const email = 'test@example.com';
-      
-      mockService.setEmail(email);
-      
-      verify(mockService.setEmail(email)).called(1);
-    });
-  });
-}
-```
-
-### Widget Test
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:your_app/screens/welcome_screen.dart';
-
-void main() {
-  testWidgets('WelcomeScreen shows form initially', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: WelcomeScreen()));
-    
-    expect(find.text('OneSignal Integration Complete!'), findsOneWidget);
-    expect(find.byType(TextFormField), findsNWidgets(2));
-    expect(find.text('Send Welcome Message'), findsOneWidget);
-  });
-  
-  testWidgets('Submit button is disabled with invalid input', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: WelcomeScreen()));
-    
-    final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
-    expect(button.onPressed, isNull); // Button should be disabled
-  });
 }
 ```
 
