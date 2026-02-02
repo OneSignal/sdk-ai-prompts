@@ -445,24 +445,6 @@ class WelcomeFragment : Fragment() {
 
 ---
 
-## Testing
-
-### Unit Test Example
-
-```kotlin
-@Test
-fun `OneSignalManager sets email correctly`() = runTest {
-    val mockOneSignal = mockk<OneSignal>(relaxed = true)
-    val manager = OneSignalManager(context)
-    
-    manager.setEmail("test@example.com")
-    
-    verify { OneSignal.User.addEmail("test@example.com") }
-}
-```
-
----
-
 ## Troubleshooting
 
 | Issue | Solution |
