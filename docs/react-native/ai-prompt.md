@@ -202,6 +202,42 @@ Use the user's response to determine which code examples to provide throughout t
 > - React Native 0.71+ (recommended: 0.76+)
 > - iOS: macOS with Xcode 14+ and CocoaPods 1.16+
 > - Android: Android 7.0+ device or emulator with Google Play Services
+> - **Android: JDK 17 required** (JDK 21 also works; JDK 25+ is NOT compatible due to CMake restrictions)
+
+---
+
+## Environment Prerequisites (Critical)
+
+### Android: JDK Version
+
+**JDK 17 is required for Android builds.** JDK 25+ causes CMake configuration failures with error:
+```
+Execution failed for task ':app:configureCMakeDebug[arm64-v8a]'.
+> WARNING: A restricted method in java.lang.System has been called
+```
+
+Before running Android builds, verify or set JAVA_HOME:
+```bash
+# Check current Java version
+java -version
+
+# If using JDK 25+, switch to JDK 17:
+export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
+# Or specify path directly:
+# export JAVA_HOME="/path/to/jdk-17"
+
+npm run android
+```
+
+**Tip:** Add the JAVA_HOME export to `~/.zshrc` or `~/.bashrc` for persistence.
+
+### iOS: CocoaPods
+
+If `bundle install && bundle exec pod install` fails with Ruby native extension errors (common with Ruby 4.0+), use the globally installed CocoaPods instead:
+```bash
+# Instead of: cd ios && bundle install && bundle exec pod install
+cd ios && pod install
+```
 
 ---
 
@@ -359,15 +395,20 @@ android/app/src/main/res/
 
 ### 3. Build for Android
 
+**Important:** Ensure JDK 17 is set before building (JDK 25+ will fail):
 ```bash
+export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
 npx react-native run-android
 ```
 
 Or build directly:
 
 ```bash
+export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
 cd android && ./gradlew assembleDebug
 ```
+
+> **Note:** You may see an AndroidManifest.xml namespace warning from the OneSignal SDK during build. This is expected and can be safely ignored.
 
 ---
 
@@ -380,6 +421,8 @@ iOS requires additional configuration in Xcode. Follow these steps carefully.
 ```bash
 cd ios && pod install && cd ..
 ```
+
+> **Note:** If `bundle install && bundle exec pod install` fails with Ruby native extension errors (common with Ruby 4.0+), use the global `pod install` command instead.
 
 ### 2. Open Xcode Workspace
 
@@ -1094,12 +1137,15 @@ export const useOneSignal = (appId: string) => {
 | Notifications not received | Verify APNs/FCM credentials in OneSignal dashboard |
 | Permission always false | Check notification settings in device Settings app |
 | NativeEventEmitter error | Wrap OneSignal initialization in `useEffect` hook |
+| New files not showing after build | Restart Metro with cache reset: `npm start -- --reset-cache` |
+| App shows old content | Kill Metro (`lsof -ti:8081 \| xargs kill -9`), restart with `--reset-cache`, rebuild |
 
 ### iOS Issues
 
 | Issue | Solution |
 |-------|----------|
 | Pod install fails | Delete `Podfile.lock`, `Pods/` folder, and `.xcworkspace`, then run `pod install` again |
+| Bundle install fails with Ruby errors | Skip bundler, use global CocoaPods: `cd ios && pod install` |
 | Push capability missing | Add "Push Notifications" capability in Xcode under Signing & Capabilities |
 | Background notifications fail | Enable "Remote notifications" in Background Modes capability |
 | Notifications without images | Ensure Notification Service Extension is properly configured |
@@ -1116,6 +1162,9 @@ export const useOneSignal = (appId: string) => {
 | FCM registration failed | Ensure Firebase project is properly configured with correct package name |
 | Build fails with Gradle errors | Try `cd android && ./gradlew clean && cd ..` then rebuild |
 | Notification icon issues | Create proper notification icons in all `drawable-*` folders |
+| CMake configureCMakeDebug fails with "restricted method" | Use JDK 17 instead of JDK 25+. Set `JAVA_HOME` before building |
+| AndroidManifest.xml namespace warning | This warning from the SDK is expected and can be safely ignored |
+| Multiple emulators cause install confusion | Specify device: `npm run android -- --deviceId emulator-5554` |
 
 ### Debugging Tips
 
