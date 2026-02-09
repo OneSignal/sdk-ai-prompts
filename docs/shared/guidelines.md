@@ -27,7 +27,6 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 2. **What is your OneSignal App ID?**
    - If the user says "use demo" or doesn't have one, use the Demo App ID: `1db1662c-7609-4a90-b0ad-15b45407d628`
-   - When using the demo App ID, you MUST also create a Welcome View (see Demo Mode section below)
 
 3. **Which SDK track should I use?**
    - Each SDK version will be marked as either **Stable** or **Current**.
@@ -47,31 +46,25 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
-## Demo Mode — Welcome View (When Using Demo App ID)
+## Push Subscription Observer + Welcome Dialog (Required)
 
-If the user chooses to use the Demo App ID, you MUST create a **Welcome View** that:
+After completing the SDK integration, you MUST add a **push subscription observer** and show a **Welcome Dialog** when the device is registered.
 
 ### Requirements
 
-1. **Collects user information:**
-   - Email address field with validation
-   - Show validation errors inline
+1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
-2. **Submit flow:**
-   - Button disabled until email is valid
-   - Show loading state while submitting
-   - Display success confirmation after submission
+2. **When the push subscription ID changes from null/empty to a real value**, wait **1 second**, then show a platform-native dialog/alert with:
+   - Title: "Your OneSignal integration is complete!"
+   - Message: "Click the button below to trigger your first journey via an in-app message."
+   - Single button: **"Trigger your first journey"**
 
-3. **On submit, call these OneSignal methods:**
+3. **On button tap, call:**
    ```
-   OneSignal.User.addEmail(emailAddress)
-   OneSignal.User.addTag("demo_user", "true")
-   OneSignal.User.addTag("welcome_sent", currentTimestamp)
+   OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
    ```
 
-4. **Use platform-native UI components and styling**
-
-See platform-specific integration files for complete implementation examples.
+See platform-specific integration files for observer and dialog implementation examples.
 
 ---
 
