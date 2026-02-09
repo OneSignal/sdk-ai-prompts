@@ -305,192 +305,65 @@ public class OneSignalManager : MonoBehaviour
 
 ---
 
-## Demo Welcome View (Unity UI)
+## Push Subscription Observer + Welcome Dialog (Unity IMGUI)
 
-When using the demo App ID, create this view:
-
-### WelcomeUI.cs
+After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID. Since Unity does not have a built-in native dialog API at runtime, use an IMGUI overlay as a lightweight popup.
 
 ```csharp
 using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
 using OneSignalSDK;
-using System.Text.RegularExpressions;
 
-public class WelcomeUI : MonoBehaviour
+public class WelcomeDialog : MonoBehaviour
 {
-    [Header("Form Elements")]
-    [SerializeField] private TMP_InputField emailInput;
-    [SerializeField] private Button submitButton;
-    [SerializeField] private TMP_Text emailErrorText;
-    
-    [Header("Loading")]
-    [SerializeField] private GameObject loadingIndicator;
-    
-    [Header("Views")]
-    [SerializeField] private GameObject formView;
-    [SerializeField] private GameObject successView;
-    
-    private readonly Regex emailRegex = new Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-    
+    private bool showDialog = false;
+
     private void Start()
     {
-        emailInput.onValueChanged.AddListener(_ => ValidateForm());
-        submitButton.onClick.AddListener(OnSubmitClicked);
-        
-        ValidateForm();
+        OneSignal.User.PushSubscription.Changed += OnPushSubscriptionChanged;
     }
-    
-    private void ValidateForm()
+
+    private void OnPushSubscriptionChanged(object sender, PushSubscriptionChangedEventArgs e)
     {
-        string email = emailInput.text;
-        
-        bool emailValid = string.IsNullOrEmpty(email) || emailRegex.IsMatch(email);
-        
-        emailErrorText.gameObject.SetActive(!emailValid);
-        
-        bool formComplete = !string.IsNullOrEmpty(email);
-        bool formValid = emailRegex.IsMatch(email);
-        
-        submitButton.interactable = formComplete && formValid;
-    }
-    
-    private async void OnSubmitClicked()
-    {
-        submitButton.interactable = false;
-        loadingIndicator.SetActive(true);
-        
-        string email = emailInput.text;
-        
-        try
+        var previousId = e.State.Previous.Id;
+        var currentId = e.State.Current.Id;
+
+        if (string.IsNullOrEmpty(previousId) && !string.IsNullOrEmpty(currentId))
         {
-            // Set user data
-            OneSignal.User.AddEmail(email);
-            OneSignal.User.AddTag("demo_user", "true");
-            OneSignal.User.AddTag("welcome_sent", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-            
-            // Small delay to ensure data is sent
-            await System.Threading.Tasks.Task.Delay(500);
-            
-            ShowSuccess();
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"Error submitting: {e.Message}");
-            submitButton.interactable = true;
-            loadingIndicator.SetActive(false);
+            showDialog = true;
         }
     }
-    
-    private void ShowSuccess()
-    {
-        formView.SetActive(false);
-        successView.SetActive(true);
-    }
-}
-```
 
-### UI Setup Instructions
-
-Create a Canvas with the following hierarchy:
-
-```
-Canvas
-├── FormView
-│   ├── TitleText ("OneSignal Integration Complete!")
-│   ├── SubtitleText ("Enter your details...")
-│   ├── EmailInputField
-│   │   └── EmailErrorText ("Invalid email address")
-│   ├── LoadingIndicator (Image with rotation animation)
-│   └── SubmitButton ("Send Welcome Message")
-└── SuccessView (initially disabled)
-    ├── CheckmarkImage
-    ├── SuccessTitleText ("Success!")
-    └── SuccessMessageText ("Check your email for a welcome message!")
-```
-
-### Alternative: IMGUI Version (Quick Testing)
-
-```csharp
-using UnityEngine;
-using OneSignalSDK;
-using System.Text.RegularExpressions;
-
-public class WelcomeIMGUI : MonoBehaviour
-{
-    private string email = "";
-    private bool showSuccess = false;
-    private bool isLoading = false;
-    
-    private readonly Regex emailRegex = new Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-    
     private void OnGUI()
     {
-        GUILayout.BeginArea(new Rect(Screen.width / 2 - 200, Screen.height / 2 - 150, 400, 300));
-        
-        if (showSuccess)
+        if (!showDialog) return;
+
+        // Center a dialog box on screen
+        float width = 400;
+        float height = 150;
+        Rect dialogRect = new Rect(
+            (Screen.width - width) / 2,
+            (Screen.height - height) / 2,
+            width,
+            height
+        );
+
+        GUI.Window(0, dialogRect, _ =>
         {
-            DrawSuccess();
-        }
-        else
-        {
-            DrawForm();
-        }
-        
-        GUILayout.EndArea();
+            GUILayout.Space(10);
+            GUILayout.Label("Click the button below to trigger your first journey via an in-app message.",
+                new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true });
+            GUILayout.Space(10);
+            if (GUILayout.Button("Trigger your first journey"))
+            {
+                OneSignal.InAppMessages.SetTrigger("ai_implementation_campaign_email_journey", "true");
+                showDialog = false;
+            }
+        }, "Your OneSignal integration is complete!");
     }
-    
-    private void DrawForm()
+
+    private void OnDestroy()
     {
-        GUILayout.Label("OneSignal Integration Complete!", 
-            new GUIStyle(GUI.skin.label) { fontSize = 24, alignment = TextAnchor.MiddleCenter });
-        GUILayout.Space(10);
-        GUILayout.Label("Enter your details to receive a welcome message",
-            new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-        GUILayout.Space(20);
-        
-        GUILayout.Label("Email Address:");
-        email = GUILayout.TextField(email, GUILayout.Height(30));
-        
-        bool emailValid = string.IsNullOrEmpty(email) || emailRegex.IsMatch(email);
-        if (!emailValid)
-            GUILayout.Label("Invalid email address", new GUIStyle(GUI.skin.label) { normal = { textColor = Color.red } });
-        
-        GUILayout.Space(20);
-        
-        bool canSubmit = emailRegex.IsMatch(email) && !isLoading;
-        
-        GUI.enabled = canSubmit;
-        if (GUILayout.Button(isLoading ? "Sending..." : "Send Welcome Message", GUILayout.Height(40)))
-        {
-            Submit();
-        }
-        GUI.enabled = true;
-    }
-    
-    private void DrawSuccess()
-    {
-        GUILayout.FlexibleSpace();
-        GUILayout.Label("✓", new GUIStyle(GUI.skin.label) { fontSize = 64, alignment = TextAnchor.MiddleCenter });
-        GUILayout.Label("Success!", new GUIStyle(GUI.skin.label) { fontSize = 28, alignment = TextAnchor.MiddleCenter });
-        GUILayout.Label("Check your email for a welcome message!",
-            new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-        GUILayout.FlexibleSpace();
-    }
-    
-    private async void Submit()
-    {
-        isLoading = true;
-        
-        OneSignal.User.AddEmail(email);
-        OneSignal.User.AddTag("demo_user", "true");
-        OneSignal.User.AddTag("welcome_sent", System.DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-        
-        await System.Threading.Tasks.Task.Delay(500);
-        
-        isLoading = false;
-        showSuccess = true;
+        OneSignal.User.PushSubscription.Changed -= OnPushSubscriptionChanged;
     }
 }
 ```

@@ -240,194 +240,85 @@ class MyApplication : Application()
 
 ---
 
-## Demo Welcome View (Material Design 3)
+## Push Subscription Observer + Welcome Dialog
 
-When using the demo App ID, create this view:
+After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID.
 
-### WelcomeFragment.kt
+### Kotlin
 
 ```kotlin
-@AndroidEntryPoint
-class WelcomeFragment : Fragment() {
-    
-    private var _binding: FragmentWelcomeBinding? = null
-    private val binding get() = _binding!!
-    
-    @Inject lateinit var oneSignalManager: OneSignalManager
-    
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentWelcomeBinding.inflate(inflater, container, false)
-        return binding.root
-    }
-    
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        setupValidation()
-        setupSubmitButton()
-    }
-    
-    private fun setupValidation() {
-        binding.emailInput.addTextChangedListener { validateForm() }
-    }
-    
-    private fun validateForm() {
-        val email = binding.emailInput.text.toString()
-        
-        val emailValid = email.matches(Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
-        
-        binding.emailInputLayout.error = if (email.isNotEmpty() && !emailValid) "Invalid email" else null
-        
-        binding.submitButton.isEnabled = emailValid
-    }
-    
-    private fun setupSubmitButton() {
-        binding.submitButton.setOnClickListener {
-            submitForm()
-        }
-    }
-    
-    private fun submitForm() {
-        val email = binding.emailInput.text.toString()
-        
-        binding.submitButton.isEnabled = false
-        binding.progressIndicator.visibility = View.VISIBLE
-        
-        lifecycleScope.launch {
-            try {
-                withContext(Dispatchers.IO) {
-                    oneSignalManager.setEmail(email)
-                    oneSignalManager.setTag("demo_user", "true")
-                    oneSignalManager.setTag("welcome_sent", System.currentTimeMillis().toString())
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import androidx.appcompat.app.AlertDialog
+import com.onesignal.OneSignal
+import com.onesignal.user.subscriptions.IPushSubscriptionObserver
+import com.onesignal.user.subscriptions.PushSubscriptionChangedState
+
+fun setupPushSubscriptionObserver(context: Context) {
+    OneSignal.User.pushSubscription.addObserver(object : IPushSubscriptionObserver {
+        override fun onPushSubscriptionChange(state: PushSubscriptionChangedState) {
+            val previousId = state.previous.id
+            val currentId = state.current.id
+
+            if (previousId.isNullOrEmpty() && !currentId.isNullOrEmpty()) {
+                Handler(Looper.getMainLooper()).post {
+                    showWelcomeDialog(context)
                 }
-                showSuccess()
-            } catch (e: Exception) {
-                showError(e.message ?: "Unknown error")
             }
         }
-    }
-    
-    private fun showSuccess() {
-        binding.formContainer.visibility = View.GONE
-        binding.successContainer.visibility = View.VISIBLE
-    }
-    
-    private fun showError(message: String) {
-        binding.submitButton.isEnabled = true
-        binding.progressIndicator.visibility = View.GONE
-        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
-    }
-    
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
-    }
+    })
+}
+
+fun showWelcomeDialog(context: Context) {
+    AlertDialog.Builder(context)
+        .setTitle("Your OneSignal integration is complete!")
+        .setMessage("Click the button below to trigger your first journey via an in-app message.")
+        .setPositiveButton("Trigger your first journey") { _, _ ->
+            OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
+        }
+        .setCancelable(false)
+        .show()
 }
 ```
 
-### fragment_welcome.xml (Material Design 3)
+### Java
 
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:padding="24dp">
+```java
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import androidx.appcompat.app.AlertDialog;
+import com.onesignal.OneSignal;
+import com.onesignal.user.subscriptions.IPushSubscriptionObserver;
+import com.onesignal.user.subscriptions.PushSubscriptionChangedState;
 
-    <LinearLayout
-        android:id="@+id/formContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
+public static void setupPushSubscriptionObserver(Context context) {
+    OneSignal.getUser().getPushSubscription().addObserver(new IPushSubscriptionObserver() {
+        @Override
+        public void onPushSubscriptionChange(PushSubscriptionChangedState state) {
+            String previousId = state.getPrevious().getId();
+            String currentId = state.getCurrent().getId();
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="OneSignal Integration Complete!"
-            android:textAppearance="?attr/textAppearanceHeadlineMedium"
-            android:textAlignment="center"
-            android:layout_marginBottom="8dp" />
+            if ((previousId == null || previousId.isEmpty()) && currentId != null && !currentId.isEmpty()) {
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    showWelcomeDialog(context);
+                });
+            }
+        }
+    });
+}
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Enter your details to receive a welcome message"
-            android:textAppearance="?attr/textAppearanceBodyLarge"
-            android:textAlignment="center"
-            android:layout_marginBottom="32dp" />
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/emailInputLayout"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Email Address"
-            android:layout_marginBottom="16dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/emailInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textEmailAddress" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.progressindicator.LinearProgressIndicator
-            android:id="@+id/progressIndicator"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:indeterminate="true"
-            android:visibility="gone"
-            android:layout_marginBottom="16dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/submitButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Send Welcome Message"
-            android:enabled="false" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/successContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="✓"
-            android:textSize="64sp"
-            android:textAlignment="center"
-            android:textColor="?attr/colorPrimary"
-            android:layout_marginBottom="16dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Success!"
-            android:textAppearance="?attr/textAppearanceHeadlineMedium"
-            android:textAlignment="center"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Check your email for a welcome message!"
-            android:textAppearance="?attr/textAppearanceBodyLarge"
-            android:textAlignment="center" />
-    </LinearLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
+public static void showWelcomeDialog(Context context) {
+    new AlertDialog.Builder(context)
+        .setTitle("Your OneSignal integration is complete!")
+        .setMessage("Click the button below to trigger your first journey via an in-app message.")
+        .setPositiveButton("Trigger your first journey", (dialog, which) -> {
+            OneSignal.getInAppMessages().addTrigger("ai_implementation_campaign_email_journey", "true");
+        })
+        .setCancelable(false)
+        .show();
+}
 ```
 
 ---
