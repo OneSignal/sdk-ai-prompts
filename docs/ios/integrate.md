@@ -27,7 +27,69 @@ Before considering the integration complete, verify ALL of the following:
   <string>development</string> <!-- or "production" for release -->
   ```
 
-### Info.plist (if needed)
+### Background Modes (Info.plist + pbxproj)
+
+To enable Background Modes with Remote Notifications, you MUST make three changes:
+
+1. **Create an `Info.plist`** file in the app source directory (if one does not already exist) with `UIBackgroundModes`:
+
+   ```xml
+   <?xml version="1.0" encoding="UTF-8"?>
+   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+   <plist version="1.0">
+   <dict>
+   	<key>UIBackgroundModes</key>
+   	<array>
+   		<string>remote-notification</string>
+   	</array>
+   </dict>
+   </plist>
+   ```
+
+2. **Add both of these build settings** to the target's Debug AND Release `XCBuildConfiguration` sections in `project.pbxproj`:
+
+   ```
+   INFOPLIST_FILE = "YourApp/Info.plist";
+   INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
+   ```
+
+   Replace `YourApp/Info.plist` with the path to the Info.plist relative to the project root (the directory containing the `.xcodeproj`).
+
+   Both settings are required. `INFOPLIST_FILE` points Xcode to the explicit plist so the capability appears in the Signing & Capabilities tab. `INFOPLIST_KEY_UIBackgroundModes` ensures the value is included in the generated Info.plist at build time. If the project already has `GENERATE_INFOPLIST_FILE = YES`, keep it — Xcode will merge the explicit plist with auto-generated keys.
+
+3. **Exclude `Info.plist` from the resource copy phase** if the project uses `PBXFileSystemSynchronizedRootGroup` (Xcode 16+ project format). Without this, the file sync group automatically copies `Info.plist` as a bundle resource, which conflicts with the `INFOPLIST_FILE` build setting and causes a "Multiple commands produce Info.plist" build error.
+
+   Add a `PBXFileSystemSynchronizedBuildFileExceptionSet` section to `project.pbxproj`:
+
+   ```
+   /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+   		... /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+   			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+   			membershipExceptions = (
+   				Info.plist,
+   			);
+   			target = ... /* YourApp */;
+   		};
+   /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+   ```
+
+   Then reference it from the app's `PBXFileSystemSynchronizedRootGroup` entry by adding the `exceptions` array:
+
+   ```
+   /* Begin PBXFileSystemSynchronizedRootGroup section */
+   		... /* YourApp */ = {
+   			isa = PBXFileSystemSynchronizedRootGroup;
+   			exceptions = (
+   				... /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+   			);
+   			path = "YourApp";
+   			sourceTree = "<group>";
+   		};
+   ```
+
+   This only applies to projects using file system synchronized groups. If the project uses traditional `PBXFileReference` and `PBXGroup` entries, this step is not needed.
+
+### Info.plist (other)
 
 - [ ] `NSAppTransportSecurity` allows HTTPS (default behavior, usually no changes needed)
 - [ ] Background fetch is not blocked
@@ -163,10 +225,16 @@ class OneSignalManager {
 
 ### Dependency (Swift Package Manager)
 
-Add to Xcode: File → Add Packages → Enter URL:
-```
-https://github.com/OneSignal/OneSignal-iOS-SDK
-```
+Use the XCFramework-based package for smaller downloads:
+
+1. In Xcode: File → Add Packages → Enter URL:
+   ```
+   https://github.com/OneSignal/OneSignal-XCFramework
+   ```
+2. Add these libraries to your **app target**:
+   - `OneSignalFramework`
+   - `OneSignalInAppMessages`
+   - `OneSignalLocation`
 
 ### Dependency (CocoaPods)
 
@@ -176,6 +244,7 @@ pod 'OneSignalXCFramework', '~> 5.0'
 ```
 
 Then run:
+
 ```bash
 pod install
 ```
@@ -371,9 +440,9 @@ class WelcomeDialogObserver: NSObject, OSPushSubscriptionObserver {
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Push not received | Verify APNs key/certificate is uploaded to OneSignal |
+| Issue                         | Solution                                                     |
+| ----------------------------- | ------------------------------------------------------------ |
+| Push not received             | Verify APNs key/certificate is uploaded to OneSignal         |
 | Background notifications fail | Check Background Modes capability has "Remote notifications" |
-| Simulator issues | Push notifications only work on physical devices |
-| Entitlements error | Regenerate provisioning profiles in Apple Developer portal |
+| Simulator issues              | Push notifications only work on physical devices             |
+| Entitlements error            | Regenerate provisioning profiles in Apple Developer portal   |
