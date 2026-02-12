@@ -27,6 +27,14 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
+## Demo App ID (Always Used)
+
+This integration always uses the **Demo App ID**: `1db1662c-7609-4a90-b0ad-15b45407d628`
+
+Use the demo App ID above for all integrations.
+
+---
+
 ## Step 1 — Ask ONLY These Questions Before Making Changes
 
 1. **What language is the app written in?** (if applicable)
@@ -36,20 +44,7 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
    - Unity: C# (no choice needed)
    - React Native: JavaScript or TypeScript
 
-2. **What is your OneSignal App ID?**
-   - If the user says "use demo" or doesn't have one, use the Demo App ID: `1db1662c-7609-4a90-b0ad-15b45407d628`
-   - When using the demo App ID, you MUST also create a Welcome View (see Demo Mode section below)
-
-3. **Which SDK track should I use?**
-   - Each SDK version will be marked as either **Stable** or **Current**.
-   - **Stable** (recommended for production) — Use the latest Stable version by default
-   - **Current** (latest features, may have breaking changes) - Do not use this unless explicitly asked
-
-4. **Is this a new integration or migrating from an older OneSignal SDK?**
-   - New integration (default)
-   - Migration from SDK v4.x or earlier *(not currently supported — choose "New integration")*
-
-5. **How would you like to handle version control?** (only ask if the project has a git repository)
+2. **How would you like to handle version control?** (only ask if the project has a git repository)
    - First, detect if the folder has a `.git` directory
    - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
    - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
@@ -58,31 +53,25 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
-## Demo Mode — Welcome View (When Using Demo App ID)
+## Push Subscription Observer + Welcome Dialog (Required)
 
-If the user chooses to use the Demo App ID, you MUST create a **Welcome View** that:
+After completing the SDK integration, you MUST add a **push subscription observer** and show a **Welcome Dialog** when the device is registered.
 
 ### Requirements
 
-1. **Collects user information:**
-   - Email address field with validation
-   - Show validation errors inline
+1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
-2. **Submit flow:**
-   - Button disabled until email is valid
-   - Show loading state while submitting
-   - Display success confirmation after submission
+2. **When the push subscription ID changes from null/empty to a real value**, wait **1 second**, then show a platform-native dialog/alert with:
+   - Title: "Your OneSignal integration is complete!"
+   - Message: "Click the button below to trigger your first journey via an in-app message."
+   - Single button: **"Trigger your first journey"**
 
-3. **On submit, call these OneSignal methods:**
+3. **On button tap, call:**
    ```
-   OneSignal.User.addEmail(emailAddress)
-   OneSignal.User.addTag("demo_user", "true")
-   OneSignal.User.addTag("welcome_sent", currentTimestamp)
+   OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
    ```
 
-4. **Use platform-native UI components and styling**
-
-See platform-specific integration files for complete implementation examples.
+See platform-specific integration files for observer and dialog implementation examples.
 
 ---
 
@@ -444,258 +433,100 @@ final class OneSignalManager {
 
 ---
 
-## Demo Welcome View (SwiftUI)
+## Push Subscription Observer + Welcome Dialog
 
-When using the demo App ID, create this view:
+After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID.
 
-### WelcomeView.swift
+### SwiftUI
 
 ```swift
 import SwiftUI
 import OneSignalFramework
 
-struct WelcomeView: View {
-    @State private var email = ""
-    @State private var isLoading = false
-    @State private var showSuccess = false
-    @State private var errorMessage: String?
-
-    private var isEmailValid: Bool {
-        let regex = #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#
-        return email.range(of: regex, options: .regularExpression) != nil
-    }
-
-    private var isFormValid: Bool {
-        isEmailValid
-    }
+struct ContentView: View {
+    @State private var showWelcomeAlert = false
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 24) {
-                if showSuccess {
-                    successView
-                } else {
-                    formView
+        YourMainView()
+            .onAppear {
+                OneSignal.User.pushSubscription.addObserver(PushSubscriptionObserver {
+                    showWelcomeAlert = true
+                })
+            }
+            .alert("Your OneSignal integration is complete!", isPresented: $showWelcomeAlert) {
+                Button("Trigger your first journey") {
+                    OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", withValue: "true")
                 }
+            } message: {
+                Text("Click the button below to trigger your first journey via an in-app message.")
             }
-            .padding()
-            .navigationTitle("OneSignal Demo")
-        }
-    }
-
-    private var formView: some View {
-        VStack(spacing: 24) {
-            VStack(spacing: 8) {
-                Text("OneSignal Integration Complete!")
-                    .font(.title2)
-                    .fontWeight(.bold)
-
-                Text("Enter your details to receive a welcome message")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                TextField("Email Address", text: $email)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.emailAddress)
-                    .autocapitalization(.none)
-
-                if !email.isEmpty && !isEmailValid {
-                    Text("Invalid email address")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                }
-            }
-
-            if let error = errorMessage {
-                Text(error)
-                    .font(.caption)
-                    .foregroundColor(.red)
-            }
-
-            Button(action: submitForm) {
-                if isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                } else {
-                    Text("Send Welcome Message")
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(isFormValid ? Color.blue : Color.gray)
-            .foregroundColor(.white)
-            .cornerRadius(10)
-            .disabled(!isFormValid || isLoading)
-
-            Spacer()
-        }
-    }
-
-    private var successView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundColor(.green)
-
-            Text("Success!")
-                .font(.title)
-                .fontWeight(.bold)
-
-            Text("Check your email for a welcome message!")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-    }
-
-    private func submitForm() {
-        isLoading = true
-        errorMessage = nil
-
-        DispatchQueue.global(qos: .background).async {
-            OneSignal.User.addEmail(email)
-            OneSignal.User.addTag(key: "demo_user", value: "true")
-            OneSignal.User.addTag(key: "welcome_sent", value: "\(Date().timeIntervalSince1970)")
-
-            DispatchQueue.main.async {
-                isLoading = false
-                showSuccess = true
-            }
-        }
     }
 }
 
-#Preview {
-    WelcomeView()
+class PushSubscriptionObserver: NSObject, OSPushSubscriptionObserver {
+    private let onSubscribed: () -> Void
+
+    init(onSubscribed: @escaping () -> Void) {
+        self.onSubscribed = onSubscribed
+    }
+
+    func onPushSubscriptionDidChange(state: OSPushSubscriptionChangedState) {
+        let previousId = state.previous.id
+        let currentId = state.current.id
+
+        if (previousId == nil || previousId?.isEmpty == true) && currentId != nil && !currentId!.isEmpty {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.onSubscribed()
+            }
+        }
+    }
 }
 ```
 
-### UIKit Version (WelcomeViewController.swift)
+### UIKit
 
 ```swift
 import UIKit
 import OneSignalFramework
 
-class WelcomeViewController: UIViewController {
+class WelcomeDialogObserver: NSObject, OSPushSubscriptionObserver {
+    private weak var viewController: UIViewController?
 
-    private let stackView = UIStackView()
-    private let titleLabel = UILabel()
-    private let subtitleLabel = UILabel()
-    private let emailTextField = UITextField()
-    private let submitButton = UIButton(type: .system)
-    private let activityIndicator = UIActivityIndicatorView(style: .medium)
-    private let successView = UIView()
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        setupUI()
+    init(viewController: UIViewController) {
+        self.viewController = viewController
     }
 
-    private func setupUI() {
-        view.backgroundColor = .systemBackground
+    func onPushSubscriptionDidChange(state: OSPushSubscriptionChangedState) {
+        let previousId = state.previous.id
+        let currentId = state.current.id
 
-        // Configure stack view
-        stackView.axis = .vertical
-        stackView.spacing = 16
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(stackView)
-
-        NSLayoutConstraint.activate([
-            stackView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
-            stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
-        ])
-
-        // Title
-        titleLabel.text = "OneSignal Integration Complete!"
-        titleLabel.font = .preferredFont(forTextStyle: .title2)
-        titleLabel.textAlignment = .center
-        stackView.addArrangedSubview(titleLabel)
-
-        // Subtitle
-        subtitleLabel.text = "Enter your details to receive a welcome message"
-        subtitleLabel.font = .preferredFont(forTextStyle: .subheadline)
-        subtitleLabel.textColor = .secondaryLabel
-        subtitleLabel.textAlignment = .center
-        subtitleLabel.numberOfLines = 0
-        stackView.addArrangedSubview(subtitleLabel)
-
-        // Email field
-        emailTextField.placeholder = "Email Address"
-        emailTextField.borderStyle = .roundedRect
-        emailTextField.keyboardType = .emailAddress
-        emailTextField.autocapitalizationType = .none
-        emailTextField.addTarget(self, action: #selector(textFieldDidChange), for: .editingChanged)
-        stackView.addArrangedSubview(emailTextField)
-
-        // Submit button
-        submitButton.setTitle("Send Welcome Message", for: .normal)
-        submitButton.backgroundColor = .systemGray
-        submitButton.setTitleColor(.white, for: .normal)
-        submitButton.layer.cornerRadius = 10
-        submitButton.heightAnchor.constraint(equalToConstant: 50).isActive = true
-        submitButton.isEnabled = false
-        submitButton.addTarget(self, action: #selector(submitTapped), for: .touchUpInside)
-        stackView.addArrangedSubview(submitButton)
-    }
-
-    @objc private func textFieldDidChange() {
-        let isValid = isEmailValid
-        submitButton.isEnabled = isValid
-        submitButton.backgroundColor = isValid ? .systemBlue : .systemGray
-    }
-
-    private var isEmailValid: Bool {
-        guard let email = emailTextField.text else { return false }
-        let regex = #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#
-        return email.range(of: regex, options: .regularExpression) != nil
-    }
-
-    @objc private func submitTapped() {
-        guard let email = emailTextField.text else { return }
-
-        submitButton.isEnabled = false
-        activityIndicator.startAnimating()
-
-        DispatchQueue.global(qos: .background).async {
-            OneSignal.User.addEmail(email)
-            OneSignal.User.addTag(key: "demo_user", value: "true")
-            OneSignal.User.addTag(key: "welcome_sent", value: "\(Date().timeIntervalSince1970)")
-
-            DispatchQueue.main.async { [weak self] in
-                self?.showSuccess()
+        if (previousId == nil || previousId?.isEmpty == true) && currentId != nil && !currentId!.isEmpty {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.showWelcomeDialog()
             }
         }
     }
 
-    private func showSuccess() {
-        // Replace form with success message
-        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+    private func showWelcomeDialog() {
+        guard let viewController = viewController else { return }
 
-        let checkmark = UIImageView(image: UIImage(systemName: "checkmark.circle.fill"))
-        checkmark.tintColor = .systemGreen
-        checkmark.contentMode = .scaleAspectFit
-        checkmark.heightAnchor.constraint(equalToConstant: 64).isActive = true
-        stackView.addArrangedSubview(checkmark)
+        let alert = UIAlertController(
+            title: "Your OneSignal integration is complete!",
+            message: "Click the button below to trigger your first journey via an in-app message.",
+            preferredStyle: .alert
+        )
 
-        let successLabel = UILabel()
-        successLabel.text = "Success!"
-        successLabel.font = .preferredFont(forTextStyle: .title1)
-        successLabel.textAlignment = .center
-        stackView.addArrangedSubview(successLabel)
+        alert.addAction(UIAlertAction(title: "Trigger your first journey", style: .default) { _ in
+            OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", withValue: "true")
+        })
 
-        let messageLabel = UILabel()
-        messageLabel.text = "Check your email for a welcome message!"
-        messageLabel.font = .preferredFont(forTextStyle: .body)
-        messageLabel.textColor = .secondaryLabel
-        messageLabel.textAlignment = .center
-        messageLabel.numberOfLines = 0
-        stackView.addArrangedSubview(messageLabel)
+        viewController.present(alert, animated: true)
     }
 }
+
+// Usage: After initializing OneSignal, register the observer
+// let observer = WelcomeDialogObserver(viewController: self)
+// OneSignal.User.pushSubscription.addObserver(observer)
 ```
 
 ---
