@@ -163,10 +163,16 @@ class OneSignalManager {
 
 ### Dependency (Swift Package Manager)
 
-Add to Xcode: File → Add Packages → Enter URL:
-```
-https://github.com/OneSignal/OneSignal-iOS-SDK
-```
+Use the XCFramework-based package for smaller downloads:
+
+1. In Xcode: File → Add Packages → Enter URL:
+   ```
+   https://github.com/OneSignal/OneSignal-XCFramework
+   ```
+2. Add these libraries to your **app target**:
+   - `OneSignalFramework`
+   - `OneSignalInAppMessages`
+   - `OneSignalLocation`
 
 ### Dependency (CocoaPods)
 
