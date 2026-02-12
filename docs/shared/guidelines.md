@@ -16,6 +16,14 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
+## Demo App ID (Always Used)
+
+This integration always uses the **Demo App ID**: `1db1662c-7609-4a90-b0ad-15b45407d628`
+
+Use the demo App ID above for all integrations.
+
+---
+
 ## Step 1 — Ask ONLY These Questions Before Making Changes
 
 1. **What language is the app written in?** (if applicable)
@@ -25,19 +33,7 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
    - Unity: C# (no choice needed)
    - React Native: JavaScript or TypeScript
 
-2. **What is your OneSignal App ID?**
-   - If the user says "use demo" or doesn't have one, use the Demo App ID: `1db1662c-7609-4a90-b0ad-15b45407d628`
-
-3. **Which SDK track should I use?**
-   - Each SDK version will be marked as either **Stable** or **Current**.
-   - **Stable** (recommended for production) — Use the latest Stable version by default
-   - **Current** (latest features, may have breaking changes) - Do not use this unless explicitly asked
-
-4. **Is this a new integration or migrating from an older OneSignal SDK?**
-   - New integration (default)
-   - Migration from SDK v4.x or earlier *(not currently supported — choose "New integration")*
-
-5. **How would you like to handle version control?** (only ask if the project has a git repository)
+2. **How would you like to handle version control?** (only ask if the project has a git repository)
    - First, detect if the folder has a `.git` directory
    - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
    - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
