@@ -46,7 +46,7 @@ Use the demo App ID above for all integrations.
 
 After completing the SDK integration, you MUST add a **push subscription observer** and show a **Welcome Dialog** when the device is registered.
 
-### Requirements
+### Requirements (All Platforms)
 
 1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
@@ -59,6 +59,10 @@ After completing the SDK integration, you MUST add a **push subscription observe
    ```
    OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
    ```
+
+### Additional Steps (Android Only)
+
+Android apps have additional steps after the IAM is triggered: listen for IAM dismissal, prompt for push permission, and if granted, allow the user to send a test push notification to themselves. See the Android integration file for full details.
 
 See platform-specific integration files for observer and dialog implementation examples.
 
@@ -142,7 +146,7 @@ Do NOT automatically create a PR — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required
-* **Do NOT add code related to push notifications** including permission prompting
+* **Do NOT add code related to push notifications** including permission prompting (except where explicitly required by the platform-specific flow above)
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)
