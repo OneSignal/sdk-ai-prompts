@@ -27,6 +27,14 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
+## Demo App ID (Always Used)
+
+This integration always uses the **Demo App ID**: `1db1662c-7609-4a90-b0ad-15b45407d628`
+
+Use the demo App ID above for all integrations.
+
+---
+
 ## Step 1 — Ask ONLY These Questions Before Making Changes
 
 1. **What language is the app written in?** (if applicable)
@@ -36,20 +44,7 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
    - Unity: C# (no choice needed)
    - React Native: JavaScript or TypeScript
 
-2. **What is your OneSignal App ID?**
-   - If the user says "use demo" or doesn't have one, use the Demo App ID: `1db1662c-7609-4a90-b0ad-15b45407d628`
-   - When using the demo App ID, you MUST also create a Welcome View (see Demo Mode section below)
-
-3. **Which SDK track should I use?**
-   - Each SDK version will be marked as either **Stable** or **Current**.
-   - **Stable** (recommended for production) — Use the latest Stable version by default
-   - **Current** (latest features, may have breaking changes) - Do not use this unless explicitly asked
-
-4. **Is this a new integration or migrating from an older OneSignal SDK?**
-   - New integration (default)
-   - Migration from SDK v4.x or earlier *(not currently supported — choose "New integration")*
-
-5. **How would you like to handle version control?** (only ask if the project has a git repository)
+2. **How would you like to handle version control?** (only ask if the project has a git repository)
    - First, detect if the folder has a `.git` directory
    - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
    - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
@@ -58,31 +53,29 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
-## Demo Mode — Welcome View (When Using Demo App ID)
+## Push Subscription Observer + Welcome Dialog (Required)
 
-If the user chooses to use the Demo App ID, you MUST create a **Welcome View** that:
+After completing the SDK integration, you MUST add a **push subscription observer** and show a **Welcome Dialog** when the device is registered.
 
-### Requirements
+### Requirements (All Platforms)
 
-1. **Collects user information:**
-   - Email address field with validation
-   - Show validation errors inline
+1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
-2. **Submit flow:**
-   - Button disabled until email is valid
-   - Show loading state while submitting
-   - Display success confirmation after submission
+2. **When the push subscription ID changes from null/empty to a real value**, show a platform-native dialog/alert with:
+   - Title: "Your OneSignal integration is complete!"
+   - Message: "Click the button below to trigger your first journey via an in-app message."
+   - Single button: **"Trigger your first journey"**
 
-3. **On submit, call these OneSignal methods:**
+3. **On button tap, call:**
    ```
-   OneSignal.User.addEmail(emailAddress)
-   OneSignal.User.addTag("demo_user", "true")
-   OneSignal.User.addTag("welcome_sent", currentTimestamp)
+   OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
    ```
 
-4. **Use platform-native UI components and styling**
+### Additional Steps (Android Only)
 
-See platform-specific integration files for complete implementation examples.
+Android apps have additional steps after the IAM is triggered: listen for IAM dismissal, prompt for push permission, and if granted, allow the user to send a test push notification to themselves. See the Android integration file for full details.
+
+See platform-specific integration files for observer and dialog implementation examples.
 
 ---
 
@@ -164,7 +157,7 @@ Do NOT automatically create a PR — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required
-* **Do NOT add code related to push notifications** including permission prompting
+* **Do NOT add code related to push notifications** including permission prompting (except where explicitly required by the platform-specific flow above)
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)
@@ -297,428 +290,76 @@ Add the OneSignal plugin to your `app.json` (or `app.config.js`):
 
 ---
 
-## Demo Welcome View
+## Push Subscription Observer + Welcome Dialog
 
-When using a demo App ID for testing, you can use this welcome screen to verify the integration:
+After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID.
 
-### JavaScript Version (WelcomeScreen.js)
+### JavaScript Version
 
 ```javascript
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { Alert } from 'react-native';
 import { OneSignal } from 'react-native-onesignal';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function setupPushSubscriptionObserver() {
+  OneSignal.User.pushSubscription.addEventListener('change', (subscription) => {
+    const previousId = subscription.previous.id;
+    const currentId = subscription.current.id;
 
-export function WelcomeScreen() {
-  const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [errors, setErrors] = useState({});
-
-  const isEmailValid = EMAIL_REGEX.test(email);
-  const isFormValid = isEmailValid;
-
-  const validateFields = () => {
-    const newErrors = {};
-    if (email && !isEmailValid) {
-      newErrors.email = 'Enter a valid email address';
+    if ((!previousId || previousId === '') && currentId && currentId !== '') {
+      showWelcomeDialog();
     }
-    setErrors(newErrors);
-  };
-
-  const handleSubmit = async () => {
-    if (!isFormValid) return;
-
-    setIsLoading(true);
-
-    try {
-      OneSignal.User.addEmail(email);
-      OneSignal.User.addTag('demo_user', 'true');
-      OneSignal.User.addTag('welcome_sent', Date.now().toString());
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setShowSuccess(true);
-    } catch (error) {
-      console.error('Error submitting:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (showSuccess) {
-    return (
-      <View style={styles.successContainer}>
-        <Text style={styles.checkmark}>✓</Text>
-        <Text style={styles.successTitle}>Success!</Text>
-        <Text style={styles.successMessage}>
-          Check your email for a welcome message!
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>OneSignal Integration Complete!</Text>
-          <Text style={styles.subtitle}>
-            Enter your details to receive a welcome message
-          </Text>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={[styles.input, errors.email && styles.inputError]}
-              value={email}
-              onChangeText={setEmail}
-              onBlur={validateFields}
-              placeholder="you@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-          </View>
-
-          <TouchableOpacity
-            style={[styles.button, !isFormValid && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={!isFormValid || isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Send Welcome Message</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
+  });
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-    color: '#1a1a1a',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  form: {
-    width: '100%',
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  inputError: {
-    borderColor: '#e74c3c',
-  },
-  errorText: {
-    color: '#e74c3c',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  button: {
-    backgroundColor: '#6c5ce7',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    backgroundColor: '#bbb',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  successContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#fff',
-  },
-  checkmark: {
-    fontSize: 64,
-    color: '#27ae60',
-    marginBottom: 16,
-  },
-  successTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#1a1a1a',
-  },
-  successMessage: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-});
+function showWelcomeDialog() {
+  Alert.alert(
+    'Your OneSignal integration is complete!',
+    'Click the button below to trigger your first journey via an in-app message.',
+    [
+      {
+        text: 'Trigger your first journey',
+        onPress: () => {
+          OneSignal.InAppMessages.addTrigger('ai_implementation_campaign_email_journey', 'true');
+        },
+      },
+    ],
+    { cancelable: false }
+  );
+}
 ```
 
-### TypeScript Version (WelcomeScreen.tsx)
+### TypeScript Version
 
 ```typescript
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { Alert } from 'react-native';
 import { OneSignal } from 'react-native-onesignal';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function setupPushSubscriptionObserver(): void {
+  OneSignal.User.pushSubscription.addEventListener('change', (subscription) => {
+    const previousId = subscription.previous.id;
+    const currentId = subscription.current.id;
 
-interface FormErrors {
-  email?: string;
+    if ((!previousId || previousId === '') && currentId && currentId !== '') {
+      showWelcomeDialog();
+    }
+  });
 }
 
-export const WelcomeScreen: React.FC = () => {
-  const [email, setEmail] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [showSuccess, setShowSuccess] = useState<boolean>(false);
-  const [errors, setErrors] = useState<FormErrors>({});
-
-  const isEmailValid = EMAIL_REGEX.test(email);
-  const isFormValid = isEmailValid;
-
-  const validateFields = (): void => {
-    const newErrors: FormErrors = {};
-    if (email && !isEmailValid) {
-      newErrors.email = 'Enter a valid email address';
-    }
-    setErrors(newErrors);
-  };
-
-  const handleSubmit = async (): Promise<void> => {
-    if (!isFormValid) return;
-
-    setIsLoading(true);
-
-    try {
-      OneSignal.User.addEmail(email);
-      OneSignal.User.addTag('demo_user', 'true');
-      OneSignal.User.addTag('welcome_sent', Date.now().toString());
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setShowSuccess(true);
-    } catch (error) {
-      console.error('Error submitting:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (showSuccess) {
-    return (
-      <View style={styles.successContainer}>
-        <Text style={styles.checkmark}>✓</Text>
-        <Text style={styles.successTitle}>Success!</Text>
-        <Text style={styles.successMessage}>
-          Check your email for a welcome message!
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>OneSignal Integration Complete!</Text>
-          <Text style={styles.subtitle}>
-            Enter your details to receive a welcome message
-          </Text>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={[styles.input, errors.email && styles.inputError]}
-              value={email}
-              onChangeText={setEmail}
-              onBlur={validateFields}
-              placeholder="you@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-          </View>
-
-          <TouchableOpacity
-            style={[styles.button, !isFormValid && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={!isFormValid || isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Send Welcome Message</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+function showWelcomeDialog(): void {
+  Alert.alert(
+    'Your OneSignal integration is complete!',
+    'Click the button below to trigger your first journey via an in-app message.',
+    [
+      {
+        text: 'Trigger your first journey',
+        onPress: () => {
+          OneSignal.InAppMessages.addTrigger('ai_implementation_campaign_email_journey', 'true');
+        },
+      },
+    ],
+    { cancelable: false }
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-    color: '#1a1a1a',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  form: {
-    width: '100%',
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  inputError: {
-    borderColor: '#e74c3c',
-  },
-  errorText: {
-    color: '#e74c3c',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  button: {
-    backgroundColor: '#6c5ce7',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    backgroundColor: '#bbb',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  successContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#fff',
-  },
-  checkmark: {
-    fontSize: 64,
-    color: '#27ae60',
-    marginBottom: 16,
-  },
-  successTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#1a1a1a',
-  },
-  successMessage: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-});
+}
 ```
 
 ---
