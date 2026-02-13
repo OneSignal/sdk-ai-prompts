@@ -1,0 +1,20 @@
+flowchart TD
+    Start([🚀 Copy the prompt into IDE])
+    Note["🔧 To set up email and SMS, visit the OneSignal dashboard for setup."]
+
+    Start --> Platform{Platform? Android / iOS}
+
+    Platform -- Android --> IntegrateA["Integrate SDK into app (using demo app ID)"]
+    IntegrateA --> DialogA["Show dialog with IAM trigger button"]
+    DialogA --> TriggerA["Click button — triggers email IAM"]
+    TriggerA --> IAMA[Email IAM shows up]
+    IAMA --> DismissA[Email IAM dismissed]
+    DismissA --> PermA{Prompt for push permission}
+    PermA -- Allow --> SendDialogA["Show dialog: Enter text to send notification"]
+    SendDialogA --> SendA["Click Send — shows push notification"]
+    PermA -- Disallow --> EndA([End])
+
+    Platform -- iOS --> IntegrateI["Integrate SDK into app (using demo app ID)"]
+    IntegrateI --> DialogI["Show dialog with IAM trigger button"]
+    DialogI --> TriggerI["Click button — triggers IAM"]
+    TriggerI --> IAMI[IAM shows up]
