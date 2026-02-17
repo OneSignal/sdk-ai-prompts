@@ -27,6 +27,14 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
+## Demo App ID (Always Used)
+
+This integration always uses the **Demo App ID**: `1db1662c-7609-4a90-b0ad-15b45407d628`
+
+Use the demo App ID above for all integrations.
+
+---
+
 ## Step 1 — Ask ONLY These Questions Before Making Changes
 
 1. **What language is the app written in?** (if applicable)
@@ -36,20 +44,7 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
    - Unity: C# (no choice needed)
    - React Native: JavaScript or TypeScript
 
-2. **What is your OneSignal App ID?**
-   - If the user says "use demo" or doesn't have one, use the Demo App ID: `1db1662c-7609-4a90-b0ad-15b45407d628`
-   - When using the demo App ID, you MUST also create a Welcome View (see Demo Mode section below)
-
-3. **Which SDK track should I use?**
-   - Each SDK version will be marked as either **Stable** or **Current**.
-   - **Stable** (recommended for production) — Use the latest Stable version by default
-   - **Current** (latest features, may have breaking changes) - Do not use this unless explicitly asked
-
-4. **Is this a new integration or migrating from an older OneSignal SDK?**
-   - New integration (default)
-   - Migration from SDK v4.x or earlier *(not currently supported — choose "New integration")*
-
-5. **How would you like to handle version control?** (only ask if the project has a git repository)
+2. **How would you like to handle version control?** (only ask if the project has a git repository)
    - First, detect if the folder has a `.git` directory
    - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
    - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
@@ -58,31 +53,29 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
-## Demo Mode — Welcome View (When Using Demo App ID)
+## Push Subscription Observer + Welcome Dialog (Required)
 
-If the user chooses to use the Demo App ID, you MUST create a **Welcome View** that:
+After completing the SDK integration, you MUST add a **push subscription observer** and show a **Welcome Dialog** when the device is registered.
 
-### Requirements
+### Requirements (All Platforms)
 
-1. **Collects user information:**
-   - Email address field with validation
-   - Show validation errors inline
+1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
-2. **Submit flow:**
-   - Button disabled until email is valid
-   - Show loading state while submitting
-   - Display success confirmation after submission
+2. **When the push subscription ID changes from null/empty to a real value**, show a platform-native dialog/alert with:
+   - Title: "Your OneSignal integration is complete!"
+   - Message: "Click the button below to trigger your first journey via an in-app message."
+   - Single button: **"Trigger your first journey"**
 
-3. **On submit, call these OneSignal methods:**
+3. **On button tap, call:**
    ```
-   OneSignal.User.addEmail(emailAddress)
-   OneSignal.User.addTag("demo_user", "true")
-   OneSignal.User.addTag("welcome_sent", currentTimestamp)
+   OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
    ```
 
-4. **Use platform-native UI components and styling**
+### Additional Steps (Android Only)
 
-See platform-specific integration files for complete implementation examples.
+Android apps have additional steps after the IAM is triggered: listen for IAM dismissal, prompt for push permission, and if granted, allow the user to send a test push notification to themselves. See the Android integration file for full details.
+
+See platform-specific integration files for observer and dialog implementation examples.
 
 ---
 
@@ -164,7 +157,7 @@ Do NOT automatically create a PR — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required
-* **Do NOT add code related to push notifications** including permission prompting
+* **Do NOT add code related to push notifications** including permission prompting (except where explicitly required by the platform-specific flow above)
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)
@@ -443,300 +436,83 @@ class NotificationProvider extends ChangeNotifier {
 
 ---
 
-## Demo Welcome View (Flutter)
+## Push Subscription Observer + Welcome Dialog (Flutter)
 
-When using the demo App ID, create this view:
+After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID.
 
-### welcome_screen.dart
+### Material
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
-class WelcomeScreen extends StatefulWidget {
-  const WelcomeScreen({super.key});
+void setupPushSubscriptionObserver(BuildContext context) {
+  OneSignal.User.pushSubscription.addObserver((state) {
+    final previousId = state.previous.id;
+    final currentId = state.current.id;
 
-  @override
-  State<WelcomeScreen> createState() => _WelcomeScreenState();
+    if ((previousId == null || previousId.isEmpty) && currentId != null && currentId.isNotEmpty) {
+      showWelcomeDialog(context);
+    }
+  });
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  
-  bool _isLoading = false;
-  bool _showSuccess = false;
-  
-  final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-  
-  @override
-  void dispose() {
-    _emailController.dispose();
-    super.dispose();
-  }
-  
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Email is required';
-    }
-    if (!_emailRegex.hasMatch(value)) {
-      return 'Enter a valid email address';
-    }
-    return null;
-  }
-  
-  Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
-    
-    setState(() => _isLoading = true);
-    
-    try {
-      final email = _emailController.text;
-      
-      OneSignal.User.addEmail(email);
-      OneSignal.User.addTagWithKey('demo_user', 'true');
-      OneSignal.User.addTagWithKey('welcome_sent', DateTime.now().millisecondsSinceEpoch.toString());
-      
-      setState(() {
-        _isLoading = false;
-        _showSuccess = true;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-      }
-    }
-  }
-  
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('OneSignal Demo'),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: _showSuccess ? _buildSuccessView() : _buildFormView(),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildFormView() {
-    return Form(
-      key: _formKey,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'OneSignal Integration Complete!',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Enter your details to receive a welcome message',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-          TextFormField(
-            controller: _emailController,
-            decoration: const InputDecoration(
-              labelText: 'Email Address',
-              hintText: 'you@example.com',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.email),
-            ),
-            keyboardType: TextInputType.emailAddress,
-            validator: _validateEmail,
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _submitForm,
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Send Welcome Message'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildSuccessView() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(
-          Icons.check_circle,
-          size: 80,
-          color: Colors.green,
-        ),
-        const SizedBox(height: 24),
-        const Text(
-          'Success!',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Check your email for a welcome message!',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[600],
-          ),
-          textAlign: TextAlign.center,
+void showWelcomeDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      title: const Text('Your OneSignal integration is complete!'),
+      content: const Text('Click the button below to trigger your first journey via an in-app message.'),
+      actions: [
+        TextButton(
+          onPressed: () {
+            OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true");
+            Navigator.pop(context);
+          },
+          child: const Text('Trigger your first journey'),
         ),
       ],
-    );
-  }
+    ),
+  );
 }
 ```
 
-### Cupertino Version (iOS-style)
+### Cupertino
 
 ```dart
 import 'package:flutter/cupertino.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
-class WelcomeScreenCupertino extends StatefulWidget {
-  const WelcomeScreenCupertino({super.key});
+void setupPushSubscriptionObserver(BuildContext context) {
+  OneSignal.User.pushSubscription.addObserver((state) {
+    final previousId = state.previous.id;
+    final currentId = state.current.id;
 
-  @override
-  State<WelcomeScreenCupertino> createState() => _WelcomeScreenCupertinoState();
+    if ((previousId == null || previousId.isEmpty) && currentId != null && currentId.isNotEmpty) {
+      showWelcomeDialog(context);
+    }
+  });
 }
 
-class _WelcomeScreenCupertinoState extends State<WelcomeScreenCupertino> {
-  final _emailController = TextEditingController();
-  
-  bool _isLoading = false;
-  bool _showSuccess = false;
-  String? _emailError;
-  
-  final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-  
-  bool get _isFormValid {
-    final email = _emailController.text;
-    return _emailRegex.hasMatch(email);
-  }
-  
-  void _validateFields() {
-    setState(() {
-      final email = _emailController.text;
-      
-      _emailError = email.isNotEmpty && !_emailRegex.hasMatch(email)
-          ? 'Enter a valid email address'
-          : null;
-    });
-  }
-  
-  Future<void> _submitForm() async {
-    if (!_isFormValid) return;
-    
-    setState(() => _isLoading = true);
-    
-    final email = _emailController.text;
-    
-    OneSignal.User.addEmail(email);
-    OneSignal.User.addTagWithKey('demo_user', 'true');
-    OneSignal.User.addTagWithKey('welcome_sent', DateTime.now().millisecondsSinceEpoch.toString());
-    
-    setState(() {
-      _isLoading = false;
-      _showSuccess = true;
-    });
-  }
-  
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('OneSignal Demo'),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: _showSuccess ? _buildSuccessView() : _buildFormView(),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildFormView() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text(
-          'OneSignal Integration Complete!',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 32),
-        CupertinoTextField(
-          controller: _emailController,
-          placeholder: 'Email Address',
-          keyboardType: TextInputType.emailAddress,
-          onChanged: (_) => _validateFields(),
-          prefix: const Padding(
-            padding: EdgeInsets.only(left: 8),
-            child: Icon(CupertinoIcons.mail),
-          ),
-        ),
-        if (_emailError != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(_emailError!, style: const TextStyle(color: CupertinoColors.destructiveRed, fontSize: 12)),
-          ),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          child: CupertinoButton.filled(
-            onPressed: _isFormValid && !_isLoading ? _submitForm : null,
-            child: _isLoading
-                ? const CupertinoActivityIndicator(color: CupertinoColors.white)
-                : const Text('Send Welcome Message'),
-          ),
+void showWelcomeDialog(BuildContext context) {
+  showCupertinoDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => CupertinoAlertDialog(
+      title: const Text('Your OneSignal integration is complete!'),
+      content: const Text('Click the button below to trigger your first journey via an in-app message.'),
+      actions: [
+        CupertinoDialogAction(
+          onPressed: () {
+            OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true");
+            Navigator.pop(context);
+          },
+          child: const Text('Trigger your first journey'),
         ),
       ],
-    );
-  }
-  
-  Widget _buildSuccessView() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(CupertinoIcons.check_mark_circled_solid, size: 80, color: CupertinoColors.activeGreen),
-        const SizedBox(height: 24),
-        const Text('Success!', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Text(
-          'Check your email for a welcome message!',
-          style: TextStyle(fontSize: 16, color: CupertinoColors.systemGrey),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
+    ),
+  );
 }
 ```
 

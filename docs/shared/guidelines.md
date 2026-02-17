@@ -16,6 +16,14 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
+## Demo App ID (Always Used)
+
+This integration always uses the **Demo App ID**: `1db1662c-7609-4a90-b0ad-15b45407d628`
+
+Use the demo App ID above for all integrations.
+
+---
+
 ## Step 1 — Ask ONLY These Questions Before Making Changes
 
 1. **What language is the app written in?** (if applicable)
@@ -25,20 +33,7 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
    - Unity: C# (no choice needed)
    - React Native: JavaScript or TypeScript
 
-2. **What is your OneSignal App ID?**
-   - If the user says "use demo" or doesn't have one, use the Demo App ID: `1db1662c-7609-4a90-b0ad-15b45407d628`
-   - When using the demo App ID, you MUST also create a Welcome View (see Demo Mode section below)
-
-3. **Which SDK track should I use?**
-   - Each SDK version will be marked as either **Stable** or **Current**.
-   - **Stable** (recommended for production) — Use the latest Stable version by default
-   - **Current** (latest features, may have breaking changes) - Do not use this unless explicitly asked
-
-4. **Is this a new integration or migrating from an older OneSignal SDK?**
-   - New integration (default)
-   - Migration from SDK v4.x or earlier *(not currently supported — choose "New integration")*
-
-5. **How would you like to handle version control?** (only ask if the project has a git repository)
+2. **How would you like to handle version control?** (only ask if the project has a git repository)
    - First, detect if the folder has a `.git` directory
    - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
    - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
@@ -47,31 +42,29 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
-## Demo Mode — Welcome View (When Using Demo App ID)
+## Push Subscription Observer + Welcome Dialog (Required)
 
-If the user chooses to use the Demo App ID, you MUST create a **Welcome View** that:
+After completing the SDK integration, you MUST add a **push subscription observer** and show a **Welcome Dialog** when the device is registered.
 
-### Requirements
+### Requirements (All Platforms)
 
-1. **Collects user information:**
-   - Email address field with validation
-   - Show validation errors inline
+1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
-2. **Submit flow:**
-   - Button disabled until email is valid
-   - Show loading state while submitting
-   - Display success confirmation after submission
+2. **When the push subscription ID changes from null/empty to a real value**, show a platform-native dialog/alert with:
+   - Title: "Your OneSignal integration is complete!"
+   - Message: "Click the button below to trigger your first journey via an in-app message."
+   - Single button: **"Trigger your first journey"**
 
-3. **On submit, call these OneSignal methods:**
+3. **On button tap, call:**
    ```
-   OneSignal.User.addEmail(emailAddress)
-   OneSignal.User.addTag("demo_user", "true")
-   OneSignal.User.addTag("welcome_sent", currentTimestamp)
+   OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
    ```
 
-4. **Use platform-native UI components and styling**
+### Additional Steps (Android Only)
 
-See platform-specific integration files for complete implementation examples.
+Android apps have additional steps after the IAM is triggered: listen for IAM dismissal, prompt for push permission, and if granted, allow the user to send a test push notification to themselves. See the Android integration file for full details.
+
+See platform-specific integration files for observer and dialog implementation examples.
 
 ---
 
@@ -153,7 +146,7 @@ Do NOT automatically create a PR — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required
-* **Do NOT add code related to push notifications** including permission prompting
+* **Do NOT add code related to push notifications** including permission prompting (except where explicitly required by the platform-specific flow above)
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)

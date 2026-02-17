@@ -240,194 +240,295 @@ class MyApplication : Application()
 
 ---
 
-## Demo Welcome View (Material Design 3)
+## Push Subscription Observer + Welcome Dialog + Send Notification Flow
 
-When using the demo App ID, create this view:
+After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID. The full flow is:
 
-### WelcomeFragment.kt
+1. Push subscription observer fires → show welcome dialog with IAM trigger button
+2. On click → trigger the email IAM
+3. IAM lifecycle listener detects when email IAM is dismissed
+4. On dismiss → prompt for push permission
+5. If allowed → show a second dialog with a text field → send a push notification to self via REST API
+6. If denied → end
+
+### Kotlin
 
 ```kotlin
-@AndroidEntryPoint
-class WelcomeFragment : Fragment() {
-    
-    private var _binding: FragmentWelcomeBinding? = null
-    private val binding get() = _binding!!
-    
-    @Inject lateinit var oneSignalManager: OneSignalManager
-    
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        _binding = FragmentWelcomeBinding.inflate(inflater, container, false)
-        return binding.root
-    }
-    
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        setupValidation()
-        setupSubmitButton()
-    }
-    
-    private fun setupValidation() {
-        binding.emailInput.addTextChangedListener { validateForm() }
-    }
-    
-    private fun validateForm() {
-        val email = binding.emailInput.text.toString()
-        
-        val emailValid = email.matches(Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
-        
-        binding.emailInputLayout.error = if (email.isNotEmpty() && !emailValid) "Invalid email" else null
-        
-        binding.submitButton.isEnabled = emailValid
-    }
-    
-    private fun setupSubmitButton() {
-        binding.submitButton.setOnClickListener {
-            submitForm()
-        }
-    }
-    
-    private fun submitForm() {
-        val email = binding.emailInput.text.toString()
-        
-        binding.submitButton.isEnabled = false
-        binding.progressIndicator.visibility = View.VISIBLE
-        
-        lifecycleScope.launch {
-            try {
-                withContext(Dispatchers.IO) {
-                    oneSignalManager.setEmail(email)
-                    oneSignalManager.setTag("demo_user", "true")
-                    oneSignalManager.setTag("welcome_sent", System.currentTimeMillis().toString())
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.widget.EditText
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import com.onesignal.OneSignal
+import com.onesignal.inAppMessages.IInAppMessageDidDismissEvent
+import com.onesignal.inAppMessages.IInAppMessageDidDisplayEvent
+import com.onesignal.inAppMessages.IInAppMessageLifecycleListener
+import com.onesignal.inAppMessages.IInAppMessageWillDismissEvent
+import com.onesignal.inAppMessages.IInAppMessageWillDisplayEvent
+import com.onesignal.user.subscriptions.IPushSubscriptionObserver
+import com.onesignal.user.subscriptions.PushSubscriptionChangedState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.nio.charset.StandardCharsets
+
+private const val APP_ID = "YOUR_ONESIGNAL_APP_ID"
+
+// Step 1: Register push subscription observer after OneSignal is initialized
+fun setupPushSubscriptionObserver(context: Context) {
+    OneSignal.User.pushSubscription.addObserver(object : IPushSubscriptionObserver {
+        override fun onPushSubscriptionChange(state: PushSubscriptionChangedState) {
+            val previousId = state.previous.id
+            val currentId = state.current.id
+
+            if (previousId.isNullOrEmpty() && !currentId.isNullOrEmpty()) {
+                Handler(Looper.getMainLooper()).post {
+                    showWelcomeDialog(context)
                 }
-                showSuccess()
-            } catch (e: Exception) {
-                showError(e.message ?: "Unknown error")
             }
         }
+    })
+}
+
+// Step 2: Show welcome dialog with IAM trigger button
+fun showWelcomeDialog(context: Context) {
+    AlertDialog.Builder(context)
+        .setTitle("Your OneSignal integration is complete!")
+        .setMessage("Click the button below to trigger your first journey via an in-app message.")
+        .setPositiveButton("Trigger your first journey") { _, _ ->
+            OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
+            setupIAMDismissListener(context)
+        }
+        .setCancelable(false)
+        .show()
+}
+
+// Step 3: Listen for IAM dismissal
+fun setupIAMDismissListener(context: Context) {
+    OneSignal.InAppMessages.addLifecycleListener(object : IInAppMessageLifecycleListener {
+        override fun onWillDisplay(event: IInAppMessageWillDisplayEvent) {}
+        override fun onDidDisplay(event: IInAppMessageDidDisplayEvent) {}
+        override fun onWillDismiss(event: IInAppMessageWillDismissEvent) {}
+        override fun onDidDismiss(event: IInAppMessageDidDismissEvent) {
+            OneSignal.InAppMessages.removeLifecycleListener(this)
+            promptForPushPermission(context)
+        }
+    })
+}
+
+// Step 4: Prompt for push permission after IAM is dismissed
+// NOTE: requestPermission is a suspend function in SDK 5.x — it must be called
+// from a coroutine. Use lifecycleScope.launch when inside an Activity/Fragment.
+fun promptForPushPermission(context: Context) {
+    CoroutineScope(Dispatchers.Main).launch {
+        val granted = OneSignal.Notifications.requestPermission(true)
+        if (granted) {
+            showSendNotificationDialog(context)
+        }
     }
-    
-    private fun showSuccess() {
-        binding.formContainer.visibility = View.GONE
-        binding.successContainer.visibility = View.VISIBLE
+}
+
+// Step 5: Show dialog with text field to compose a notification message
+fun showSendNotificationDialog(context: Context) {
+    val messageInput = EditText(context).apply {
+        hint = "Enter your notification message"
     }
-    
-    private fun showError(message: String) {
-        binding.submitButton.isEnabled = true
-        binding.progressIndicator.visibility = View.GONE
-        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
-    }
-    
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
-    }
+
+    AlertDialog.Builder(context)
+        .setTitle("Send a Push Notification")
+        .setMessage("Type a message below and tap Send to receive a push notification on this device.")
+        .setView(messageInput)
+        .setPositiveButton("Send") { _, _ ->
+            val message = messageInput.text.toString()
+            if (message.isNotEmpty()) {
+                sendPushNotification(context, message)
+            }
+        }
+        .setNegativeButton("Cancel", null)
+        .setCancelable(false)
+        .show()
+}
+
+// Step 6: Send push notification to self via OneSignal REST API
+fun sendPushNotification(context: Context, message: String) {
+    Thread {
+        try {
+            val subscriptionId = OneSignal.User.pushSubscription.id
+            if (subscriptionId.isNullOrEmpty()) return@Thread
+
+            val json = JSONObject().apply {
+                put("app_id", APP_ID)
+                put("contents", JSONObject().put("en", message))
+                put("headings", JSONObject().put("en", "OneSignal Demo"))
+                put("include_subscription_ids", JSONArray().put(subscriptionId))
+            }
+
+            val url = URL("https://api.onesignal.com/notifications")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+            conn.setRequestProperty("Accept", "application/json")
+            conn.doOutput = true
+
+            conn.outputStream.use { it.write(json.toString().toByteArray(StandardCharsets.UTF_8)) }
+
+            val responseCode = conn.responseCode
+            Handler(Looper.getMainLooper()).post {
+                if (responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_CREATED) {
+                    Toast.makeText(context, "Notification sent!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Failed to send notification.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }.start()
 }
 ```
 
-### fragment_welcome.xml (Material Design 3)
+### Java
 
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:padding="24dp">
+```java
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.EditText;
+import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
+import com.onesignal.OneSignal;
+import com.onesignal.inAppMessages.IInAppMessageDidDismissEvent;
+import com.onesignal.inAppMessages.IInAppMessageDidDisplayEvent;
+import com.onesignal.inAppMessages.IInAppMessageLifecycleListener;
+import com.onesignal.inAppMessages.IInAppMessageWillDismissEvent;
+import com.onesignal.inAppMessages.IInAppMessageWillDisplayEvent;
+import com.onesignal.user.subscriptions.IPushSubscriptionObserver;
+import com.onesignal.user.subscriptions.PushSubscriptionChangedState;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
-    <LinearLayout
-        android:id="@+id/formContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
+private static final String APP_ID = "YOUR_ONESIGNAL_APP_ID";
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="OneSignal Integration Complete!"
-            android:textAppearance="?attr/textAppearanceHeadlineMedium"
-            android:textAlignment="center"
-            android:layout_marginBottom="8dp" />
+// Step 1: Register push subscription observer after OneSignal is initialized
+public static void setupPushSubscriptionObserver(Context context) {
+    OneSignal.getUser().getPushSubscription().addObserver(new IPushSubscriptionObserver() {
+        @Override
+        public void onPushSubscriptionChange(PushSubscriptionChangedState state) {
+            String previousId = state.getPrevious().getId();
+            String currentId = state.getCurrent().getId();
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Enter your details to receive a welcome message"
-            android:textAppearance="?attr/textAppearanceBodyLarge"
-            android:textAlignment="center"
-            android:layout_marginBottom="32dp" />
+            if ((previousId == null || previousId.isEmpty()) && currentId != null && !currentId.isEmpty()) {
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    showWelcomeDialog(context);
+                });
+            }
+        }
+    });
+}
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/emailInputLayout"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Email Address"
-            android:layout_marginBottom="16dp">
+// Step 2: Show welcome dialog with IAM trigger button
+public static void showWelcomeDialog(Context context) {
+    new AlertDialog.Builder(context)
+        .setTitle("Your OneSignal integration is complete!")
+        .setMessage("Click the button below to trigger your first journey via an in-app message.")
+        .setPositiveButton("Trigger your first journey", (dialog, which) -> {
+            OneSignal.getInAppMessages().addTrigger("ai_implementation_campaign_email_journey", "true");
+            setupIAMDismissListener(context);
+        })
+        .setCancelable(false)
+        .show();
+}
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/emailInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textEmailAddress" />
-        </com.google.android.material.textfield.TextInputLayout>
+// Step 3: Listen for IAM dismissal
+public static void setupIAMDismissListener(Context context) {
+    IInAppMessageLifecycleListener listener = new IInAppMessageLifecycleListener() {
+        @Override public void onWillDisplay(IInAppMessageWillDisplayEvent event) {}
+        @Override public void onDidDisplay(IInAppMessageDidDisplayEvent event) {}
+        @Override public void onWillDismiss(IInAppMessageWillDismissEvent event) {}
+        @Override
+        public void onDidDismiss(IInAppMessageDidDismissEvent event) {
+            OneSignal.getInAppMessages().removeLifecycleListener(this);
+            promptForPushPermission(context);
+        }
+    };
+    OneSignal.getInAppMessages().addLifecycleListener(listener);
+}
 
-        <com.google.android.material.progressindicator.LinearProgressIndicator
-            android:id="@+id/progressIndicator"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:indeterminate="true"
-            android:visibility="gone"
-            android:layout_marginBottom="16dp" />
+// Step 4: Prompt for push permission after IAM is dismissed
+public static void promptForPushPermission(Context context) {
+    OneSignal.getNotifications().requestPermission(true, result -> {
+        if (result) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                showSendNotificationDialog(context);
+            });
+        }
+    });
+}
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/submitButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Send Welcome Message"
-            android:enabled="false" />
-    </LinearLayout>
+// Step 5: Show dialog with text field to compose a notification message
+public static void showSendNotificationDialog(Context context) {
+    EditText messageInput = new EditText(context);
+    messageInput.setHint("Enter your notification message");
 
-    <LinearLayout
-        android:id="@+id/successContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
+    new AlertDialog.Builder(context)
+        .setTitle("Send a Push Notification")
+        .setMessage("Type a message below and tap Send to receive a push notification on this device.")
+        .setView(messageInput)
+        .setPositiveButton("Send", (dialog, which) -> {
+            String message = messageInput.getText().toString();
+            if (!message.isEmpty()) {
+                sendPushNotification(context, message);
+            }
+        })
+        .setNegativeButton("Cancel", null)
+        .setCancelable(false)
+        .show();
+}
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="✓"
-            android:textSize="64sp"
-            android:textAlignment="center"
-            android:textColor="?attr/colorPrimary"
-            android:layout_marginBottom="16dp" />
+// Step 6: Send push notification to self via OneSignal REST API
+public static void sendPushNotification(Context context, String message) {
+    new Thread(() -> {
+        try {
+            String subscriptionId = OneSignal.getUser().getPushSubscription().getId();
+            if (subscriptionId == null || subscriptionId.isEmpty()) return;
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Success!"
-            android:textAppearance="?attr/textAppearanceHeadlineMedium"
-            android:textAlignment="center"
-            android:layout_marginBottom="8dp" />
+            JSONObject json = new JSONObject();
+            json.put("app_id", APP_ID);
+            json.put("contents", new JSONObject().put("en", message));
+            json.put("headings", new JSONObject().put("en", "OneSignal Demo"));
+            json.put("include_subscription_ids", new JSONArray().put(subscriptionId));
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Check your email for a welcome message!"
-            android:textAppearance="?attr/textAppearanceBodyLarge"
-            android:textAlignment="center" />
-    </LinearLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
+            URL url = new URL("https://api.onesignal.com/notifications");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setDoOutput(true);
+
+            byte[] outputBytes = json.toString().getBytes(StandardCharsets.UTF_8);
+            conn.getOutputStream().write(outputBytes);
+
+            int responseCode = conn.getResponseCode();
+            new Handler(Looper.getMainLooper()).post(() -> {
+                if (responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_CREATED) {
+                    Toast.makeText(context, "Notification sent!", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(context, "Failed to send notification.", Toast.LENGTH_SHORT).show();
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }).start();
+}
 ```
 
 ---

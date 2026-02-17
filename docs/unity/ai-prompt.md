@@ -27,6 +27,14 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
+## Demo App ID (Always Used)
+
+This integration always uses the **Demo App ID**: `1db1662c-7609-4a90-b0ad-15b45407d628`
+
+Use the demo App ID above for all integrations.
+
+---
+
 ## Step 1 — Ask ONLY These Questions Before Making Changes
 
 1. **What language is the app written in?** (if applicable)
@@ -36,20 +44,7 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
    - Unity: C# (no choice needed)
    - React Native: JavaScript or TypeScript
 
-2. **What is your OneSignal App ID?**
-   - If the user says "use demo" or doesn't have one, use the Demo App ID: `1db1662c-7609-4a90-b0ad-15b45407d628`
-   - When using the demo App ID, you MUST also create a Welcome View (see Demo Mode section below)
-
-3. **Which SDK track should I use?**
-   - Each SDK version will be marked as either **Stable** or **Current**.
-   - **Stable** (recommended for production) — Use the latest Stable version by default
-   - **Current** (latest features, may have breaking changes) - Do not use this unless explicitly asked
-
-4. **Is this a new integration or migrating from an older OneSignal SDK?**
-   - New integration (default)
-   - Migration from SDK v4.x or earlier *(not currently supported — choose "New integration")*
-
-5. **How would you like to handle version control?** (only ask if the project has a git repository)
+2. **How would you like to handle version control?** (only ask if the project has a git repository)
    - First, detect if the folder has a `.git` directory
    - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
    - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
@@ -58,31 +53,29 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
-## Demo Mode — Welcome View (When Using Demo App ID)
+## Push Subscription Observer + Welcome Dialog (Required)
 
-If the user chooses to use the Demo App ID, you MUST create a **Welcome View** that:
+After completing the SDK integration, you MUST add a **push subscription observer** and show a **Welcome Dialog** when the device is registered.
 
-### Requirements
+### Requirements (All Platforms)
 
-1. **Collects user information:**
-   - Email address field with validation
-   - Show validation errors inline
+1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
-2. **Submit flow:**
-   - Button disabled until email is valid
-   - Show loading state while submitting
-   - Display success confirmation after submission
+2. **When the push subscription ID changes from null/empty to a real value**, show a platform-native dialog/alert with:
+   - Title: "Your OneSignal integration is complete!"
+   - Message: "Click the button below to trigger your first journey via an in-app message."
+   - Single button: **"Trigger your first journey"**
 
-3. **On submit, call these OneSignal methods:**
+3. **On button tap, call:**
    ```
-   OneSignal.User.addEmail(emailAddress)
-   OneSignal.User.addTag("demo_user", "true")
-   OneSignal.User.addTag("welcome_sent", currentTimestamp)
+   OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
    ```
 
-4. **Use platform-native UI components and styling**
+### Additional Steps (Android Only)
 
-See platform-specific integration files for complete implementation examples.
+Android apps have additional steps after the IAM is triggered: listen for IAM dismissal, prompt for push permission, and if granted, allow the user to send a test push notification to themselves. See the Android integration file for full details.
+
+See platform-specific integration files for observer and dialog implementation examples.
 
 ---
 
@@ -164,7 +157,7 @@ Do NOT automatically create a PR — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required
-* **Do NOT add code related to push notifications** including permission prompting
+* **Do NOT add code related to push notifications** including permission prompting (except where explicitly required by the platform-specific flow above)
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)
@@ -478,192 +471,65 @@ public class OneSignalManager : MonoBehaviour
 
 ---
 
-## Demo Welcome View (Unity UI)
+## Push Subscription Observer + Welcome Dialog (Unity IMGUI)
 
-When using the demo App ID, create this view:
-
-### WelcomeUI.cs
+After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID. Since Unity does not have a built-in native dialog API at runtime, use an IMGUI overlay as a lightweight popup.
 
 ```csharp
 using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
 using OneSignalSDK;
-using System.Text.RegularExpressions;
 
-public class WelcomeUI : MonoBehaviour
+public class WelcomeDialog : MonoBehaviour
 {
-    [Header("Form Elements")]
-    [SerializeField] private TMP_InputField emailInput;
-    [SerializeField] private Button submitButton;
-    [SerializeField] private TMP_Text emailErrorText;
-    
-    [Header("Loading")]
-    [SerializeField] private GameObject loadingIndicator;
-    
-    [Header("Views")]
-    [SerializeField] private GameObject formView;
-    [SerializeField] private GameObject successView;
-    
-    private readonly Regex emailRegex = new Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-    
+    private bool showDialog = false;
+
     private void Start()
     {
-        emailInput.onValueChanged.AddListener(_ => ValidateForm());
-        submitButton.onClick.AddListener(OnSubmitClicked);
-        
-        ValidateForm();
+        OneSignal.User.PushSubscription.Changed += OnPushSubscriptionChanged;
     }
-    
-    private void ValidateForm()
+
+    private void OnPushSubscriptionChanged(object sender, PushSubscriptionChangedEventArgs e)
     {
-        string email = emailInput.text;
-        
-        bool emailValid = string.IsNullOrEmpty(email) || emailRegex.IsMatch(email);
-        
-        emailErrorText.gameObject.SetActive(!emailValid);
-        
-        bool formComplete = !string.IsNullOrEmpty(email);
-        bool formValid = emailRegex.IsMatch(email);
-        
-        submitButton.interactable = formComplete && formValid;
-    }
-    
-    private async void OnSubmitClicked()
-    {
-        submitButton.interactable = false;
-        loadingIndicator.SetActive(true);
-        
-        string email = emailInput.text;
-        
-        try
+        var previousId = e.State.Previous.Id;
+        var currentId = e.State.Current.Id;
+
+        if (string.IsNullOrEmpty(previousId) && !string.IsNullOrEmpty(currentId))
         {
-            // Set user data
-            OneSignal.User.AddEmail(email);
-            OneSignal.User.AddTag("demo_user", "true");
-            OneSignal.User.AddTag("welcome_sent", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-            
-            // Small delay to ensure data is sent
-            await System.Threading.Tasks.Task.Delay(500);
-            
-            ShowSuccess();
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"Error submitting: {e.Message}");
-            submitButton.interactable = true;
-            loadingIndicator.SetActive(false);
+            showDialog = true;
         }
     }
-    
-    private void ShowSuccess()
-    {
-        formView.SetActive(false);
-        successView.SetActive(true);
-    }
-}
-```
 
-### UI Setup Instructions
-
-Create a Canvas with the following hierarchy:
-
-```
-Canvas
-├── FormView
-│   ├── TitleText ("OneSignal Integration Complete!")
-│   ├── SubtitleText ("Enter your details...")
-│   ├── EmailInputField
-│   │   └── EmailErrorText ("Invalid email address")
-│   ├── LoadingIndicator (Image with rotation animation)
-│   └── SubmitButton ("Send Welcome Message")
-└── SuccessView (initially disabled)
-    ├── CheckmarkImage
-    ├── SuccessTitleText ("Success!")
-    └── SuccessMessageText ("Check your email for a welcome message!")
-```
-
-### Alternative: IMGUI Version (Quick Testing)
-
-```csharp
-using UnityEngine;
-using OneSignalSDK;
-using System.Text.RegularExpressions;
-
-public class WelcomeIMGUI : MonoBehaviour
-{
-    private string email = "";
-    private bool showSuccess = false;
-    private bool isLoading = false;
-    
-    private readonly Regex emailRegex = new Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-    
     private void OnGUI()
     {
-        GUILayout.BeginArea(new Rect(Screen.width / 2 - 200, Screen.height / 2 - 150, 400, 300));
-        
-        if (showSuccess)
+        if (!showDialog) return;
+
+        // Center a dialog box on screen
+        float width = 400;
+        float height = 150;
+        Rect dialogRect = new Rect(
+            (Screen.width - width) / 2,
+            (Screen.height - height) / 2,
+            width,
+            height
+        );
+
+        GUI.Window(0, dialogRect, _ =>
         {
-            DrawSuccess();
-        }
-        else
-        {
-            DrawForm();
-        }
-        
-        GUILayout.EndArea();
+            GUILayout.Space(10);
+            GUILayout.Label("Click the button below to trigger your first journey via an in-app message.",
+                new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true });
+            GUILayout.Space(10);
+            if (GUILayout.Button("Trigger your first journey"))
+            {
+                OneSignal.InAppMessages.SetTrigger("ai_implementation_campaign_email_journey", "true");
+                showDialog = false;
+            }
+        }, "Your OneSignal integration is complete!");
     }
-    
-    private void DrawForm()
+
+    private void OnDestroy()
     {
-        GUILayout.Label("OneSignal Integration Complete!", 
-            new GUIStyle(GUI.skin.label) { fontSize = 24, alignment = TextAnchor.MiddleCenter });
-        GUILayout.Space(10);
-        GUILayout.Label("Enter your details to receive a welcome message",
-            new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-        GUILayout.Space(20);
-        
-        GUILayout.Label("Email Address:");
-        email = GUILayout.TextField(email, GUILayout.Height(30));
-        
-        bool emailValid = string.IsNullOrEmpty(email) || emailRegex.IsMatch(email);
-        if (!emailValid)
-            GUILayout.Label("Invalid email address", new GUIStyle(GUI.skin.label) { normal = { textColor = Color.red } });
-        
-        GUILayout.Space(20);
-        
-        bool canSubmit = emailRegex.IsMatch(email) && !isLoading;
-        
-        GUI.enabled = canSubmit;
-        if (GUILayout.Button(isLoading ? "Sending..." : "Send Welcome Message", GUILayout.Height(40)))
-        {
-            Submit();
-        }
-        GUI.enabled = true;
-    }
-    
-    private void DrawSuccess()
-    {
-        GUILayout.FlexibleSpace();
-        GUILayout.Label("✓", new GUIStyle(GUI.skin.label) { fontSize = 64, alignment = TextAnchor.MiddleCenter });
-        GUILayout.Label("Success!", new GUIStyle(GUI.skin.label) { fontSize = 28, alignment = TextAnchor.MiddleCenter });
-        GUILayout.Label("Check your email for a welcome message!",
-            new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-        GUILayout.FlexibleSpace();
-    }
-    
-    private async void Submit()
-    {
-        isLoading = true;
-        
-        OneSignal.User.AddEmail(email);
-        OneSignal.User.AddTag("demo_user", "true");
-        OneSignal.User.AddTag("welcome_sent", System.DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-        
-        await System.Threading.Tasks.Task.Delay(500);
-        
-        isLoading = false;
-        showSuccess = true;
+        OneSignal.User.PushSubscription.Changed -= OnPushSubscriptionChanged;
     }
 }
 ```
