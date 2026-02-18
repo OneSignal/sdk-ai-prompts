@@ -303,64 +303,51 @@
                       window.location.hostname === 'localhost' || 
                       window.location.hostname === '127.0.0.1';
       
-      // Generate bootstrap prompt - points to raw markdown files for AI agents
+      // Generate bootstrap prompt - single URL to combined ai-prompt.md
       const rawBaseUrl = 'https://raw.githubusercontent.com/OneSignal/sdk-ai-prompts/main/docs';
       const bootstrapPrompt = `Integrate the OneSignal SDK into this codebase.
 
 Follow the instructions at:
-${rawBaseUrl}/shared/guidelines.md
-${rawBaseUrl}/${platform}/integrate.md`;
+${rawBaseUrl}/${platform}/ai-prompt.md`;
 
       document.getElementById('bootstrapPrompt').textContent = bootstrapPrompt;
 
-      // Fetch and combine prompts
+      // Fetch combined prompt (single file)
       async function loadPrompts() {
         const contentDiv = document.getElementById('promptContent');
         const rawMarkdownPre = document.getElementById('rawMarkdown');
         
         try {
-          let sharedUrl, platformUrl;
+          let promptUrl;
           if (isLocal) {
-            sharedUrl = `shared/guidelines.md`;
-            platformUrl = `${platform}/integrate.md`;
+            promptUrl = `${platform}/ai-prompt.md`;
           } else {
-            const baseUrl = 'https://raw.githubusercontent.com/OneSignal/sdk-ai-prompts/main/docs';
-            sharedUrl = `${baseUrl}/shared/guidelines.md`;
-            platformUrl = `${baseUrl}/${platform}/integrate.md`;
+            promptUrl = `${rawBaseUrl}/${platform}/ai-prompt.md`;
           }
 
-          const [sharedResponse, platformResponse] = await Promise.all([
-            fetch(sharedUrl),
-            fetch(platformUrl)
-          ]);
+          const response = await fetch(promptUrl);
 
-          if (!sharedResponse.ok) {
-            throw new Error(`Failed to load shared guidelines: ${sharedResponse.status}`);
-          }
-          if (!platformResponse.ok) {
-            throw new Error(`Failed to load ${platform} integration guide: ${platformResponse.status}`);
+          if (!response.ok) {
+            throw new Error(`Failed to load ${platform} AI prompt: ${response.status}`);
           }
 
-          const sharedMd = await sharedResponse.text();
-          const platformMd = await platformResponse.text();
+          const promptMd = await response.text();
 
-          const combinedMd = `${sharedMd}\n\n---\n\n# Platform-Specific: ${platformInfo.name}\n\n${platformMd}`;
-
-          rawMarkdownPre.textContent = combinedMd;
-          contentDiv.innerHTML = marked.parse(combinedMd);
+          rawMarkdownPre.textContent = promptMd;
+          contentDiv.innerHTML = marked.parse(promptMd);
 
           contentDiv.querySelectorAll('pre code').forEach((block) => {
             hljs.highlightElement(block);
           });
 
         } catch (error) {
-          console.error('Error loading prompts:', error);
+          console.error('Error loading prompt:', error);
           contentDiv.innerHTML = `
             <div class="error">
               <p><strong>Error loading prompt:</strong> ${error.message}</p>
               <p style="margin-top: 12px;">
-                Try viewing the raw files on 
-                <a href="https://github.com/OneSignal/sdk-ai-prompts/tree/main/docs" target="_blank">GitHub</a>.
+                Try viewing the raw file on 
+                <a href="https://github.com/OneSignal/sdk-ai-prompts/tree/main/docs/${platform}" target="_blank">GitHub</a>.
               </p>
             </div>
           `;
