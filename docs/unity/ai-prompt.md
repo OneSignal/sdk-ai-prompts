@@ -27,11 +27,11 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
-## Demo App ID (Always Used)
+## App ID
 
-This integration always uses the **Demo App ID**: `1db1662c-7609-4a90-b0ad-15b45407d628`
+The App ID is provided in the user's prompt — the same message that linked you to this file. Use **that** App ID for all OneSignal SDK initialization and any REST calls in the verification scaffolding.
 
-Use the demo App ID above for all integrations.
+If no App ID is present in the user's prompt, ask the user to provide one before proceeding. **Never** hardcode a demo or fallback App ID.
 
 ---
 
@@ -53,29 +53,22 @@ Use the demo App ID above for all integrations.
 
 ---
 
-## Push Subscription Observer + Welcome Dialog (Required)
+## Push Subscription Verification Dialog (Required)
 
-After completing the SDK integration, you MUST add a **push subscription observer** and show a **Welcome Dialog** when the device is registered.
+After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully.
 
 ### Requirements (All Platforms)
 
 1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
 2. **When the push subscription ID changes from null/empty to a real value**, show a platform-native dialog/alert with:
-   - Title: "Your OneSignal integration is complete!"
-   - Message: "Click the button below to trigger your first journey via an in-app message."
-   - Single button: **"Trigger your first journey"**
+   - **Title:** "Your OneSignal SDK integration is complete!"
+   - **Message:** "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications."
+   - **Single button:** **"Got it"**
 
-3. **On button tap, call:**
-   ```
-   OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
-   ```
+3. **On button tap**, request push permission.
 
-### Additional Steps (Android Only)
-
-Android apps have additional steps after the IAM is triggered: listen for IAM dismissal, prompt for push permission, and if granted, allow the user to send a test push notification to themselves. See the Android integration file for full details.
-
-See platform-specific integration files for observer and dialog implementation examples.
+See platform-specific integration files for implementation examples.
 
 ---
 
@@ -261,11 +254,27 @@ Unity is single-threaded for most operations. OneSignal SDK handles its own thre
 ### Main Thread Callbacks
 
 ```csharp
+using OneSignalSDK;
+using OneSignalSDK.Notifications;
+
 // OneSignal callbacks are already on the main thread
-OneSignal.Notifications.Clicked += (notification) =>
+// Events use standard EventHandler<T> pattern with (object sender, EventArgs e) signature
+OneSignal.Notifications.Clicked += (sender, e) =>
 {
     // Safe to access Unity objects here
-    Debug.Log($"Notification clicked: {notification.title}");
+    // Use UnityEngine.Debug to avoid conflict with OneSignal.Debug
+    UnityEngine.Debug.Log($"Notification clicked: {e.Notification.Title}");
+};
+
+OneSignal.Notifications.ForegroundWillDisplay += (sender, e) =>
+{
+    UnityEngine.Debug.Log($"Notification received: {e.Notification.Title}");
+    // Call e.PreventDefault() to suppress the notification display
+};
+
+OneSignal.Notifications.PermissionChanged += (sender, e) =>
+{
+    UnityEngine.Debug.Log($"Permission changed: {e.Permission}");
 };
 ```
 
@@ -314,12 +323,14 @@ Add to `Packages/manifest.json`:
 ```json
 {
   "dependencies": {
-    "com.onesignal.unity.android": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=/com.onesignal.unity.android",
-    "com.onesignal.unity.ios": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=/com.onesignal.unity.ios",
-    "com.onesignal.unity.core": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=/com.onesignal.unity.core"
+    "com.onesignal.unity.core": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=com.onesignal.unity.core#5.1.16",
+    "com.onesignal.unity.android": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=com.onesignal.unity.android#5.1.16",
+    "com.onesignal.unity.ios": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=com.onesignal.unity.ios#5.1.16"
   }
 }
 ```
+
+> **Important:** Always include a version tag (e.g., `#5.1.16`) to ensure reproducible builds. The `core` package must be listed first as it is a dependency of the platform packages. Do not include a leading `/` in the path parameter.
 
 Or use the Unity Asset Store / .unitypackage from GitHub releases.
 
@@ -328,46 +339,48 @@ Or use the Unity Asset Store / .unitypackage from GitHub releases.
 ```csharp
 using UnityEngine;
 using OneSignalSDK;
+using OneSignalSDK.Debug.Models;
 
 public class OneSignalInitializer : MonoBehaviour
 {
     [SerializeField] private string appId = "YOUR_ONESIGNAL_APP_ID";
-    
+
     private void Awake()
     {
         // Initialize OneSignal
         OneSignal.Initialize(appId);
-        
-        // Set log level for debugging
-        OneSignal.Debug.LogLevel = LogLevel.VERBOSE;
-        OneSignal.Debug.AlertLevel = LogLevel.NONE;
-        
+
+        // Set log level for debugging (use PascalCase for enum values)
+        OneSignal.Debug.LogLevel = LogLevel.Verbose;
+        OneSignal.Debug.AlertLevel = LogLevel.None;
+
         // Request notification permission
         OneSignal.Notifications.RequestPermissionAsync(true);
-        
+
         // Keep this object alive across scenes
         DontDestroyOnLoad(gameObject);
     }
 }
 ```
 
+> **Note:** The `LogLevel` enum is in the `OneSignalSDK.Debug.Models` namespace and uses PascalCase values: `None`, `Fatal`, `Error`, `Warn`, `Info`, `Debug`, `Verbose`.
+
 ### Using RuntimeInitializeOnLoadMethod
 
 ```csharp
 using UnityEngine;
 using OneSignalSDK;
+using OneSignalSDK.Debug.Models;
 
 public static class OneSignalBootstrap
 {
     private const string APP_ID = "YOUR_ONESIGNAL_APP_ID";
-    
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Initialize()
     {
-        // Set log level for debugging (remove in production)
-        OneSignal.Debug.LogLevel = LogLevel.Verbose;
-        // Initialize OneSignal
         OneSignal.Initialize(APP_ID);
+        OneSignal.Debug.LogLevel = LogLevel.Verbose;
     }
 }
 ```
@@ -377,17 +390,23 @@ public static class OneSignalBootstrap
 ```csharp
 using UnityEngine;
 using OneSignalSDK;
+using OneSignalSDK.Notifications;
+using OneSignalSDK.Notifications.Models;
+using OneSignalSDK.Debug.Models;
 using System;
 
 public class OneSignalManager : MonoBehaviour
 {
     public static OneSignalManager Instance { get; private set; }
-    
+
     [SerializeField] private string appId;
-    
-    public event Action<INotification> OnNotificationReceived;
-    public event Action<INotificationClickedResult> OnNotificationClicked;
-    
+
+    // Use correct interface types from OneSignalSDK.Notifications.Models
+    public event Action<IDisplayableNotification> OnNotificationReceived;
+    public event Action<INotificationClickResult> OnNotificationClicked;
+
+    public bool IsInitialized { get; private set; }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -395,73 +414,74 @@ public class OneSignalManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-        
+
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        
+
         Initialize();
     }
-    
+
     private void Initialize()
     {
+        if (IsInitialized) return;
+
         if (string.IsNullOrEmpty(appId))
         {
-            Debug.LogError("OneSignal App ID is not set!");
+            UnityEngine.Debug.LogError("OneSignal App ID is not set!");
             return;
         }
-        
-        // Set log level for debugging (remove in production)
-        OneSignal.Debug.LogLevel = LogLevel.Verbose;
-        // Initialize OneSignal
+
         OneSignal.Initialize(appId);
         SetupListeners();
+        IsInitialized = true;
     }
-    
+
     private void SetupListeners()
     {
-        OneSignal.Notifications.ForegroundWillDisplay += (notification) =>
+        // Events use EventHandler<T> pattern: (object sender, TEventArgs e)
+        OneSignal.Notifications.ForegroundWillDisplay += (sender, e) =>
         {
-            OnNotificationReceived?.Invoke(notification.Notification);
-            notification.PreventDefault(); // Show notification in foreground
+            OnNotificationReceived?.Invoke(e.Notification);
+            // Call e.PreventDefault() to suppress the notification display
         };
-        
-        OneSignal.Notifications.Clicked += (result) =>
+
+        OneSignal.Notifications.Clicked += (sender, e) =>
         {
-            OnNotificationClicked?.Invoke(result);
+            OnNotificationClicked?.Invoke(e.Result);
         };
     }
-    
+
     public void Login(string externalId)
     {
         OneSignal.Login(externalId);
     }
-    
+
     public void Logout()
     {
         OneSignal.Logout();
     }
-    
+
     public void SetEmail(string email)
     {
         OneSignal.User.AddEmail(email);
     }
-    
+
     public void SetSmsNumber(string number)
     {
         OneSignal.User.AddSms(number);
     }
-    
+
     public void SetTag(string key, string value)
     {
         OneSignal.User.AddTag(key, value);
     }
-    
+
     public async void RequestPermission(Action<bool> callback = null)
     {
         bool accepted = await OneSignal.Notifications.RequestPermissionAsync(true);
         callback?.Invoke(accepted);
     }
-    
+
     public void SetLogLevel(LogLevel level)
     {
         OneSignal.Debug.LogLevel = level;
@@ -469,67 +489,103 @@ public class OneSignalManager : MonoBehaviour
 }
 ```
 
+> **Important Notes:**
+> - Use `UnityEngine.Debug.Log()` instead of `Debug.Log()` to avoid conflicts with `OneSignal.Debug`
+> - Event handlers use the standard `EventHandler<T>` signature: `(object sender, TEventArgs e)`
+> - The correct type is `INotificationClickResult` (not `INotificationClickedResult`)
+> - `IDisplayableNotification` is used for foreground notifications, `INotification` for clicked notifications
+
 ---
 
-## Push Subscription Observer + Welcome Dialog (Unity IMGUI)
+## Push Subscription Verification Dialog
 
-After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID. Since Unity does not have a built-in native dialog API at runtime, use an IMGUI overlay as a lightweight popup.
+After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully. When the subscription ID is received, show a dialog and request push permission on tap.
+
+Unity has no native alert dialog, so this uses a lightweight IMGUI overlay. Attach this component to a GameObject in your first scene (or create it from `OneSignalManager`) after OneSignal is initialized.
+
+### IntegrationCompleteDialog.cs
 
 ```csharp
 using UnityEngine;
 using OneSignalSDK;
 
-public class WelcomeDialog : MonoBehaviour
+public class IntegrationCompleteDialog : MonoBehaviour
 {
     private bool showDialog = false;
 
     private void Start()
     {
-        OneSignal.User.PushSubscription.Changed += OnPushSubscriptionChanged;
-    }
-
-    private void OnPushSubscriptionChanged(object sender, PushSubscriptionChangedEventArgs e)
-    {
-        var previousId = e.State.Previous.Id;
-        var currentId = e.State.Current.Id;
-
-        if (string.IsNullOrEmpty(previousId) && !string.IsNullOrEmpty(currentId))
+        // Register the push subscription observer after OneSignal is initialized.
+        // Event handlers use the standard (object sender, TEventArgs e) signature.
+        OneSignal.User.PushSubscription.Changed += (sender, e) =>
         {
-            showDialog = true;
-        }
+            string previousId = e.State.Previous.Id;
+            string currentId = e.State.Current.Id;
+
+            if (string.IsNullOrEmpty(previousId) && !string.IsNullOrEmpty(currentId))
+            {
+                showDialog = true;
+            }
+        };
     }
 
     private void OnGUI()
     {
         if (!showDialog) return;
 
-        // Center a dialog box on screen
-        float width = 400;
-        float height = 150;
-        Rect dialogRect = new Rect(
-            (Screen.width - width) / 2,
-            (Screen.height - height) / 2,
-            width,
-            height
-        );
+        GUILayout.BeginArea(new Rect(Screen.width / 2 - 200, Screen.height / 2 - 100, 400, 200), GUI.skin.box);
 
-        GUI.Window(0, dialogRect, _ =>
+        GUILayout.Label("Your OneSignal SDK integration is complete!",
+            new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter });
+        GUILayout.Space(10);
+        GUILayout.Label("You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.",
+            new GUIStyle(GUI.skin.label) { wordWrap = true, alignment = TextAnchor.MiddleCenter });
+        GUILayout.Space(20);
+
+        if (GUILayout.Button("Got it", GUILayout.Height(40)))
         {
-            GUILayout.Space(10);
-            GUILayout.Label("Click the button below to trigger your first journey via an in-app message.",
-                new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true });
-            GUILayout.Space(10);
-            if (GUILayout.Button("Trigger your first journey"))
-            {
-                OneSignal.InAppMessages.SetTrigger("ai_implementation_campaign_email_journey", "true");
-                showDialog = false;
-            }
-        }, "Your OneSignal integration is complete!");
+            showDialog = false;
+            RequestPushPermission();
+        }
+
+        GUILayout.EndArea();
     }
 
-    private void OnDestroy()
+    private async void RequestPushPermission()
     {
-        OneSignal.User.PushSubscription.Changed -= OnPushSubscriptionChanged;
+        await OneSignal.Notifications.RequestPermissionAsync(true);
+    }
+}
+```
+
+---
+
+## Testing
+
+### Play Mode Tests
+
+```csharp
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+using System.Collections;
+
+public class OneSignalManagerTests
+{
+    [UnityTest]
+    public IEnumerator OneSignalManager_Initializes_Successfully()
+    {
+        // Arrange
+        var go = new GameObject("TestManager");
+        var manager = go.AddComponent<OneSignalManager>();
+        
+        yield return null;
+        
+        // Assert
+        Assert.IsNotNull(OneSignalManager.Instance);
+        
+        // Cleanup
+        Object.Destroy(go);
     }
 }
 ```
@@ -546,3 +602,10 @@ public class WelcomeDialog : MonoBehaviour
 | Permission not requested | Call `RequestPermissionAsync` after initialization |
 | SDK not initializing | Check App ID is correct, verify internet connectivity |
 | Multiple instances | Ensure only one GameObject with OneSignal initialization |
+| `OneSignalSDK` namespace not found | Ensure packages have version tags in manifest.json (e.g., `#5.1.16`), remove leading `/` from paths |
+| `LogLevel` not found | Add `using OneSignalSDK.Debug.Models;` |
+| `INotification` not found | Add `using OneSignalSDK.Notifications.Models;` |
+| Event handler signature error | Use `(object sender, TEventArgs e)` pattern, not just `(e)` |
+| `Debug.Log` conflicts with `OneSignal.Debug` | Use `UnityEngine.Debug.Log()` explicitly |
+| "OneSignal not initialized" error | Ensure `OneSignal.Initialize()` is called before using other SDK methods |
+| Package resolution fails | Check version tag exists (use `5.1.16` not `5.2.8`), verify `core` package is listed first |

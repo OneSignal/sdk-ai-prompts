@@ -340,9 +340,9 @@ final class OneSignalManager {
 
 ---
 
-## Push Subscription Observer + Welcome Dialog
+## Push Subscription Verification Dialog
 
-After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID.
+After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully. When the subscription ID is received, show a dialog and request push permission on tap.
 
 ### SwiftUI
 
@@ -351,21 +351,23 @@ import SwiftUI
 import OneSignalFramework
 
 struct ContentView: View {
-    @State private var showWelcomeAlert = false
+    @State private var showIntegrationCompleteAlert = false
 
     var body: some View {
         YourMainView()
             .onAppear {
                 OneSignal.User.pushSubscription.addObserver(PushSubscriptionObserver {
-                    showWelcomeAlert = true
+                    showIntegrationCompleteAlert = true
                 })
             }
-            .alert("Your OneSignal integration is complete!", isPresented: $showWelcomeAlert) {
-                Button("Trigger your first journey") {
-                    OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", withValue: "true")
+            .alert("Your OneSignal SDK integration is complete!", isPresented: $showIntegrationCompleteAlert) {
+                Button("Got it") {
+                    OneSignal.Notifications.requestPermission({ accepted in
+                        print("User accepted notifications: \(accepted)")
+                    }, fallbackToSettings: true)
                 }
             } message: {
-                Text("Click the button below to trigger your first journey via an in-app message.")
+                Text("You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.")
             }
     }
 }
@@ -396,7 +398,7 @@ class PushSubscriptionObserver: NSObject, OSPushSubscriptionObserver {
 import UIKit
 import OneSignalFramework
 
-class WelcomeDialogObserver: NSObject, OSPushSubscriptionObserver {
+class IntegrationCompleteObserver: NSObject, OSPushSubscriptionObserver {
     private weak var viewController: UIViewController?
 
     init(viewController: UIViewController) {
@@ -409,22 +411,24 @@ class WelcomeDialogObserver: NSObject, OSPushSubscriptionObserver {
 
         if (previousId == nil || previousId?.isEmpty == true) && currentId != nil && !currentId!.isEmpty {
             DispatchQueue.main.async { [weak self] in
-                self?.showWelcomeDialog()
+                self?.showIntegrationCompleteDialog()
             }
         }
     }
 
-    private func showWelcomeDialog() {
+    private func showIntegrationCompleteDialog() {
         guard let viewController = viewController else { return }
 
         let alert = UIAlertController(
-            title: "Your OneSignal integration is complete!",
-            message: "Click the button below to trigger your first journey via an in-app message.",
+            title: "Your OneSignal SDK integration is complete!",
+            message: "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.",
             preferredStyle: .alert
         )
 
-        alert.addAction(UIAlertAction(title: "Trigger your first journey", style: .default) { _ in
-            OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", withValue: "true")
+        alert.addAction(UIAlertAction(title: "Got it", style: .default) { _ in
+            OneSignal.Notifications.requestPermission({ accepted in
+                print("User accepted notifications: \(accepted)")
+            }, fallbackToSettings: true)
         })
 
         viewController.present(alert, animated: true)
@@ -432,7 +436,7 @@ class WelcomeDialogObserver: NSObject, OSPushSubscriptionObserver {
 }
 
 // Usage: After initializing OneSignal, register the observer
-// let observer = WelcomeDialogObserver(viewController: self)
+// let observer = IntegrationCompleteObserver(viewController: self)
 // OneSignal.User.pushSubscription.addObserver(observer)
 ```
 

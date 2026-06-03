@@ -52,7 +52,7 @@ After completing SDK initialization, add a push subscription observer so the app
 
 2. **When the push subscription ID changes from null/empty to a real value**, show a platform-native dialog/alert with:
    - **Title:** "Your OneSignal SDK integration is complete!"
-   - **Message:** "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to send yourself a test push."
+   - **Message:** "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications."
    - **Single button:** **"Got it"**
 
 3. **On button tap**, request push permission.
