@@ -27,11 +27,11 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
-## Demo App ID (Always Used)
+## App ID
 
-This integration always uses the **Demo App ID**: `1db1662c-7609-4a90-b0ad-15b45407d628`
+The App ID is provided in the user's prompt — the same message that linked you to this file. Use **that** App ID for all OneSignal SDK initialization and any REST calls in the verification scaffolding.
 
-Use the demo App ID above for all integrations.
+If no App ID is present in the user's prompt, ask the user to provide one before proceeding. **Never** hardcode a demo or fallback App ID.
 
 ---
 
@@ -53,29 +53,22 @@ Use the demo App ID above for all integrations.
 
 ---
 
-## Push Subscription Observer + Welcome Dialog (Required)
+## Push Subscription Verification Dialog (Required)
 
-After completing the SDK integration, you MUST add a **push subscription observer** and show a **Welcome Dialog** when the device is registered.
+After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully.
 
 ### Requirements (All Platforms)
 
 1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
 2. **When the push subscription ID changes from null/empty to a real value**, show a platform-native dialog/alert with:
-   - Title: "Your OneSignal integration is complete!"
-   - Message: "Click the button below to trigger your first journey via an in-app message."
-   - Single button: **"Trigger your first journey"**
+   - **Title:** "Your OneSignal SDK integration is complete!"
+   - **Message:** "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to send yourself a test push."
+   - **Single button:** **"Got it"**
 
-3. **On button tap, call:**
-   ```
-   OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
-   ```
+3. **On button tap**, request push permission.
 
-### Additional Steps (Android Only)
-
-Android apps have additional steps after the IAM is triggered: listen for IAM dismissal, prompt for push permission, and if granted, allow the user to send a test push notification to themselves. See the Android integration file for full details.
-
-See platform-specific integration files for observer and dialog implementation examples.
+See platform-specific integration files for implementation examples.
 
 ---
 
@@ -406,16 +399,19 @@ class MyApplication : Application()
 
 ---
 
-## Push Subscription Observer + Welcome Dialog + Send Notification Flow
+## Push Subscription Verification Dialog
 
-After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID. The full flow is:
+After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully.
 
-1. Push subscription observer fires → show welcome dialog with IAM trigger button
-2. On click → trigger the email IAM
-3. IAM lifecycle listener detects when email IAM is dismissed
-4. On dismiss → prompt for push permission
-5. If allowed → show a second dialog with a text field → send a push notification to self via REST API
-6. If denied → end
+The verification flow is:
+
+1. Push subscription observer fires when the device receives a subscription ID
+2. Native dialog appears:
+   - Title: "Your OneSignal SDK integration is complete!"
+   - Message: "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications."
+   - Button: "Got it"
+3. On button tap, request push permission
+4. If permission is granted, no additional action is required
 
 ### Kotlin
 
@@ -423,29 +419,14 @@ After completing the integration, add a push subscription observer that shows a 
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.widget.EditText
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.onesignal.OneSignal
-import com.onesignal.inAppMessages.IInAppMessageDidDismissEvent
-import com.onesignal.inAppMessages.IInAppMessageDidDisplayEvent
-import com.onesignal.inAppMessages.IInAppMessageLifecycleListener
-import com.onesignal.inAppMessages.IInAppMessageWillDismissEvent
-import com.onesignal.inAppMessages.IInAppMessageWillDisplayEvent
 import com.onesignal.user.subscriptions.IPushSubscriptionObserver
 import com.onesignal.user.subscriptions.PushSubscriptionChangedState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-import java.nio.charset.StandardCharsets
 
-private const val APP_ID = "YOUR_ONESIGNAL_APP_ID"
-
-// Step 1: Register push subscription observer after OneSignal is initialized
 fun setupPushSubscriptionObserver(context: Context) {
     OneSignal.User.pushSubscription.addObserver(object : IPushSubscriptionObserver {
         override fun onPushSubscriptionChange(state: PushSubscriptionChangedState) {
@@ -454,107 +435,31 @@ fun setupPushSubscriptionObserver(context: Context) {
 
             if (previousId.isNullOrEmpty() && !currentId.isNullOrEmpty()) {
                 Handler(Looper.getMainLooper()).post {
-                    showWelcomeDialog(context)
+                    showIntegrationCompleteDialog(context)
                 }
             }
         }
     })
 }
 
-// Step 2: Show welcome dialog with IAM trigger button
-fun showWelcomeDialog(context: Context) {
+fun showIntegrationCompleteDialog(context: Context) {
     AlertDialog.Builder(context)
-        .setTitle("Your OneSignal integration is complete!")
-        .setMessage("Click the button below to trigger your first journey via an in-app message.")
-        .setPositiveButton("Trigger your first journey") { _, _ ->
-            OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
-            setupIAMDismissListener(context)
+        .setTitle("Your OneSignal SDK integration is complete!")
+        .setMessage(
+            "You can now send Push Notifications & In-App Messages through OneSignal. " +
+            "Tap below to enable push notifications."
+        )
+        .setPositiveButton("Got it") { _, _ ->
+            requestPushPermission()
         }
         .setCancelable(false)
         .show()
 }
 
-// Step 3: Listen for IAM dismissal
-fun setupIAMDismissListener(context: Context) {
-    OneSignal.InAppMessages.addLifecycleListener(object : IInAppMessageLifecycleListener {
-        override fun onWillDisplay(event: IInAppMessageWillDisplayEvent) {}
-        override fun onDidDisplay(event: IInAppMessageDidDisplayEvent) {}
-        override fun onWillDismiss(event: IInAppMessageWillDismissEvent) {}
-        override fun onDidDismiss(event: IInAppMessageDidDismissEvent) {
-            OneSignal.InAppMessages.removeLifecycleListener(this)
-            promptForPushPermission(context)
-        }
-    })
-}
-
-// Step 4: Prompt for push permission after IAM is dismissed
-// NOTE: requestPermission is a suspend function in SDK 5.x — it must be called
-// from a coroutine. Use lifecycleScope.launch when inside an Activity/Fragment.
-fun promptForPushPermission(context: Context) {
+fun requestPushPermission() {
     CoroutineScope(Dispatchers.Main).launch {
-        val granted = OneSignal.Notifications.requestPermission(true)
-        if (granted) {
-            showSendNotificationDialog(context)
-        }
+        OneSignal.Notifications.requestPermission(true)
     }
-}
-
-// Step 5: Show dialog with text field to compose a notification message
-fun showSendNotificationDialog(context: Context) {
-    val messageInput = EditText(context).apply {
-        hint = "Enter your notification message"
-    }
-
-    AlertDialog.Builder(context)
-        .setTitle("Send a Push Notification")
-        .setMessage("Type a message below and tap Send to receive a push notification on this device.")
-        .setView(messageInput)
-        .setPositiveButton("Send") { _, _ ->
-            val message = messageInput.text.toString()
-            if (message.isNotEmpty()) {
-                sendPushNotification(context, message)
-            }
-        }
-        .setNegativeButton("Cancel", null)
-        .setCancelable(false)
-        .show()
-}
-
-// Step 6: Send push notification to self via OneSignal REST API
-fun sendPushNotification(context: Context, message: String) {
-    Thread {
-        try {
-            val subscriptionId = OneSignal.User.pushSubscription.id
-            if (subscriptionId.isNullOrEmpty()) return@Thread
-
-            val json = JSONObject().apply {
-                put("app_id", APP_ID)
-                put("contents", JSONObject().put("en", message))
-                put("headings", JSONObject().put("en", "OneSignal Demo"))
-                put("include_subscription_ids", JSONArray().put(subscriptionId))
-            }
-
-            val url = URL("https://api.onesignal.com/notifications")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-            conn.setRequestProperty("Accept", "application/json")
-            conn.doOutput = true
-
-            conn.outputStream.use { it.write(json.toString().toByteArray(StandardCharsets.UTF_8)) }
-
-            val responseCode = conn.responseCode
-            Handler(Looper.getMainLooper()).post {
-                if (responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_CREATED) {
-                    Toast.makeText(context, "Notification sent!", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "Failed to send notification.", Toast.LENGTH_SHORT).show()
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }.start()
 }
 ```
 
@@ -564,26 +469,11 @@ fun sendPushNotification(context: Context, message: String) {
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
-import android.widget.EditText;
-import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import com.onesignal.OneSignal;
-import com.onesignal.inAppMessages.IInAppMessageDidDismissEvent;
-import com.onesignal.inAppMessages.IInAppMessageDidDisplayEvent;
-import com.onesignal.inAppMessages.IInAppMessageLifecycleListener;
-import com.onesignal.inAppMessages.IInAppMessageWillDismissEvent;
-import com.onesignal.inAppMessages.IInAppMessageWillDisplayEvent;
 import com.onesignal.user.subscriptions.IPushSubscriptionObserver;
 import com.onesignal.user.subscriptions.PushSubscriptionChangedState;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 
-private static final String APP_ID = "YOUR_ONESIGNAL_APP_ID";
-
-// Step 1: Register push subscription observer after OneSignal is initialized
 public static void setupPushSubscriptionObserver(Context context) {
     OneSignal.getUser().getPushSubscription().addObserver(new IPushSubscriptionObserver() {
         @Override
@@ -591,109 +481,28 @@ public static void setupPushSubscriptionObserver(Context context) {
             String previousId = state.getPrevious().getId();
             String currentId = state.getCurrent().getId();
 
-            if ((previousId == null || previousId.isEmpty()) && currentId != null && !currentId.isEmpty()) {
+            if ((previousId == null || previousId.isEmpty()) &&
+                currentId != null && !currentId.isEmpty()) {
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    showWelcomeDialog(context);
+                    showIntegrationCompleteDialog(context);
                 });
             }
         }
     });
 }
 
-// Step 2: Show welcome dialog with IAM trigger button
-public static void showWelcomeDialog(Context context) {
+public static void showIntegrationCompleteDialog(Context context) {
     new AlertDialog.Builder(context)
-        .setTitle("Your OneSignal integration is complete!")
-        .setMessage("Click the button below to trigger your first journey via an in-app message.")
-        .setPositiveButton("Trigger your first journey", (dialog, which) -> {
-            OneSignal.getInAppMessages().addTrigger("ai_implementation_campaign_email_journey", "true");
-            setupIAMDismissListener(context);
+        .setTitle("Your OneSignal SDK integration is complete!")
+        .setMessage(
+            "You can now send Push Notifications & In-App Messages through OneSignal. " +
+            "Tap below to enable push notifications."
+        )
+        .setPositiveButton("Got it", (dialog, which) -> {
+            OneSignal.getNotifications().requestPermission(true, result -> {});
         })
         .setCancelable(false)
         .show();
-}
-
-// Step 3: Listen for IAM dismissal
-public static void setupIAMDismissListener(Context context) {
-    IInAppMessageLifecycleListener listener = new IInAppMessageLifecycleListener() {
-        @Override public void onWillDisplay(IInAppMessageWillDisplayEvent event) {}
-        @Override public void onDidDisplay(IInAppMessageDidDisplayEvent event) {}
-        @Override public void onWillDismiss(IInAppMessageWillDismissEvent event) {}
-        @Override
-        public void onDidDismiss(IInAppMessageDidDismissEvent event) {
-            OneSignal.getInAppMessages().removeLifecycleListener(this);
-            promptForPushPermission(context);
-        }
-    };
-    OneSignal.getInAppMessages().addLifecycleListener(listener);
-}
-
-// Step 4: Prompt for push permission after IAM is dismissed
-public static void promptForPushPermission(Context context) {
-    OneSignal.getNotifications().requestPermission(true, result -> {
-        if (result) {
-            new Handler(Looper.getMainLooper()).post(() -> {
-                showSendNotificationDialog(context);
-            });
-        }
-    });
-}
-
-// Step 5: Show dialog with text field to compose a notification message
-public static void showSendNotificationDialog(Context context) {
-    EditText messageInput = new EditText(context);
-    messageInput.setHint("Enter your notification message");
-
-    new AlertDialog.Builder(context)
-        .setTitle("Send a Push Notification")
-        .setMessage("Type a message below and tap Send to receive a push notification on this device.")
-        .setView(messageInput)
-        .setPositiveButton("Send", (dialog, which) -> {
-            String message = messageInput.getText().toString();
-            if (!message.isEmpty()) {
-                sendPushNotification(context, message);
-            }
-        })
-        .setNegativeButton("Cancel", null)
-        .setCancelable(false)
-        .show();
-}
-
-// Step 6: Send push notification to self via OneSignal REST API
-public static void sendPushNotification(Context context, String message) {
-    new Thread(() -> {
-        try {
-            String subscriptionId = OneSignal.getUser().getPushSubscription().getId();
-            if (subscriptionId == null || subscriptionId.isEmpty()) return;
-
-            JSONObject json = new JSONObject();
-            json.put("app_id", APP_ID);
-            json.put("contents", new JSONObject().put("en", message));
-            json.put("headings", new JSONObject().put("en", "OneSignal Demo"));
-            json.put("include_subscription_ids", new JSONArray().put(subscriptionId));
-
-            URL url = new URL("https://api.onesignal.com/notifications");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-            conn.setRequestProperty("Accept", "application/json");
-            conn.setDoOutput(true);
-
-            byte[] outputBytes = json.toString().getBytes(StandardCharsets.UTF_8);
-            conn.getOutputStream().write(outputBytes);
-
-            int responseCode = conn.getResponseCode();
-            new Handler(Looper.getMainLooper()).post(() -> {
-                if (responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_CREATED) {
-                    Toast.makeText(context, "Notification sent!", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(context, "Failed to send notification.", Toast.LENGTH_SHORT).show();
-                }
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }).start();
 }
 ```
 
