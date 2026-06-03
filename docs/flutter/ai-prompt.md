@@ -27,11 +27,11 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ---
 
-## Demo App ID (Always Used)
+## App ID
 
-This integration always uses the **Demo App ID**: `1db1662c-7609-4a90-b0ad-15b45407d628`
+The App ID is provided in the user's prompt — the same message that linked you to this file. Use **that** App ID for all OneSignal SDK initialization and any REST calls in the verification scaffolding.
 
-Use the demo App ID above for all integrations.
+If no App ID is present in the user's prompt, ask the user to provide one before proceeding. **Never** hardcode a demo or fallback App ID.
 
 ---
 
@@ -53,29 +53,22 @@ Use the demo App ID above for all integrations.
 
 ---
 
-## Push Subscription Observer + Welcome Dialog (Required)
+## Push Subscription Verification Dialog (Required)
 
-After completing the SDK integration, you MUST add a **push subscription observer** and show a **Welcome Dialog** when the device is registered.
+After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully.
 
 ### Requirements (All Platforms)
 
 1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
 2. **When the push subscription ID changes from null/empty to a real value**, show a platform-native dialog/alert with:
-   - Title: "Your OneSignal integration is complete!"
-   - Message: "Click the button below to trigger your first journey via an in-app message."
-   - Single button: **"Trigger your first journey"**
+   - **Title:** "Your OneSignal SDK integration is complete!"
+   - **Message:** "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications."
+   - **Single button:** **"Got it"**
 
-3. **On button tap, call:**
-   ```
-   OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true")
-   ```
+3. **On button tap**, request push permission.
 
-### Additional Steps (Android Only)
-
-Android apps have additional steps after the IAM is triggered: listen for IAM dismissal, prompt for push permission, and if granted, allow the user to send a test push notification to themselves. See the Android integration file for full details.
-
-See platform-specific integration files for observer and dialog implementation examples.
+See platform-specific integration files for implementation examples.
 
 ---
 
@@ -436,9 +429,9 @@ class NotificationProvider extends ChangeNotifier {
 
 ---
 
-## Push Subscription Observer + Welcome Dialog (Flutter)
+## Push Subscription Verification Dialog
 
-After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID.
+After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully. When the subscription ID is received, show a dialog and request push permission on tap.
 
 ### Material
 
@@ -452,25 +445,25 @@ void setupPushSubscriptionObserver(BuildContext context) {
     final currentId = state.current.id;
 
     if ((previousId == null || previousId.isEmpty) && currentId != null && currentId.isNotEmpty) {
-      showWelcomeDialog(context);
+      showIntegrationCompleteDialog(context);
     }
   });
 }
 
-void showWelcomeDialog(BuildContext context) {
+void showIntegrationCompleteDialog(BuildContext context) {
   showDialog(
     context: context,
     barrierDismissible: false,
     builder: (context) => AlertDialog(
-      title: const Text('Your OneSignal integration is complete!'),
-      content: const Text('Click the button below to trigger your first journey via an in-app message.'),
+      title: const Text('Your OneSignal SDK integration is complete!'),
+      content: const Text('You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.'),
       actions: [
         TextButton(
           onPressed: () {
-            OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true");
             Navigator.pop(context);
+            OneSignal.Notifications.requestPermission(true);
           },
-          child: const Text('Trigger your first journey'),
+          child: const Text('Got it'),
         ),
       ],
     ),
@@ -490,25 +483,25 @@ void setupPushSubscriptionObserver(BuildContext context) {
     final currentId = state.current.id;
 
     if ((previousId == null || previousId.isEmpty) && currentId != null && currentId.isNotEmpty) {
-      showWelcomeDialog(context);
+      showIntegrationCompleteDialog(context);
     }
   });
 }
 
-void showWelcomeDialog(BuildContext context) {
+void showIntegrationCompleteDialog(BuildContext context) {
   showCupertinoDialog(
     context: context,
     barrierDismissible: false,
     builder: (context) => CupertinoAlertDialog(
-      title: const Text('Your OneSignal integration is complete!'),
-      content: const Text('Click the button below to trigger your first journey via an in-app message.'),
+      title: const Text('Your OneSignal SDK integration is complete!'),
+      content: const Text('You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.'),
       actions: [
         CupertinoDialogAction(
           onPressed: () {
-            OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true");
             Navigator.pop(context);
+            OneSignal.Notifications.requestPermission(true);
           },
-          child: const Text('Trigger your first journey'),
+          child: const Text('Got it'),
         ),
       ],
     ),

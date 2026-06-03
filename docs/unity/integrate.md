@@ -338,244 +338,63 @@ public class OneSignalManager : MonoBehaviour
 
 ---
 
-## Demo Welcome View (Unity UI)
+## Push Subscription Verification Dialog
 
-When using the demo App ID, create this view:
+After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully. When the subscription ID is received, show a dialog and request push permission on tap.
 
-### WelcomeUI.cs
+Unity has no native alert dialog, so this uses a lightweight IMGUI overlay. Attach this component to a GameObject in your first scene (or create it from `OneSignalManager`) after OneSignal is initialized.
 
-```csharp
-using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
-using OneSignalSDK;
-using System.Text.RegularExpressions;
-
-public class WelcomeUI : MonoBehaviour
-{
-    [Header("Form Elements")]
-    [SerializeField] private TMP_InputField emailInput;
-    [SerializeField] private TMP_InputField phoneInput;
-    [SerializeField] private Button submitButton;
-    [SerializeField] private TMP_Text emailErrorText;
-    [SerializeField] private TMP_Text phoneErrorText;
-
-    [Header("Loading")]
-    [SerializeField] private GameObject loadingIndicator;
-
-    [Header("Views")]
-    [SerializeField] private GameObject formView;
-    [SerializeField] private GameObject successView;
-
-    private readonly Regex emailRegex = new Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-    private readonly Regex phoneRegex = new Regex(@"^\+[1-9]\d{9,14}$");
-
-    private void Start()
-    {
-        // Ensure OneSignal is initialized before UI interactions
-        EnsureOneSignalInitialized();
-
-        emailInput.onValueChanged.AddListener(_ => ValidateForm());
-        phoneInput.onValueChanged.AddListener(_ => ValidateForm());
-        submitButton.onClick.AddListener(OnSubmitClicked);
-
-        ValidateForm();
-    }
-
-    private void EnsureOneSignalInitialized()
-    {
-        // Initialize OneSignal if not already done
-        // This ensures the SDK is ready when the user submits the form
-        if (OneSignalManager.Instance == null)
-        {
-            var managerObj = new GameObject("OneSignalManager");
-            managerObj.AddComponent<OneSignalManager>();
-        }
-    }
-
-    private void ValidateForm()
-    {
-        string email = emailInput.text;
-        string phone = phoneInput.text;
-
-        bool emailValid = string.IsNullOrEmpty(email) || emailRegex.IsMatch(email);
-        bool phoneValid = string.IsNullOrEmpty(phone) || phoneRegex.IsMatch(phone);
-
-        emailErrorText.gameObject.SetActive(!emailValid);
-        phoneErrorText.gameObject.SetActive(!phoneValid);
-
-        bool formComplete = !string.IsNullOrEmpty(email) && !string.IsNullOrEmpty(phone);
-        bool formValid = emailRegex.IsMatch(email) && phoneRegex.IsMatch(phone);
-
-        submitButton.interactable = formComplete && formValid;
-    }
-
-    private async void OnSubmitClicked()
-    {
-        submitButton.interactable = false;
-        loadingIndicator.SetActive(true);
-
-        string email = emailInput.text;
-        string phone = phoneInput.text;
-
-        try
-        {
-            // Set user data
-            OneSignal.User.AddEmail(email);
-            OneSignal.User.AddSms(phone);
-            OneSignal.User.AddTag("demo_user", "true");
-            OneSignal.User.AddTag("welcome_sent", System.DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-
-            // Small delay to ensure data is sent
-            await System.Threading.Tasks.Task.Delay(500);
-
-            ShowSuccess();
-        }
-        catch (System.Exception e)
-        {
-            // Use UnityEngine.Debug to avoid conflict with OneSignal.Debug
-            UnityEngine.Debug.LogError($"Error submitting: {e.Message}");
-            submitButton.interactable = true;
-            loadingIndicator.SetActive(false);
-        }
-    }
-
-    private void ShowSuccess()
-    {
-        formView.SetActive(false);
-        successView.SetActive(true);
-    }
-}
-```
-
-### UI Setup Instructions
-
-Create a Canvas with the following hierarchy:
-
-```
-Canvas
-├── FormView
-│   ├── TitleText ("OneSignal Integration Complete!")
-│   ├── SubtitleText ("Enter your details...")
-│   ├── EmailInputField
-│   │   └── EmailErrorText ("Invalid email address")
-│   ├── PhoneInputField
-│   │   └── PhoneErrorText ("Use format: +1234567890")
-│   ├── LoadingIndicator (Image with rotation animation)
-│   └── SubmitButton ("Send Welcome Message")
-└── SuccessView (initially disabled)
-    ├── CheckmarkImage
-    ├── SuccessTitleText ("Success!")
-    └── SuccessMessageText ("Check your email and phone...")
-```
-
-### Alternative: IMGUI Version (Quick Testing)
+### IntegrationCompleteDialog.cs
 
 ```csharp
 using UnityEngine;
 using OneSignalSDK;
-using System.Text.RegularExpressions;
 
-public class WelcomeIMGUI : MonoBehaviour
+public class IntegrationCompleteDialog : MonoBehaviour
 {
-    private string email = "";
-    private string phone = "";
-    private bool showSuccess = false;
-    private bool isLoading = false;
-
-    private readonly Regex emailRegex = new Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-    private readonly Regex phoneRegex = new Regex(@"^\+[1-9]\d{9,14}$");
+    private bool showDialog = false;
 
     private void Start()
     {
-        // Ensure OneSignal is initialized
-        EnsureOneSignalInitialized();
-    }
-
-    private void EnsureOneSignalInitialized()
-    {
-        if (OneSignalManager.Instance == null)
+        // Register the push subscription observer after OneSignal is initialized.
+        // Event handlers use the standard (object sender, TEventArgs e) signature.
+        OneSignal.User.PushSubscription.Changed += (sender, e) =>
         {
-            var managerObj = new GameObject("OneSignalManager");
-            managerObj.AddComponent<OneSignalManager>();
-        }
+            string previousId = e.State.Previous.Id;
+            string currentId = e.State.Current.Id;
+
+            if (string.IsNullOrEmpty(previousId) && !string.IsNullOrEmpty(currentId))
+            {
+                showDialog = true;
+            }
+        };
     }
 
     private void OnGUI()
     {
-        GUILayout.BeginArea(new Rect(Screen.width / 2 - 200, Screen.height / 2 - 150, 400, 300));
+        if (!showDialog) return;
 
-        if (showSuccess)
+        GUILayout.BeginArea(new Rect(Screen.width / 2 - 200, Screen.height / 2 - 100, 400, 200), GUI.skin.box);
+
+        GUILayout.Label("Your OneSignal SDK integration is complete!",
+            new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter });
+        GUILayout.Space(10);
+        GUILayout.Label("You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.",
+            new GUIStyle(GUI.skin.label) { wordWrap = true, alignment = TextAnchor.MiddleCenter });
+        GUILayout.Space(20);
+
+        if (GUILayout.Button("Got it", GUILayout.Height(40)))
         {
-            DrawSuccess();
-        }
-        else
-        {
-            DrawForm();
+            showDialog = false;
+            RequestPushPermission();
         }
 
         GUILayout.EndArea();
     }
 
-    private void DrawForm()
+    private async void RequestPushPermission()
     {
-        GUILayout.Label("OneSignal Integration Complete!",
-            new GUIStyle(GUI.skin.label) { fontSize = 24, alignment = TextAnchor.MiddleCenter });
-        GUILayout.Space(10);
-        GUILayout.Label("Enter your details to receive a welcome message",
-            new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-        GUILayout.Space(20);
-
-        GUILayout.Label("Email Address:");
-        email = GUILayout.TextField(email, GUILayout.Height(30));
-
-        bool emailValid = string.IsNullOrEmpty(email) || emailRegex.IsMatch(email);
-        if (!emailValid)
-            GUILayout.Label("Invalid email address", new GUIStyle(GUI.skin.label) { normal = { textColor = Color.red } });
-
-        GUILayout.Space(10);
-
-        GUILayout.Label("Phone Number:");
-        phone = GUILayout.TextField(phone, GUILayout.Height(30));
-
-        bool phoneValid = string.IsNullOrEmpty(phone) || phoneRegex.IsMatch(phone);
-        if (!phoneValid)
-            GUILayout.Label("Use format: +1234567890", new GUIStyle(GUI.skin.label) { normal = { textColor = Color.red } });
-
-        GUILayout.Space(20);
-
-        bool canSubmit = emailRegex.IsMatch(email) && phoneRegex.IsMatch(phone) && !isLoading;
-
-        GUI.enabled = canSubmit;
-        if (GUILayout.Button(isLoading ? "Sending..." : "Send Welcome Message", GUILayout.Height(40)))
-        {
-            Submit();
-        }
-        GUI.enabled = true;
-    }
-
-    private void DrawSuccess()
-    {
-        GUILayout.FlexibleSpace();
-        GUILayout.Label("Success!", new GUIStyle(GUI.skin.label) { fontSize = 28, alignment = TextAnchor.MiddleCenter });
-        GUILayout.Label("Check your email and phone for a welcome message!",
-            new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-        GUILayout.FlexibleSpace();
-    }
-
-    private async void Submit()
-    {
-        isLoading = true;
-
-        OneSignal.User.AddEmail(email);
-        OneSignal.User.AddSms(phone);
-        OneSignal.User.AddTag("demo_user", "true");
-        OneSignal.User.AddTag("welcome_sent", System.DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-
-        await System.Threading.Tasks.Task.Delay(500);
-
-        isLoading = false;
-        showSuccess = true;
+        await OneSignal.Notifications.RequestPermissionAsync(true);
     }
 }
 ```
@@ -608,36 +427,6 @@ public class OneSignalManagerTests
         
         // Cleanup
         Object.Destroy(go);
-    }
-}
-```
-
-### Edit Mode Tests
-
-```csharp
-using NUnit.Framework;
-
-public class WelcomeUIValidationTests
-{
-    [Test]
-    public void EmailValidation_ValidEmail_ReturnsTrue()
-    {
-        var regex = new System.Text.RegularExpressions.Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-        Assert.IsTrue(regex.IsMatch("test@example.com"));
-    }
-    
-    [Test]
-    public void EmailValidation_InvalidEmail_ReturnsFalse()
-    {
-        var regex = new System.Text.RegularExpressions.Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-        Assert.IsFalse(regex.IsMatch("invalid-email"));
-    }
-    
-    [Test]
-    public void PhoneValidation_ValidE164_ReturnsTrue()
-    {
-        var regex = new System.Text.RegularExpressions.Regex(@"^\+[1-9]\d{9,14}$");
-        Assert.IsTrue(regex.IsMatch("+14155551234"));
     }
 }
 ```

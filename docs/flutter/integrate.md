@@ -270,9 +270,9 @@ class NotificationProvider extends ChangeNotifier {
 
 ---
 
-## Push Subscription Observer + Welcome Dialog (Flutter)
+## Push Subscription Verification Dialog
 
-After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID.
+After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully. When the subscription ID is received, show a dialog and request push permission on tap.
 
 ### Material
 
@@ -286,25 +286,25 @@ void setupPushSubscriptionObserver(BuildContext context) {
     final currentId = state.current.id;
 
     if ((previousId == null || previousId.isEmpty) && currentId != null && currentId.isNotEmpty) {
-      showWelcomeDialog(context);
+      showIntegrationCompleteDialog(context);
     }
   });
 }
 
-void showWelcomeDialog(BuildContext context) {
+void showIntegrationCompleteDialog(BuildContext context) {
   showDialog(
     context: context,
     barrierDismissible: false,
     builder: (context) => AlertDialog(
-      title: const Text('Your OneSignal integration is complete!'),
-      content: const Text('Click the button below to trigger your first journey via an in-app message.'),
+      title: const Text('Your OneSignal SDK integration is complete!'),
+      content: const Text('You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.'),
       actions: [
         TextButton(
           onPressed: () {
-            OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true");
             Navigator.pop(context);
+            OneSignal.Notifications.requestPermission(true);
           },
-          child: const Text('Trigger your first journey'),
+          child: const Text('Got it'),
         ),
       ],
     ),
@@ -324,25 +324,25 @@ void setupPushSubscriptionObserver(BuildContext context) {
     final currentId = state.current.id;
 
     if ((previousId == null || previousId.isEmpty) && currentId != null && currentId.isNotEmpty) {
-      showWelcomeDialog(context);
+      showIntegrationCompleteDialog(context);
     }
   });
 }
 
-void showWelcomeDialog(BuildContext context) {
+void showIntegrationCompleteDialog(BuildContext context) {
   showCupertinoDialog(
     context: context,
     barrierDismissible: false,
     builder: (context) => CupertinoAlertDialog(
-      title: const Text('Your OneSignal integration is complete!'),
-      content: const Text('Click the button below to trigger your first journey via an in-app message.'),
+      title: const Text('Your OneSignal SDK integration is complete!'),
+      content: const Text('You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.'),
       actions: [
         CupertinoDialogAction(
           onPressed: () {
-            OneSignal.InAppMessages.addTrigger("ai_implementation_campaign_email_journey", "true");
             Navigator.pop(context);
+            OneSignal.Notifications.requestPermission(true);
           },
-          child: const Text('Trigger your first journey'),
+          child: const Text('Got it'),
         ),
       ],
     ),

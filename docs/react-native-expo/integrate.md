@@ -124,9 +124,9 @@ Add the OneSignal plugin to your `app.json` (or `app.config.js`):
 
 ---
 
-## Push Subscription Observer + Welcome Dialog
+## Push Subscription Verification Dialog
 
-After completing the integration, add a push subscription observer that shows a dialog when the device receives a push subscription ID.
+After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully. When the subscription ID is received, show a dialog and request push permission on tap.
 
 ### JavaScript Version
 
@@ -140,20 +140,20 @@ function setupPushSubscriptionObserver() {
     const currentId = subscription.current.id;
 
     if ((!previousId || previousId === '') && currentId && currentId !== '') {
-      showWelcomeDialog();
+      showIntegrationCompleteDialog();
     }
   });
 }
 
-function showWelcomeDialog() {
+function showIntegrationCompleteDialog() {
   Alert.alert(
-    'Your OneSignal integration is complete!',
-    'Click the button below to trigger your first journey via an in-app message.',
+    'Your OneSignal SDK integration is complete!',
+    'You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.',
     [
       {
-        text: 'Trigger your first journey',
+        text: 'Got it',
         onPress: () => {
-          OneSignal.InAppMessages.addTrigger('ai_implementation_campaign_email_journey', 'true');
+          OneSignal.Notifications.requestPermission(true);
         },
       },
     ],
@@ -174,20 +174,20 @@ function setupPushSubscriptionObserver(): void {
     const currentId = subscription.current.id;
 
     if ((!previousId || previousId === '') && currentId && currentId !== '') {
-      showWelcomeDialog();
+      showIntegrationCompleteDialog();
     }
   });
 }
 
-function showWelcomeDialog(): void {
+function showIntegrationCompleteDialog(): void {
   Alert.alert(
-    'Your OneSignal integration is complete!',
-    'Click the button below to trigger your first journey via an in-app message.',
+    'Your OneSignal SDK integration is complete!',
+    'You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.',
     [
       {
-        text: 'Trigger your first journey',
+        text: 'Got it',
         onPress: () => {
-          OneSignal.InAppMessages.addTrigger('ai_implementation_campaign_email_journey', 'true');
+          OneSignal.Notifications.requestPermission(true);
         },
       },
     ],

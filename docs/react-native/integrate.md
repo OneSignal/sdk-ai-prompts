@@ -411,428 +411,76 @@ Or build from Xcode using the **Run** button.
 
 ---
 
-## Demo Welcome View
+## Push Subscription Verification Dialog
 
-When using a demo App ID for testing, you can use this welcome screen to verify the integration:
+After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully. When the subscription ID is received, show a dialog and request push permission on tap.
 
-### JavaScript Version (WelcomeScreen.js)
+### JavaScript Version
 
 ```javascript
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { Alert } from 'react-native';
 import { OneSignal } from 'react-native-onesignal';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function setupPushSubscriptionObserver() {
+  OneSignal.User.pushSubscription.addEventListener('change', (subscription) => {
+    const previousId = subscription.previous.id;
+    const currentId = subscription.current.id;
 
-export function WelcomeScreen() {
-  const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [errors, setErrors] = useState({});
-
-  const isEmailValid = EMAIL_REGEX.test(email);
-  const isFormValid = isEmailValid;
-
-  const validateFields = () => {
-    const newErrors = {};
-    if (email && !isEmailValid) {
-      newErrors.email = 'Enter a valid email address';
+    if ((!previousId || previousId === '') && currentId && currentId !== '') {
+      showIntegrationCompleteDialog();
     }
-    setErrors(newErrors);
-  };
-
-  const handleSubmit = async () => {
-    if (!isFormValid) return;
-
-    setIsLoading(true);
-
-    try {
-      OneSignal.User.addEmail(email);
-      OneSignal.User.addTag('demo_user', 'true');
-      OneSignal.User.addTag('welcome_sent', Date.now().toString());
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setShowSuccess(true);
-    } catch (error) {
-      console.error('Error submitting:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (showSuccess) {
-    return (
-      <View style={styles.successContainer}>
-        <Text style={styles.checkmark}>✓</Text>
-        <Text style={styles.successTitle}>Success!</Text>
-        <Text style={styles.successMessage}>
-          Check your email for a welcome message!
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>OneSignal Integration Complete!</Text>
-          <Text style={styles.subtitle}>
-            Enter your details to receive a welcome message
-          </Text>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={[styles.input, errors.email && styles.inputError]}
-              value={email}
-              onChangeText={setEmail}
-              onBlur={validateFields}
-              placeholder="you@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-          </View>
-
-          <TouchableOpacity
-            style={[styles.button, !isFormValid && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={!isFormValid || isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Send Welcome Message</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
+  });
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-    color: '#1a1a1a',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  form: {
-    width: '100%',
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  inputError: {
-    borderColor: '#e74c3c',
-  },
-  errorText: {
-    color: '#e74c3c',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  button: {
-    backgroundColor: '#6c5ce7',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    backgroundColor: '#bbb',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  successContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#fff',
-  },
-  checkmark: {
-    fontSize: 64,
-    color: '#27ae60',
-    marginBottom: 16,
-  },
-  successTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#1a1a1a',
-  },
-  successMessage: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-});
+function showIntegrationCompleteDialog() {
+  Alert.alert(
+    'Your OneSignal SDK integration is complete!',
+    'You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.',
+    [
+      {
+        text: 'Got it',
+        onPress: () => {
+          OneSignal.Notifications.requestPermission(true);
+        },
+      },
+    ],
+    { cancelable: false }
+  );
+}
 ```
 
-### TypeScript Version (WelcomeScreen.tsx)
+### TypeScript Version
 
 ```typescript
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { Alert } from 'react-native';
 import { OneSignal } from 'react-native-onesignal';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function setupPushSubscriptionObserver(): void {
+  OneSignal.User.pushSubscription.addEventListener('change', (subscription) => {
+    const previousId = subscription.previous.id;
+    const currentId = subscription.current.id;
 
-interface FormErrors {
-  email?: string;
+    if ((!previousId || previousId === '') && currentId && currentId !== '') {
+      showIntegrationCompleteDialog();
+    }
+  });
 }
 
-export const WelcomeScreen: React.FC = () => {
-  const [email, setEmail] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [showSuccess, setShowSuccess] = useState<boolean>(false);
-  const [errors, setErrors] = useState<FormErrors>({});
-
-  const isEmailValid = EMAIL_REGEX.test(email);
-  const isFormValid = isEmailValid;
-
-  const validateFields = (): void => {
-    const newErrors: FormErrors = {};
-    if (email && !isEmailValid) {
-      newErrors.email = 'Enter a valid email address';
-    }
-    setErrors(newErrors);
-  };
-
-  const handleSubmit = async (): Promise<void> => {
-    if (!isFormValid) return;
-
-    setIsLoading(true);
-
-    try {
-      OneSignal.User.addEmail(email);
-      OneSignal.User.addTag('demo_user', 'true');
-      OneSignal.User.addTag('welcome_sent', Date.now().toString());
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setShowSuccess(true);
-    } catch (error) {
-      console.error('Error submitting:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (showSuccess) {
-    return (
-      <View style={styles.successContainer}>
-        <Text style={styles.checkmark}>✓</Text>
-        <Text style={styles.successTitle}>Success!</Text>
-        <Text style={styles.successMessage}>
-          Check your email for a welcome message!
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>OneSignal Integration Complete!</Text>
-          <Text style={styles.subtitle}>
-            Enter your details to receive a welcome message
-          </Text>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={[styles.input, errors.email && styles.inputError]}
-              value={email}
-              onChangeText={setEmail}
-              onBlur={validateFields}
-              placeholder="you@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-          </View>
-
-          <TouchableOpacity
-            style={[styles.button, !isFormValid && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={!isFormValid || isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Send Welcome Message</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+function showIntegrationCompleteDialog(): void {
+  Alert.alert(
+    'Your OneSignal SDK integration is complete!',
+    'You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.',
+    [
+      {
+        text: 'Got it',
+        onPress: () => {
+          OneSignal.Notifications.requestPermission(true);
+        },
+      },
+    ],
+    { cancelable: false }
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-    color: '#1a1a1a',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  form: {
-    width: '100%',
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  inputError: {
-    borderColor: '#e74c3c',
-  },
-  errorText: {
-    color: '#e74c3c',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  button: {
-    backgroundColor: '#6c5ce7',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    backgroundColor: '#bbb',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  successContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#fff',
-  },
-  checkmark: {
-    fontSize: 64,
-    color: '#27ae60',
-    marginBottom: 16,
-  },
-  successTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#1a1a1a',
-  },
-  successMessage: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-});
+}
 ```
 
 ---
