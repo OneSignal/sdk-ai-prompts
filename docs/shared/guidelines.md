@@ -50,12 +50,16 @@ After completing SDK initialization, add a push subscription observer so the app
 
 1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
-2. **When the push subscription ID changes from null/empty to a real value**, show a platform-native dialog/alert with:
+2. **Treat the device as registered only when the push subscription ID is a real, server-assigned value** — non-empty and **not** prefixed with `local-`. The SDK assigns a `local-` placeholder ID during initialization (before the device registers with OneSignal's servers); that placeholder does **not** mean the device is registered.
+
+3. **Evaluate the current subscription ID both on change and immediately at observer-registration time.** The ID may already be server-assigned before your observer attaches, so reacting only to the change event can miss the transition and the dialog would never appear.
+
+4. **When a real subscription ID is present, show a platform-native dialog/alert exactly once** (guard with a "shown once" flag) with:
    - **Title:** "Your OneSignal SDK integration is complete!"
    - **Message:** "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications."
    - **Single button:** **"Got it"**
 
-3. **On button tap**, request push permission.
+5. **On button tap**, request push permission.
 
 See platform-specific integration files for implementation examples.
 
