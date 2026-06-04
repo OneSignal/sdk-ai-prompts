@@ -516,6 +516,7 @@ using OneSignalSDK;
 public class IntegrationCompleteDialog : MonoBehaviour
 {
     private bool showDialog = false;
+    private bool dialogShown = false;
 
     private void Start()
     {
@@ -523,14 +524,25 @@ public class IntegrationCompleteDialog : MonoBehaviour
         // Event handlers use the standard (object sender, TEventArgs e) signature.
         OneSignal.User.PushSubscription.Changed += (sender, e) =>
         {
-            string previousId = e.State.Previous.Id;
-            string currentId = e.State.Current.Id;
-
-            if (string.IsNullOrEmpty(previousId) && !string.IsNullOrEmpty(currentId))
-            {
-                showDialog = true;
-            }
+            MaybeShowDialog(e.State.Current.Id);
         };
+
+        // The ID may already be assigned before the observer attaches,
+        // so evaluate the current value immediately as well.
+        MaybeShowDialog(OneSignal.User.PushSubscription.Id);
+    }
+
+    // A real, server-assigned subscription ID is non-empty and not the local- placeholder
+    private static bool IsRegistered(string subscriptionId) =>
+        !string.IsNullOrEmpty(subscriptionId) && !subscriptionId.StartsWith("local-");
+
+    private void MaybeShowDialog(string subscriptionId)
+    {
+        if (IsRegistered(subscriptionId) && !dialogShown)
+        {
+            dialogShown = true;
+            showDialog = true;
+        }
     }
 
     private void OnGUI()

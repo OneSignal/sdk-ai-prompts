@@ -280,15 +280,27 @@ After completing SDK initialization, add a push subscription observer so the app
 import 'package:flutter/material.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
+bool _dialogShown = false;
+
+// A real, server-assigned subscription ID is non-empty and not the local- placeholder
+bool _isRegistered(String? id) =>
+    id != null && id.isNotEmpty && !id.startsWith('local-');
+
+void _maybeShowIntegrationCompleteDialog(BuildContext context, String? subscriptionId) {
+  if (_isRegistered(subscriptionId) && !_dialogShown) {
+    _dialogShown = true;
+    showIntegrationCompleteDialog(context);
+  }
+}
+
 void setupPushSubscriptionObserver(BuildContext context) {
   OneSignal.User.pushSubscription.addObserver((state) {
-    final previousId = state.previous.id;
-    final currentId = state.current.id;
-
-    if ((previousId == null || previousId.isEmpty) && currentId != null && currentId.isNotEmpty) {
-      showIntegrationCompleteDialog(context);
-    }
+    _maybeShowIntegrationCompleteDialog(context, state.current.id);
   });
+
+  // The ID may already be assigned before the observer attaches,
+  // so evaluate the current value immediately as well.
+  _maybeShowIntegrationCompleteDialog(context, OneSignal.User.pushSubscription.id);
 }
 
 void showIntegrationCompleteDialog(BuildContext context) {
@@ -318,15 +330,27 @@ void showIntegrationCompleteDialog(BuildContext context) {
 import 'package:flutter/cupertino.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
+bool _dialogShown = false;
+
+// A real, server-assigned subscription ID is non-empty and not the local- placeholder
+bool _isRegistered(String? id) =>
+    id != null && id.isNotEmpty && !id.startsWith('local-');
+
+void _maybeShowIntegrationCompleteDialog(BuildContext context, String? subscriptionId) {
+  if (_isRegistered(subscriptionId) && !_dialogShown) {
+    _dialogShown = true;
+    showIntegrationCompleteDialog(context);
+  }
+}
+
 void setupPushSubscriptionObserver(BuildContext context) {
   OneSignal.User.pushSubscription.addObserver((state) {
-    final previousId = state.previous.id;
-    final currentId = state.current.id;
-
-    if ((previousId == null || previousId.isEmpty) && currentId != null && currentId.isNotEmpty) {
-      showIntegrationCompleteDialog(context);
-    }
+    _maybeShowIntegrationCompleteDialog(context, state.current.id);
   });
+
+  // The ID may already be assigned before the observer attaches,
+  // so evaluate the current value immediately as well.
+  _maybeShowIntegrationCompleteDialog(context, OneSignal.User.pushSubscription.id);
 }
 
 void showIntegrationCompleteDialog(BuildContext context) {
