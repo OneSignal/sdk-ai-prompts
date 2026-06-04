@@ -246,13 +246,14 @@ After completing SDK initialization, add a push subscription observer so the app
 
 The verification flow is:
 
-1. Push subscription observer fires when the device receives a subscription ID
-2. Native dialog appears:
+1. Register a push subscription observer, and also check the current subscription ID immediately — on SDK 5.x the ID can already be assigned before an `Activity` attaches the observer, so reacting only to the change event would miss the transition
+2. Treat the device as registered only when the subscription ID is a real, server-assigned value: non-empty and **not** prefixed with `local-` (the `local-` ID is a pre-registration placeholder the SDK assigns during `initWithContext`)
+3. When registered, show the native dialog exactly once (guarded by a "shown once" flag):
    - Title: "Your OneSignal SDK integration is complete!"
    - Message: "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications."
    - Button: "Got it"
-3. On button tap, request push permission
-4. If permission is granted, no additional action is required
+4. On button tap, request push permission
+5. If permission is granted, no additional action is required
 
 ### Kotlin
 
@@ -267,20 +268,33 @@ import com.onesignal.user.subscriptions.PushSubscriptionChangedState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
+
+// Ensures the dialog is shown exactly once
+private val dialogShown = AtomicBoolean(false)
+
+// A real, server-assigned subscription ID is non-empty and not the local- placeholder
+private fun isRegistered(subscriptionId: String?): Boolean =
+    !subscriptionId.isNullOrEmpty() && !subscriptionId.startsWith("local-")
+
+private fun maybeShowIntegrationCompleteDialog(context: Context, subscriptionId: String?) {
+    if (isRegistered(subscriptionId) && dialogShown.compareAndSet(false, true)) {
+        Handler(Looper.getMainLooper()).post {
+            showIntegrationCompleteDialog(context)
+        }
+    }
+}
 
 fun setupPushSubscriptionObserver(context: Context) {
     OneSignal.User.pushSubscription.addObserver(object : IPushSubscriptionObserver {
         override fun onPushSubscriptionChange(state: PushSubscriptionChangedState) {
-            val previousId = state.previous.id
-            val currentId = state.current.id
-
-            if (previousId.isNullOrEmpty() && !currentId.isNullOrEmpty()) {
-                Handler(Looper.getMainLooper()).post {
-                    showIntegrationCompleteDialog(context)
-                }
-            }
+            maybeShowIntegrationCompleteDialog(context, state.current.id)
         }
     })
+
+    // The ID may already be server-assigned before the observer attaches,
+    // so evaluate the current value immediately as well.
+    maybeShowIntegrationCompleteDialog(context, OneSignal.User.pushSubscription.id)
 }
 
 fun showIntegrationCompleteDialog(context: Context) {
@@ -314,22 +328,35 @@ import androidx.appcompat.app.AlertDialog;
 import com.onesignal.OneSignal;
 import com.onesignal.user.subscriptions.IPushSubscriptionObserver;
 import com.onesignal.user.subscriptions.PushSubscriptionChangedState;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+// Ensures the dialog is shown exactly once
+private static final AtomicBoolean dialogShown = new AtomicBoolean(false);
+
+// A real, server-assigned subscription ID is non-empty and not the local- placeholder
+private static boolean isRegistered(String subscriptionId) {
+    return subscriptionId != null && !subscriptionId.isEmpty() && !subscriptionId.startsWith("local-");
+}
+
+private static void maybeShowIntegrationCompleteDialog(Context context, String subscriptionId) {
+    if (isRegistered(subscriptionId) && dialogShown.compareAndSet(false, true)) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            showIntegrationCompleteDialog(context);
+        });
+    }
+}
 
 public static void setupPushSubscriptionObserver(Context context) {
     OneSignal.getUser().getPushSubscription().addObserver(new IPushSubscriptionObserver() {
         @Override
         public void onPushSubscriptionChange(PushSubscriptionChangedState state) {
-            String previousId = state.getPrevious().getId();
-            String currentId = state.getCurrent().getId();
-
-            if ((previousId == null || previousId.isEmpty()) &&
-                currentId != null && !currentId.isEmpty()) {
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    showIntegrationCompleteDialog(context);
-                });
-            }
+            maybeShowIntegrationCompleteDialog(context, state.getCurrent().getId());
         }
     });
+
+    // The ID may already be server-assigned before the observer attaches,
+    // so evaluate the current value immediately as well.
+    maybeShowIntegrationCompleteDialog(context, OneSignal.getUser().getPushSubscription().getId());
 }
 
 public static void showIntegrationCompleteDialog(Context context) {
