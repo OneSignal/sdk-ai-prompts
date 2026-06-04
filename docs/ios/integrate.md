@@ -356,9 +356,14 @@ struct ContentView: View {
     var body: some View {
         YourMainView()
             .onAppear {
-                OneSignal.User.pushSubscription.addObserver(PushSubscriptionObserver {
+                let observer = PushSubscriptionObserver {
                     showIntegrationCompleteAlert = true
-                })
+                }
+                OneSignal.User.pushSubscription.addObserver(observer)
+
+                // The ID may already be assigned before the observer attaches,
+                // so evaluate the current value immediately as well.
+                observer.evaluate(OneSignal.User.pushSubscription.id)
             }
             .alert("Your OneSignal SDK integration is complete!", isPresented: $showIntegrationCompleteAlert) {
                 Button("Got it") {
@@ -372,21 +377,31 @@ struct ContentView: View {
     }
 }
 
+// A real, server-assigned subscription ID is non-empty and not the local- placeholder
+private func isRegistered(_ subscriptionId: String?) -> Bool {
+    guard let id = subscriptionId else { return false }
+    return !id.isEmpty && !id.hasPrefix("local-")
+}
+
 class PushSubscriptionObserver: NSObject, OSPushSubscriptionObserver {
     private let onSubscribed: () -> Void
+    private var hasShown = false
 
     init(onSubscribed: @escaping () -> Void) {
         self.onSubscribed = onSubscribed
     }
 
     func onPushSubscriptionDidChange(state: OSPushSubscriptionChangedState) {
-        let previousId = state.previous.id
-        let currentId = state.current.id
+        evaluate(state.current.id)
+    }
 
-        if (previousId == nil || previousId?.isEmpty == true) && currentId != nil && !currentId!.isEmpty {
-            DispatchQueue.main.async { [weak self] in
-                self?.onSubscribed()
-            }
+    // Shows the dialog exactly once, and only for a real server-assigned ID.
+    func evaluate(_ subscriptionId: String?) {
+        guard isRegistered(subscriptionId) else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, !self.hasShown else { return }
+            self.hasShown = true
+            self.onSubscribed()
         }
     }
 }
@@ -398,21 +413,31 @@ class PushSubscriptionObserver: NSObject, OSPushSubscriptionObserver {
 import UIKit
 import OneSignalFramework
 
+// A real, server-assigned subscription ID is non-empty and not the local- placeholder
+private func isRegistered(_ subscriptionId: String?) -> Bool {
+    guard let id = subscriptionId else { return false }
+    return !id.isEmpty && !id.hasPrefix("local-")
+}
+
 class IntegrationCompleteObserver: NSObject, OSPushSubscriptionObserver {
     private weak var viewController: UIViewController?
+    private var hasShown = false
 
     init(viewController: UIViewController) {
         self.viewController = viewController
     }
 
     func onPushSubscriptionDidChange(state: OSPushSubscriptionChangedState) {
-        let previousId = state.previous.id
-        let currentId = state.current.id
+        evaluate(state.current.id)
+    }
 
-        if (previousId == nil || previousId?.isEmpty == true) && currentId != nil && !currentId!.isEmpty {
-            DispatchQueue.main.async { [weak self] in
-                self?.showIntegrationCompleteDialog()
-            }
+    // Shows the dialog exactly once, and only for a real server-assigned ID.
+    func evaluate(_ subscriptionId: String?) {
+        guard isRegistered(subscriptionId) else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, !self.hasShown else { return }
+            self.hasShown = true
+            self.showIntegrationCompleteDialog()
         }
     }
 
@@ -435,9 +460,10 @@ class IntegrationCompleteObserver: NSObject, OSPushSubscriptionObserver {
     }
 }
 
-// Usage: After initializing OneSignal, register the observer
+// Usage: After initializing OneSignal, register the observer and evaluate the current ID
 // let observer = IntegrationCompleteObserver(viewController: self)
 // OneSignal.User.pushSubscription.addObserver(observer)
+// observer.evaluate(OneSignal.User.pushSubscription.id)
 ```
 
 ---

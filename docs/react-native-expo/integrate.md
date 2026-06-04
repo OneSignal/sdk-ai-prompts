@@ -134,15 +134,28 @@ After completing SDK initialization, add a push subscription observer so the app
 import { Alert } from 'react-native';
 import { OneSignal } from 'react-native-onesignal';
 
+let dialogShown = false;
+
+// A real, server-assigned subscription ID is non-empty and not the local- placeholder
+function isRegistered(subscriptionId) {
+  return !!subscriptionId && !subscriptionId.startsWith('local-');
+}
+
+function maybeShowIntegrationCompleteDialog(subscriptionId) {
+  if (isRegistered(subscriptionId) && !dialogShown) {
+    dialogShown = true;
+    showIntegrationCompleteDialog();
+  }
+}
+
 function setupPushSubscriptionObserver() {
   OneSignal.User.pushSubscription.addEventListener('change', (subscription) => {
-    const previousId = subscription.previous.id;
-    const currentId = subscription.current.id;
-
-    if ((!previousId || previousId === '') && currentId && currentId !== '') {
-      showIntegrationCompleteDialog();
-    }
+    maybeShowIntegrationCompleteDialog(subscription.current.id);
   });
+
+  // The ID may already be assigned before the listener attaches,
+  // so evaluate the current value immediately as well.
+  OneSignal.User.pushSubscription.getIdAsync().then(maybeShowIntegrationCompleteDialog);
 }
 
 function showIntegrationCompleteDialog() {
@@ -168,15 +181,28 @@ function showIntegrationCompleteDialog() {
 import { Alert } from 'react-native';
 import { OneSignal } from 'react-native-onesignal';
 
+let dialogShown = false;
+
+// A real, server-assigned subscription ID is non-empty and not the local- placeholder
+function isRegistered(subscriptionId: string | null | undefined): boolean {
+  return !!subscriptionId && !subscriptionId.startsWith('local-');
+}
+
+function maybeShowIntegrationCompleteDialog(subscriptionId: string | null | undefined): void {
+  if (isRegistered(subscriptionId) && !dialogShown) {
+    dialogShown = true;
+    showIntegrationCompleteDialog();
+  }
+}
+
 function setupPushSubscriptionObserver(): void {
   OneSignal.User.pushSubscription.addEventListener('change', (subscription) => {
-    const previousId = subscription.previous.id;
-    const currentId = subscription.current.id;
-
-    if ((!previousId || previousId === '') && currentId && currentId !== '') {
-      showIntegrationCompleteDialog();
-    }
+    maybeShowIntegrationCompleteDialog(subscription.current.id);
   });
+
+  // The ID may already be assigned before the listener attaches,
+  // so evaluate the current value immediately as well.
+  OneSignal.User.pushSubscription.getIdAsync().then(maybeShowIntegrationCompleteDialog);
 }
 
 function showIntegrationCompleteDialog(): void {
