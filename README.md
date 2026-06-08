@@ -15,6 +15,7 @@ Visit the GitHub Pages site to get started:
 - **Flutter** (Dart)
 - **Unity** (C#)
 - **React Native** (JavaScript & TypeScript)
+- **React Native Expo** (JavaScript & TypeScript)
 
 ## How It Works
 
@@ -58,7 +59,10 @@ docs/
 ├── unity/
 │   ├── integrate.md
 │   └── ai-prompt.md
-└── react-native/
+├── react-native/
+│   ├── integrate.md
+│   └── ai-prompt.md
+└── react-native-expo/
     ├── integrate.md
     └── ai-prompt.md
 script/
@@ -80,15 +84,11 @@ When you use these prompts, the AI will:
 7. **Create a Pull Request** with all changes
 8. **Output a PR summary** for you to copy
 
-## Demo Mode
+## App ID & Verification
 
-If you don't have a OneSignal App ID, you can use the demo mode:
+These prompts use **your own** OneSignal App ID — provide it in the same message that links the AI to the prompt. If you don't include one, the AI will ask for it before proceeding; it never hardcodes a demo or fallback App ID.
 
-1. When asked for your App ID, say "use demo"
-2. The AI will create a **Welcome View** with:
-   - Email input field
-   - Submit button
-3. On submit, it triggers a welcome email journey
+After the SDK is initialized, the AI wires up a lightweight **push subscription verification dialog**. Once the device registers with OneSignal (a real, server-assigned subscription ID), a native dialog confirms the integration succeeded and, on tap, requests push notification permission.
 
 ## Raw Markdown Access
 
