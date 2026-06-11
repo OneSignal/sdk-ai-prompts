@@ -154,7 +154,7 @@ Do NOT automatically create a PR — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required
-* **Do NOT add code related to push notifications** including permission prompting (except where explicitly required by the platform-specific flow above)
+* **Do NOT add push-notification features beyond SDK initialization and the Push Subscription Verification Dialog.** The dialog's on-tap permission request (Step 5 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)
