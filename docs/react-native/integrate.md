@@ -144,9 +144,8 @@ function App(): React.JSX.Element {
     // Initialize OneSignal with your App ID
     OneSignal.initialize(ONESIGNAL_APP_ID);
 
-    // Request push notification permission
-    // Recommended: Remove after testing and use In-App Messages to prompt instead
-    OneSignal.Notifications.requestPermission(false);
+    // Do NOT request push permission here — the verification dialog
+    // (see "Push Subscription Verification Dialog") requests it on tap.
   }, []);
 
   return (
@@ -177,9 +176,8 @@ function App() {
     // Initialize OneSignal with your App ID
     OneSignal.initialize(ONESIGNAL_APP_ID);
 
-    // Request push notification permission
-    // Recommended: Remove after testing and use In-App Messages to prompt instead
-    OneSignal.Notifications.requestPermission(false);
+    // Do NOT request push permission here — the verification dialog
+    // (see "Push Subscription Verification Dialog") requests it on tap.
   }, []);
 
   return (

@@ -195,8 +195,8 @@ public class OneSignalInitializer : MonoBehaviour
         OneSignal.Debug.LogLevel = LogLevel.Verbose;
         OneSignal.Debug.AlertLevel = LogLevel.None;
 
-        // Request notification permission
-        OneSignal.Notifications.RequestPermissionAsync(true);
+        // Do NOT request push permission here — the verification dialog
+        // (see "Push Subscription Verification Dialog") requests it on tap.
 
         // Keep this object alive across scenes
         DontDestroyOnLoad(gameObject);
@@ -452,7 +452,7 @@ public class OneSignalManagerTests
 | iOS build fails | Run EDM4U iOS Resolver, check Xcode capabilities |
 | Android build fails | Run EDM4U Android Resolver, check `google-services.json` |
 | Notifications not received | Verify platform configuration in OneSignal dashboard |
-| Permission not requested | Call `RequestPermissionAsync` after initialization |
+| Permission not requested | Permission is requested when the user taps "Got it" on the verification dialog |
 | SDK not initializing | Check App ID is correct, verify internet connectivity |
 | Multiple instances | Ensure only one GameObject with OneSignal initialization |
 | `OneSignalSDK` namespace not found | Ensure packages have version tags in manifest.json (e.g., `#5.1.16`), remove leading `/` from paths |

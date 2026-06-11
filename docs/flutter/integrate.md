@@ -151,10 +151,10 @@ void main() async {
   OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
   // Initialize OneSignal
   OneSignal.initialize("YOUR_ONESIGNAL_APP_ID");
-  
-  // Request notification permission
-  OneSignal.Notifications.requestPermission(true);
-  
+
+  // Do NOT request push permission here — the verification dialog
+  // (see "Push Subscription Verification Dialog") requests it on tap.
+
   runApp(const MyApp());
 }
 

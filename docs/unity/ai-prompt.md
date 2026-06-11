@@ -154,7 +154,7 @@ Do NOT automatically create a PR — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required
-* **Do NOT add code related to push notifications** including permission prompting (except where explicitly required by the platform-specific flow above)
+* **Do NOT add push-notification features beyond SDK initialization and the Push Subscription Verification Dialog.** The dialog's on-tap permission request (Step 5 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)
@@ -358,8 +358,8 @@ public class OneSignalInitializer : MonoBehaviour
         OneSignal.Debug.LogLevel = LogLevel.Verbose;
         OneSignal.Debug.AlertLevel = LogLevel.None;
 
-        // Request notification permission
-        OneSignal.Notifications.RequestPermissionAsync(true);
+        // Do NOT request push permission here — the verification dialog
+        // (see "Push Subscription Verification Dialog") requests it on tap.
 
         // Keep this object alive across scenes
         DontDestroyOnLoad(gameObject);
@@ -615,7 +615,7 @@ public class OneSignalManagerTests
 | iOS build fails | Run EDM4U iOS Resolver, check Xcode capabilities |
 | Android build fails | Run EDM4U Android Resolver, check `google-services.json` |
 | Notifications not received | Verify platform configuration in OneSignal dashboard |
-| Permission not requested | Call `RequestPermissionAsync` after initialization |
+| Permission not requested | Permission is requested when the user taps "Got it" on the verification dialog |
 | SDK not initializing | Check App ID is correct, verify internet connectivity |
 | Multiple instances | Ensure only one GameObject with OneSignal initialization |
 | `OneSignalSDK` namespace not found | Ensure packages have version tags in manifest.json (e.g., `#5.1.16`), remove leading `/` from paths |
