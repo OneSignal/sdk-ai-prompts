@@ -20,13 +20,14 @@ Before considering the integration complete, verify ALL of the following:
 ### Package Installation
 
 - [ ] OneSignal Unity SDK installed via Unity Package Manager or `.unitypackage`
-- [ ] External Dependency Manager (EDM4U) installed for Android/iOS dependencies
+- [ ] External Dependency Manager (EDM4U) installed **explicitly** — it is NOT bundled with or pulled in by the OneSignal packages (see "Install External Dependency Manager (EDM4U)" below)
 
 ### Android Build Settings
 
 - [ ] Minimum API Level 21 (Android 5.0) or higher
 - [ ] Target API Level 33+ recommended
 - [ ] Custom Main Manifest enabled if modifying AndroidManifest.xml
+- [ ] Custom Main Gradle Template enabled (Player Settings ▸ Publishing Settings) so EDM4U can resolve Android dependencies on JDK 17
 - [ ] Internet permission granted (automatic with OneSignal)
 - [ ] `google-services.json` in `Assets/Plugins/Android/` (if using FCM)
 
@@ -164,16 +165,50 @@ Add to `Packages/manifest.json`:
 ```json
 {
   "dependencies": {
-    "com.onesignal.unity.core": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=com.onesignal.unity.core#5.1.16",
-    "com.onesignal.unity.android": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=com.onesignal.unity.android#5.1.16",
-    "com.onesignal.unity.ios": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=com.onesignal.unity.ios#5.1.16"
+    "com.onesignal.unity.core": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=com.onesignal.unity.core#5.1.15",
+    "com.onesignal.unity.android": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=com.onesignal.unity.android#5.1.15",
+    "com.onesignal.unity.ios": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=com.onesignal.unity.ios#5.1.15"
   }
 }
 ```
 
-> **Important:** Always include a version tag (e.g., `#5.1.16`) to ensure reproducible builds. The `core` package must be listed first as it is a dependency of the platform packages. Do not include a leading `/` in the path parameter.
+> **Important:** Always include a version tag (e.g., `#5.1.15`) to ensure reproducible builds. `5.1.15` is shown only as an example — confirm the current **Stable** version from the releases page (see Step 2) before using it; do not copy this number blindly. The `core` package must be listed first as it is a dependency of the platform packages. Do not include a leading `/` in the path parameter.
 
 Or use the Unity Asset Store / .unitypackage from GitHub releases.
+
+### Install External Dependency Manager (EDM4U) — Required
+
+The three OneSignal UPM packages above declare their native Android/iOS libraries through EDM4U (via a `Dependencies.xml` manifest) but **do NOT depend on EDM4U themselves**. If you only add those packages, the resulting build contains **no `com.onesignal.OneSignal` native library** — initialization fails silently at runtime with a `ClassNotFoundException`. You must install EDM4U explicitly:
+
+**Option A — scoped registry (recommended).** Add Google's registry to `Packages/manifest.json`, then install the package:
+
+```json
+{
+  "scopedRegistries": [
+    {
+      "name": "Google",
+      "url": "https://unityregistry-pa.googleapis.com",
+      "scopes": ["com.google"]
+    }
+  ],
+  "dependencies": {
+    "com.google.external-dependency-manager": "1.2.186"
+  }
+}
+```
+
+> Pin `com.google.external-dependency-manager` to the current version published in that registry (the value above is an example — verify the latest). You can also add it via **Window ▸ Package Manager ▸ Google ▸ External Dependency Manager for Unity ▸ Install**, which selects the version for you.
+
+**Option B — `.unitypackage`.** Import the latest `external-dependency-manager-*.unitypackage` from [googlesamples/unity-jar-resolver](https://github.com/googlesamples/unity-jar-resolver).
+
+### Enable the Custom Main Gradle Template — Required for Android
+
+On modern Unity, let EDM4U resolve Android dependencies **through Unity's build Gradle**, not its standalone resolver:
+
+1. Open **Player Settings ▸ Publishing Settings** and enable **Custom Main Gradle Template**. This generates `Assets/Plugins/Android/mainTemplate.gradle`, which EDM4U patches with the OneSignal Android dependencies as part of the normal build.
+2. Do **NOT** rely on EDM4U's **"Force Resolve"** alone. Its standalone resolver runs Gradle 5.1.1, which crashes on JDK 17 (`GroovyBugError` / `ReflectionCache`) — and you cannot downgrade the JDK because Unity 6 + Android Gradle Plugin 8 require JDK 17.
+
+With the Custom Main Gradle Template enabled, the OneSignal native libraries resolve during the standard Unity Android build.
 
 ### Initialization Script
 
@@ -205,6 +240,8 @@ public class OneSignalInitializer : MonoBehaviour
 ```
 
 > **Note:** The `LogLevel` enum is in the `OneSignalSDK.Debug.Models` namespace and uses PascalCase values: `None`, `Fatal`, `Error`, `Warn`, `Info`, `Debug`, `Verbose`.
+
+> **Note:** The OneSignal **App ID is a public identifier, not a secret** — it ships inside the app binary and is safe to commit and hardcode. The "do not commit secrets" rule applies only to **REST API keys**, which must never be embedded in the app.
 
 ### Using RuntimeInitializeOnLoadMethod
 
@@ -344,6 +381,8 @@ After completing SDK initialization, add a push subscription observer so the app
 
 Unity has no native alert dialog, so this uses a lightweight IMGUI overlay. Attach this component to a GameObject in your first scene (or create it from `OneSignalManager`) after OneSignal is initialized.
 
+> **Wrapper-rule exception:** Step 4 requires routing OneSignal calls through your centralized wrapper. The verification dialog is a **sanctioned exception** — it may call `OneSignal.User.PushSubscription` and `OneSignal.Notifications.RequestPermissionAsync` directly. If you prefer to keep the rule strict, expose these through `OneSignalManager` (e.g. its `RequestPermission` method) and call that instead.
+
 ### IntegrationCompleteDialog.cs
 
 ```csharp
@@ -411,9 +450,20 @@ public class IntegrationCompleteDialog : MonoBehaviour
 }
 ```
 
+> **Verifying requires a real device or emulator build — it will NOT work in the Editor.**
+>
+> - In **Editor Play mode the OneSignal native layer is a no-op**: the device never registers, no server-assigned subscription ID is issued, and the verification dialog will **never** appear. Build and run on a physical device or an Android emulator to see it. An empty Unity Console in the Editor does **not** mean the integration failed.
+> - On Android, OneSignal's logs go to **`adb logcat`**, not the Unity Console. Filter them with:
+>
+> ```bash
+> adb logcat -s OneSignal:V
+> ```
+
 ---
 
 ## Testing
+
+> **Note:** Play Mode tests run in the Editor, where the OneSignal native layer is a no-op. They can verify your C#/MonoBehaviour wiring (manager creation, listener setup) but **cannot** verify push registration, subscription IDs, or the verification dialog — those require a device/emulator build (see the verification note above).
 
 ### Play Mode Tests
 
@@ -450,15 +500,18 @@ public class OneSignalManagerTests
 | Issue | Solution |
 |-------|----------|
 | iOS build fails | Run EDM4U iOS Resolver, check Xcode capabilities |
-| Android build fails | Run EDM4U Android Resolver, check `google-services.json` |
+| Android build fails | Enable Custom Main Gradle Template (Player Settings ▸ Publishing Settings) so EDM4U patches `mainTemplate.gradle`; check `google-services.json` |
+| `ClassNotFoundException` / no `com.onesignal.OneSignal` at runtime (silent init failure) | EDM4U is missing or Android deps never resolved — install EDM4U explicitly and enable Custom Main Gradle Template (see "Install External Dependency Manager") |
+| EDM4U "Force Resolve" fails with `GroovyBugError` / `ReflectionCache` | Its standalone resolver runs Gradle 5.1.1, which crashes on JDK 17 — resolve via Custom Main Gradle Template instead of Force Resolve |
+| Verification dialog never appears | Expected in the Editor (native layer is a no-op) — build to a device/emulator; check `adb logcat -s OneSignal:V` |
 | Notifications not received | Verify platform configuration in OneSignal dashboard |
 | Permission not requested | Permission is requested when the user taps "Got it" on the verification dialog |
 | SDK not initializing | Check App ID is correct, verify internet connectivity |
 | Multiple instances | Ensure only one GameObject with OneSignal initialization |
-| `OneSignalSDK` namespace not found | Ensure packages have version tags in manifest.json (e.g., `#5.1.16`), remove leading `/` from paths |
+| `OneSignalSDK` namespace not found | Ensure packages have version tags in manifest.json (e.g., `#5.1.15`), remove leading `/` from paths |
 | `LogLevel` not found | Add `using OneSignalSDK.Debug.Models;` |
 | `INotification` not found | Add `using OneSignalSDK.Notifications.Models;` |
 | Event handler signature error | Use `(object sender, TEventArgs e)` pattern, not just `(e)` |
 | `Debug.Log` conflicts with `OneSignal.Debug` | Use `UnityEngine.Debug.Log()` explicitly |
 | "OneSignal not initialized" error | Ensure `OneSignal.Initialize()` is called before using other SDK methods |
-| Package resolution fails | Check version tag exists (use `5.1.16` not `5.2.8`), verify `core` package is listed first |
+| Package resolution fails | Check version tag exists (use `5.1.15` not `5.2.8`), verify `core` package is listed first |
