@@ -29,7 +29,8 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] Custom Main Manifest enabled if modifying AndroidManifest.xml
 - [ ] Custom Main Gradle Template enabled (Player Settings ▸ Publishing Settings) so EDM4U can resolve Android dependencies on JDK 17
 - [ ] Internet permission granted (automatic with OneSignal)
-- [ ] `google-services.json` in `Assets/Plugins/Android/` (if using FCM)
+
+Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) are configured in the OneSignal dashboard, not in the app.
 
 ### iOS Build Settings
 
@@ -500,7 +501,7 @@ public class OneSignalManagerTests
 | Issue | Solution |
 |-------|----------|
 | iOS build fails | Run EDM4U iOS Resolver, check Xcode capabilities |
-| Android build fails | Enable Custom Main Gradle Template (Player Settings ▸ Publishing Settings) so EDM4U patches `mainTemplate.gradle`; check `google-services.json` |
+| Android build fails | Enable Custom Main Gradle Template (Player Settings ▸ Publishing Settings) so EDM4U patches `mainTemplate.gradle` |
 | `ClassNotFoundException` / no `com.onesignal.OneSignal` at runtime (silent init failure) | EDM4U is missing or Android deps never resolved — install EDM4U explicitly and enable Custom Main Gradle Template (see "Install External Dependency Manager") |
 | EDM4U "Force Resolve" fails with `GroovyBugError` / `ReflectionCache` | Its standalone resolver runs Gradle 5.1.1, which crashes on JDK 17 — resolve via Custom Main Gradle Template instead of Force Resolve |
 | Verification dialog never appears | Expected in the Editor (native layer is a no-op) — build to a device/emulator; check `adb logcat -s OneSignal:V` |

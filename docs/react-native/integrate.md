@@ -83,7 +83,7 @@ Before considering the integration complete, verify ALL of the following:
 
 - [ ] OneSignal App ID obtained from dashboard
 - [ ] iOS: APNs key (.p8) or certificate (.p12) uploaded to OneSignal dashboard
-- [ ] Android: FCM credentials configured (Firebase Server Key or Service Account JSON)
+- [ ] Android: FCM credentials configured (Firebase Service Account JSON)
 
 ### iOS Configuration (in Xcode)
 
@@ -94,8 +94,9 @@ Before considering the integration complete, verify ALL of the following:
 
 ### Android Configuration
 
-- [ ] `google-services.json` placed in `android/app/` directory (if using FCM)
 - [ ] Notification icons configured (optional but recommended)
+
+Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) are configured in the OneSignal dashboard, not in the app.
 
 ### Initialization
 
@@ -196,9 +197,9 @@ export default App;
 
 Android setup is minimal thanks to React Native autolinking. The SDK will be automatically linked when you run your Android build.
 
-### 1. Configure Firebase (Required for FCM)
+### 1. FCM Credentials
 
-If you're using Firebase Cloud Messaging (FCM), ensure your `google-services.json` file is placed in `android/app/`.
+The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) are configured in the OneSignal dashboard, not in the app.
 
 ### 2. Configure Notification Icons (Optional)
 
@@ -657,7 +658,7 @@ export const useOneSignal = (appId: string) => {
 
 | Issue | Solution |
 |-------|----------|
-| Push not received | Verify `google-services.json` is in `android/app/` directory |
+| Push not received | Verify FCM credentials (Firebase Service Account JSON) are configured in the OneSignal dashboard |
 | FCM registration failed | Ensure Firebase project is properly configured with correct package name |
 | Build fails with Gradle errors | Try `cd android && ./gradlew clean && cd ..` then rebuild |
 | Notification icon issues | Create proper notification icons in all `drawable-*` folders |
