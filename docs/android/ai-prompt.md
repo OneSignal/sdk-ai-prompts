@@ -187,15 +187,8 @@ Before considering the integration complete, verify ALL of the following:
 
 - [ ] `minSdkVersion` is 21 or higher
 - [ ] `compileSdkVersion` is 33 or higher (recommended)
-- [ ] Google Services plugin is configured (if using FCM):
-  ```groovy
-  // project-level build.gradle
-  classpath 'com.google.gms:google-services:4.4.0'
-  
-  // app-level build.gradle
-  apply plugin: 'com.google.gms.google-services'
-  ```
-- [ ] `google-services.json` is in the `app/` directory (if using FCM)
+
+Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) are configured in the OneSignal dashboard, not in the app.
 
 ### ProGuard/R8 (if minification is enabled)
 
@@ -543,7 +536,7 @@ public static void showIntegrationCompleteDialog(Context context) {
 
 | Issue | Solution |
 |-------|----------|
-| Push not received | Check `google-services.json` is present and FCM is configured |
+| Push not received | Verify FCM credentials (Firebase Service Account JSON) are configured in the OneSignal dashboard |
 | Permission denied | Ensure `POST_NOTIFICATIONS` is requested on Android 13+ |
 | Initialization failed | Verify App ID is correct and internet permission is granted |
 | ProGuard issues | Check OneSignal rules are not being stripped |

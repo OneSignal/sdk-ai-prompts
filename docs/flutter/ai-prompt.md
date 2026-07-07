@@ -186,8 +186,8 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] `minSdkVersion` 21+ in `android/app/build.gradle`
 - [ ] `compileSdkVersion` 33+ in `android/app/build.gradle`
 - [ ] INTERNET permission in `android/app/src/main/AndroidManifest.xml`
-- [ ] `google-services.json` in `android/app/` (if using FCM)
-- [ ] Google Services plugin configured in `android/build.gradle`
+
+Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) are configured in the OneSignal dashboard, not in the app.
 
 ### iOS Sub-Project
 

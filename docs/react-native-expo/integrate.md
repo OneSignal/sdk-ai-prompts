@@ -50,7 +50,7 @@ Before considering the integration complete, verify ALL of the following:
 
 - [ ] OneSignal App ID obtained from dashboard
 - [ ] iOS: APNs key/certificate uploaded to OneSignal dashboard
-- [ ] Android: FCM Server Key configured (if using FCM)
+- [ ] Android: FCM credentials configured (Firebase Service Account JSON)
 
 ### Initialization
 
