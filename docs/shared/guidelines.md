@@ -67,15 +67,21 @@ See platform-specific integration files for implementation examples.
 
 ## Step 2 — SDK Version Selection
 
-**IMPORTANT:** Get SDK versions ONLY from this official page:
-**https://onesignal.github.io/sdk-releases/**
+**IMPORTANT:** Get SDK versions ONLY from this official JSON endpoint:
+**https://onesignal.github.io/sdk-releases/releases.json**
 
+* Do NOT use the human-readable releases page for version selection
 * Do NOT search the web for SDK versions
 * Do NOT guess versions
 * Do NOT use other sources (npm, pub.dev, GitHub releases) for version numbers
-* The official releases page above has both **Stable** and **Current** versions for all platforms
+* The official JSON endpoint above has both **Stable** and **Current** versions for all platforms
 
 Use the **Stable** track unless the user specifically requested Current. Do not use a version range.
+
+When using the JSON source, read the exact version from:
+`<sdk entry>.channels.<track>.version`
+
+Find the SDK entry by matching the requested platform against the entry's `name` or `displayName`. For example, for iOS Stable, find the entry with `name: "iOS"` and use `channels.stable.version`. Do not infer the Stable version from the newest tag, GitHub release order, GitHub `prerelease` status, or semantic-version sorting.
 
 ---
 
