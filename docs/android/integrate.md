@@ -25,7 +25,7 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] `minSdkVersion` is 21 or higher
 - [ ] `compileSdkVersion` is 33 or higher (recommended)
 
-Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) are configured in the OneSignal dashboard, not in the app.
+Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) live in the OneSignal dashboard, not in the app. Do **not** instruct the user to upload FCM credentials as part of this agent workflow.
 
 ### ProGuard/R8 (if minification is enabled)
 

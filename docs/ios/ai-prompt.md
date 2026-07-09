@@ -36,23 +36,61 @@ If no App ID is present in the user's prompt, ask the user to provide one before
 
 ---
 
-## Step 1 — Ask ONLY These Questions Before Making Changes
+## Step 1 — Detect First, Then Ask ONLY What Is Unknown
 
-If an answer is already clearly determined by the user's request, the repository contents, or the execution context (for example, the project is Swift-only, or the user already said how to handle git), do NOT ask — proceed with the determined answer and state the assumption in your summary. Only ask when the answer is genuinely unknown.
+Before editing files, inspect the repository and record a short readiness picture. Prefer detection over questions. If an answer is already clear from the user's request, the repo, or the execution context, do NOT ask — proceed and state the assumption in your summary.
+
+### Detect-first checklist (run before changes)
+
+Inspect the project and note:
+
+* Existing OneSignal usage (dependencies, init calls, wrappers)
+* iOS bundle identifier(s) and Android applicationId / package name as defined in the project today
+* iOS dependency manager in use: CocoaPods (`Podfile` / `Pods` / Pods xcconfig includes) vs Swift Package Manager (no Podfile or SPM-enabled Flutter/iOS setup, package references)
+* JS package manager when relevant (npm / yarn / pnpm / bun) from the lockfile
+* Existing push setup: Notification Service Extension, App Groups, Push / Background Modes capabilities, notification permission prompts
+* Signing clues on iOS targets (`DEVELOPMENT_TEAM`, `CODE_SIGN_STYLE`, entitlements files)
+
+### Questions to ask only when unknown
 
 1. **What language is the app written in?** (if applicable)
    - Android: Kotlin or Java
    - iOS: Swift or Objective-C
    - Flutter: Dart (no choice needed)
    - Unity: C# (no choice needed)
-   - React Native: JavaScript or TypeScript
+   - React Native / Expo: JavaScript or TypeScript
 
-2. **How would you like to handle version control?** (only ask if the project has a git repository)
+2. **Which mobile platforms should this integration cover?** (cross-platform SDKs only: Flutter, React Native, Expo, Unity)
+   - Ask: **iOS**, **Android**, or **both**
+   - Do **not** offer a code-only / skip-native option
+   - Native iOS and native Android prompts skip this question — the platform is already known
+   - Apply shared SDK / wrapper work once; apply native iOS or Android project work only for the selected platform(s)
+   - In the final summary, report status per selected platform (shared code, iOS native, Android native)
+
+3. **How would you like to handle version control?** (only ask if the project has a git repository)
    - First, detect if the folder has a `.git` directory
    - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
    - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
    - **Option B: Current branch** — Write all changes directly to the current branch without stashing or creating a new branch
    - If no git repository is detected, skip this question and proceed
+
+### Bundle ID and application ID (Required)
+
+* **Use the iOS bundle identifier and Android applicationId / package name already defined in the project.** Do not invent, rename, or "improve" them (including swapping to example or OneSignal-owned IDs) unless the user explicitly asks.
+* Derive the default App Group from the existing main-app bundle ID: `group.{MAIN_APP_BUNDLE_ID}.onesignal`. If the project already defines a custom App Group for OneSignal, keep it and set `OneSignal_app_groups_key` as documented in the iOS push infrastructure section.
+* If a required identifier is missing or clearly unusable for the selected platform(s), stop and ask the user to set a real value in the project, then continue. Do not proceed by making one up.
+
+### Package manager continuity (Required)
+
+* Detect the project's existing dependency managers and **keep using them**.
+* iOS: preserve CocoaPods vs Swift Package Manager. Do not migrate the app between them unless the user asks.
+* JavaScript apps: use the lockfile's package manager (npm / yarn / pnpm / bun).
+* Do **not** add an NSE-only CocoaPods `Podfile` to an SPM-based iOS/Flutter project. Follow the platform section for how to link the Notification Service Extension under the detected manager.
+
+### Dashboard credentials
+
+* Do **not** instruct the user to upload APNs keys (`.p8`) or FCM credentials as part of this integration, and do not treat those uploads as agent tasks.
+* If push fails after a correct project integration, troubleshooting may note that dashboard credentials must match this app — but credential upload is out of scope for the agent workflow.
 
 ---
 
@@ -157,8 +195,10 @@ Do NOT automatically create a PR — let the user copy it.
 * Key changes made to the codebase
 * SDK details (platform, version, track)
 * Architecture decisions and where OneSignal logic is placed
-* Step-by-step verification instructions
-* Any follow-ups, limitations, or known risks
+* For cross-platform SDKs: which mobile platforms were selected and status for each (shared code, iOS native, Android native)
+* Bundle ID / applicationId used from the project (do not invent new ones in the summary either)
+* Step-by-step verification instructions (simulator is fine for build/launch and the verification dialog path)
+* Any follow-ups, limitations, or known risks — do **not** list APNs `.p8` or FCM credential upload as remaining agent/user setup steps for this flow
 
 ---
 
@@ -587,8 +627,9 @@ Common mappings:
 
 * Native iOS with SPM: app target gets `OneSignalFramework` (plus recommended app products); NSE target gets `OneSignalExtension`
 * Native iOS with CocoaPods: add an NSE target block for the OneSignal iOS pod
-* Flutter and bare React Native: add/update the `ios/Podfile` NSE target block and run `pod install`
-* Unity: ensure the generated Xcode project includes the NSE target and links the iOS OneSignal extension dependency after Unity exports the iOS project
+* Flutter: follow the Flutter platform section — CocoaPods projects add/update the NSE `Podfile` target; SPM projects do **not** add an NSE-only Podfile (see Flutter integrate guidance)
+* Bare React Native: add/update the `ios/Podfile` NSE target block and run `pod install`
+* Unity: ensure the generated Xcode project includes the NSE target and links the iOS OneSignal extension dependency after Unity exports the iOS project; build the exported **`.xcworkspace`**, not the `.xcodeproj`
 
 ### SPM projects — pbxproj objects
 
@@ -755,9 +796,8 @@ To enable Background Modes with Remote Notifications, you MUST make three change
 
 ### APNs Configuration
 
-- [ ] APNs Authentication Key (.p8) is uploaded to OneSignal dashboard
-  - OR APNs Certificate (.p12) is uploaded
-- [ ] Team ID and Key ID are configured in OneSignal dashboard
+- [ ] Do not treat APNs `.p8` / certificate upload as an agent task for this flow
+- [ ] If device push fails after a correct project setup, confirm dashboard iOS credentials match this app's team/bundle ID (troubleshooting only)
 
 ### Initialization
 

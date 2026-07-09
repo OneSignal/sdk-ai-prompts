@@ -36,23 +36,61 @@ If no App ID is present in the user's prompt, ask the user to provide one before
 
 ---
 
-## Step 1 — Ask ONLY These Questions Before Making Changes
+## Step 1 — Detect First, Then Ask ONLY What Is Unknown
 
-If an answer is already clearly determined by the user's request, the repository contents, or the execution context (for example, the project is Swift-only, or the user already said how to handle git), do NOT ask — proceed with the determined answer and state the assumption in your summary. Only ask when the answer is genuinely unknown.
+Before editing files, inspect the repository and record a short readiness picture. Prefer detection over questions. If an answer is already clear from the user's request, the repo, or the execution context, do NOT ask — proceed and state the assumption in your summary.
+
+### Detect-first checklist (run before changes)
+
+Inspect the project and note:
+
+* Existing OneSignal usage (dependencies, init calls, wrappers)
+* iOS bundle identifier(s) and Android applicationId / package name as defined in the project today
+* iOS dependency manager in use: CocoaPods (`Podfile` / `Pods` / Pods xcconfig includes) vs Swift Package Manager (no Podfile or SPM-enabled Flutter/iOS setup, package references)
+* JS package manager when relevant (npm / yarn / pnpm / bun) from the lockfile
+* Existing push setup: Notification Service Extension, App Groups, Push / Background Modes capabilities, notification permission prompts
+* Signing clues on iOS targets (`DEVELOPMENT_TEAM`, `CODE_SIGN_STYLE`, entitlements files)
+
+### Questions to ask only when unknown
 
 1. **What language is the app written in?** (if applicable)
    - Android: Kotlin or Java
    - iOS: Swift or Objective-C
    - Flutter: Dart (no choice needed)
    - Unity: C# (no choice needed)
-   - React Native: JavaScript or TypeScript
+   - React Native / Expo: JavaScript or TypeScript
 
-2. **How would you like to handle version control?** (only ask if the project has a git repository)
+2. **Which mobile platforms should this integration cover?** (cross-platform SDKs only: Flutter, React Native, Expo, Unity)
+   - Ask: **iOS**, **Android**, or **both**
+   - Do **not** offer a code-only / skip-native option
+   - Native iOS and native Android prompts skip this question — the platform is already known
+   - Apply shared SDK / wrapper work once; apply native iOS or Android project work only for the selected platform(s)
+   - In the final summary, report status per selected platform (shared code, iOS native, Android native)
+
+3. **How would you like to handle version control?** (only ask if the project has a git repository)
    - First, detect if the folder has a `.git` directory
    - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
    - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
    - **Option B: Current branch** — Write all changes directly to the current branch without stashing or creating a new branch
    - If no git repository is detected, skip this question and proceed
+
+### Bundle ID and application ID (Required)
+
+* **Use the iOS bundle identifier and Android applicationId / package name already defined in the project.** Do not invent, rename, or "improve" them (including swapping to example or OneSignal-owned IDs) unless the user explicitly asks.
+* Derive the default App Group from the existing main-app bundle ID: `group.{MAIN_APP_BUNDLE_ID}.onesignal`. If the project already defines a custom App Group for OneSignal, keep it and set `OneSignal_app_groups_key` as documented in the iOS push infrastructure section.
+* If a required identifier is missing or clearly unusable for the selected platform(s), stop and ask the user to set a real value in the project, then continue. Do not proceed by making one up.
+
+### Package manager continuity (Required)
+
+* Detect the project's existing dependency managers and **keep using them**.
+* iOS: preserve CocoaPods vs Swift Package Manager. Do not migrate the app between them unless the user asks.
+* JavaScript apps: use the lockfile's package manager (npm / yarn / pnpm / bun).
+* Do **not** add an NSE-only CocoaPods `Podfile` to an SPM-based iOS/Flutter project. Follow the platform section for how to link the Notification Service Extension under the detected manager.
+
+### Dashboard credentials
+
+* Do **not** instruct the user to upload APNs keys (`.p8`) or FCM credentials as part of this integration, and do not treat those uploads as agent tasks.
+* If push fails after a correct project integration, troubleshooting may note that dashboard credentials must match this app — but credential upload is out of scope for the agent workflow.
 
 ---
 
@@ -157,8 +195,10 @@ Do NOT automatically create a PR — let the user copy it.
 * Key changes made to the codebase
 * SDK details (platform, version, track)
 * Architecture decisions and where OneSignal logic is placed
-* Step-by-step verification instructions
-* Any follow-ups, limitations, or known risks
+* For cross-platform SDKs: which mobile platforms were selected and status for each (shared code, iOS native, Android native)
+* Bundle ID / applicationId used from the project (do not invent new ones in the summary either)
+* Step-by-step verification instructions (simulator is fine for build/launch and the verification dialog path)
+* Any follow-ups, limitations, or known risks — do **not** list APNs `.p8` or FCM credential upload as remaining agent/user setup steps for this flow
 
 ---
 
@@ -587,8 +627,9 @@ Common mappings:
 
 * Native iOS with SPM: app target gets `OneSignalFramework` (plus recommended app products); NSE target gets `OneSignalExtension`
 * Native iOS with CocoaPods: add an NSE target block for the OneSignal iOS pod
-* Flutter and bare React Native: add/update the `ios/Podfile` NSE target block and run `pod install`
-* Unity: ensure the generated Xcode project includes the NSE target and links the iOS OneSignal extension dependency after Unity exports the iOS project
+* Flutter: follow the Flutter platform section — CocoaPods projects add/update the NSE `Podfile` target; SPM projects do **not** add an NSE-only Podfile (see Flutter integrate guidance)
+* Bare React Native: add/update the `ios/Podfile` NSE target block and run `pod install`
+* Unity: ensure the generated Xcode project includes the NSE target and links the iOS OneSignal extension dependency after Unity exports the iOS project; build the exported **`.xcworkspace`**, not the `.xcodeproj`
 
 ### SPM projects — pbxproj objects
 
@@ -669,7 +710,7 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] `compileSdkVersion` 33+ in `android/app/build.gradle`
 - [ ] INTERNET permission in `android/app/src/main/AndroidManifest.xml`
 
-Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) are configured in the OneSignal dashboard, not in the app.
+Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) live in the OneSignal dashboard, not in the app. Do **not** instruct the user to upload FCM credentials as part of this agent workflow.
 
 ### iOS Sub-Project
 
@@ -678,13 +719,12 @@ Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google S
 - [ ] App Groups capability configured on BOTH Runner and `OneSignalNotificationServiceExtension`
 - [ ] `OneSignalNotificationServiceExtension` target added and configured
 - [ ] Minimum deployment target iOS 12.0+
-- [ ] APNs key/certificate uploaded to OneSignal dashboard
-- [ ] Run `pod install` in `ios/` directory
+- [ ] CocoaPods projects: `pod install` succeeds for Runner + NSE; SPM projects: NSE links/builds without adding an NSE-only Podfile
 
 ### Initialization
 
 - [ ] OneSignal initialized in `main()` before `runApp()`
-- [ ] Initialize on both platforms simultaneously
+- [ ] Apply native iOS and/or Android project work only for the platforms selected in Step 1
 
 ---
 
@@ -696,15 +736,33 @@ Flutter-specific notes:
 
 * The main iOS app target is usually `Runner`
 * The Xcode project is usually `ios/Runner.xcodeproj`
-* Add the App Group to `Runner.entitlements` (or create one if the project does not have it yet)
+* Add the App Group to `Runner.entitlements` (or create one if the project does not have it yet), using the **existing** Runner bundle identifier already in the project
 * Add a `OneSignalNotificationServiceExtension` target to the same Xcode project
-* If CocoaPods is used, add the NSE target block to `ios/Podfile` and run `cd ios && pod install && cd ..`
+* **Preserve the project's iOS dependency manager** (CocoaPods vs Swift Package Manager). Do not migrate between them unless the user asks.
+
+### CocoaPods projects
+
+If the app already uses CocoaPods (`ios/Podfile` present):
+
+* Ensure the Podfile is a **full** Flutter Podfile that installs pods for `Runner` via `flutter_install_all_ios_pods` (or the project's existing equivalent). Do **not** replace it with an NSE-only Podfile.
+* Add the NSE target block and run `cd ios && pod install && cd ..`:
 
 ```ruby
 target 'OneSignalNotificationServiceExtension' do
   pod 'OneSignalXCFramework', '~> 5.0'
 end
 ```
+
+Prefer nesting the NSE target under `Runner` with `inherit! :search_paths` when that matches the project's Podfile style and avoids duplicate OneSignal framework copies.
+
+### Swift Package Manager projects
+
+If the app uses SPM for iOS (no CocoaPods `Podfile`, or Flutter SPM enabled):
+
+* Do **not** create a CocoaPods `Podfile` solely to satisfy the NSE.
+* Create the NSE target, App Group, and `NotificationService` implementation (`import OneSignalExtension`) as in the shared iOS push infrastructure section.
+* Per OneSignal Flutter setup docs, when SPM is in use you typically **skip** adding an NSE Podfile dependency — the OneSignal packages resolved for the app are expected to cover the extension import path.
+* If the NSE build fails with `No such module 'OneSignalExtension'`, explicitly link the **`OneSignalExtension`** product from `OneSignal-XCFramework` to the NSE target (same pattern as native iOS SPM). Do not work around this by adding an NSE-only Podfile to an SPM app.
 
 ---
 

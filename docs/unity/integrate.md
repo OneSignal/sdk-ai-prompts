@@ -30,7 +30,7 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] Custom Main Gradle Template enabled (Player Settings ▸ Publishing Settings) so EDM4U can resolve Android dependencies on JDK 17
 - [ ] Internet permission granted (automatic with OneSignal)
 
-Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) are configured in the OneSignal dashboard, not in the app.
+Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) live in the OneSignal dashboard, not in the app. Do **not** instruct the user to upload FCM credentials as part of this agent workflow.
 
 ### iOS Build Settings
 
@@ -39,7 +39,6 @@ Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google S
 - [ ] Verify the App Group `group.{bundle_id}.onesignal` is on BOTH the exported app target and `OneSignalNotificationServiceExtension` (added automatically)
 - [ ] Verify the `OneSignalNotificationServiceExtension` target exists in the exported Xcode project (added automatically)
 - [ ] A valid Apple Developer Team is selected (Automatically Sign in Player Settings, or signing configured in Xcode) so the App Group can be provisioned
-- [ ] APNs key/certificate uploaded to OneSignal dashboard
 
 ### Initialization
 
@@ -61,11 +60,22 @@ Your job after export is to VERIFY this ran, using the "Shared iOS Push Infrastr
 
 Unity-specific notes:
 
-* Open the exported project via `.xcworkspace`, not `.xcodeproj`
+* Open and build the exported project via **`.xcworkspace`**, not `.xcodeproj`. CocoaPods (including OneSignal) is only linked through the workspace. Example:
+
+```bash
+cd <ExportedIosProject>
+pod install   # if Pods are not already installed
+xcodebuild -workspace Unity-iPhone.xcworkspace -scheme Unity-iPhone \
+  -configuration Debug -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,name=iPhone 16' build
+```
+
+* Do **not** pass `CODE_SIGNING_ALLOWED=NO` when building a CocoaPods-based OneSignal iOS export — the `[CP] Copy XCFrameworks` script needs signing enabled or `OneSignalFramework` / `OneSignalExtension` will fail to resolve.
 * Select a valid Apple Developer Team (Automatically Sign recommended) so Xcode can provision the App Group; with manual provisioning, the App Group and capabilities must already exist in the Apple Developer account
 * The post-processor does NOT run on Unity Cloud Build (`UNITY_CLOUD_BUILD`) — in that case, apply the shared iOS push infrastructure setup manually to the exported project
 * If a custom post-process script changes the bundle identifier, run it before OneSignal's post-processor (callback order 45) or the App Group name will be derived from the old bundle ID
-* Verify on an actual iOS device; Unity Editor Play mode cannot test APNs registration, rich push images, or Confirmed Delivery
+* Keep the existing Unity iOS bundle identifier from Player Settings / the exported project; do not invent a new one
+* Simulator builds are fine for verifying the export, NSE target presence, and app launch; full APNs delivery still requires a configured device when testing real pushes
 
 ---
 

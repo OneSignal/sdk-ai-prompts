@@ -24,7 +24,7 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] `compileSdkVersion` 33+ in `android/app/build.gradle`
 - [ ] INTERNET permission in `android/app/src/main/AndroidManifest.xml`
 
-Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) are configured in the OneSignal dashboard, not in the app.
+Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) live in the OneSignal dashboard, not in the app. Do **not** instruct the user to upload FCM credentials as part of this agent workflow.
 
 ### iOS Sub-Project
 
@@ -33,13 +33,12 @@ Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google S
 - [ ] App Groups capability configured on BOTH Runner and `OneSignalNotificationServiceExtension`
 - [ ] `OneSignalNotificationServiceExtension` target added and configured
 - [ ] Minimum deployment target iOS 12.0+
-- [ ] APNs key/certificate uploaded to OneSignal dashboard
-- [ ] Run `pod install` in `ios/` directory
+- [ ] CocoaPods projects: `pod install` succeeds for Runner + NSE; SPM projects: NSE links/builds without adding an NSE-only Podfile
 
 ### Initialization
 
 - [ ] OneSignal initialized in `main()` before `runApp()`
-- [ ] Initialize on both platforms simultaneously
+- [ ] Apply native iOS and/or Android project work only for the platforms selected in Step 1
 
 ---
 
@@ -51,15 +50,33 @@ Flutter-specific notes:
 
 * The main iOS app target is usually `Runner`
 * The Xcode project is usually `ios/Runner.xcodeproj`
-* Add the App Group to `Runner.entitlements` (or create one if the project does not have it yet)
+* Add the App Group to `Runner.entitlements` (or create one if the project does not have it yet), using the **existing** Runner bundle identifier already in the project
 * Add a `OneSignalNotificationServiceExtension` target to the same Xcode project
-* If CocoaPods is used, add the NSE target block to `ios/Podfile` and run `cd ios && pod install && cd ..`
+* **Preserve the project's iOS dependency manager** (CocoaPods vs Swift Package Manager). Do not migrate between them unless the user asks.
+
+### CocoaPods projects
+
+If the app already uses CocoaPods (`ios/Podfile` present):
+
+* Ensure the Podfile is a **full** Flutter Podfile that installs pods for `Runner` via `flutter_install_all_ios_pods` (or the project's existing equivalent). Do **not** replace it with an NSE-only Podfile.
+* Add the NSE target block and run `cd ios && pod install && cd ..`:
 
 ```ruby
 target 'OneSignalNotificationServiceExtension' do
   pod 'OneSignalXCFramework', '~> 5.0'
 end
 ```
+
+Prefer nesting the NSE target under `Runner` with `inherit! :search_paths` when that matches the project's Podfile style and avoids duplicate OneSignal framework copies.
+
+### Swift Package Manager projects
+
+If the app uses SPM for iOS (no CocoaPods `Podfile`, or Flutter SPM enabled):
+
+* Do **not** create a CocoaPods `Podfile` solely to satisfy the NSE.
+* Create the NSE target, App Group, and `NotificationService` implementation (`import OneSignalExtension`) as in the shared iOS push infrastructure section.
+* Per OneSignal Flutter setup docs, when SPM is in use you typically **skip** adding an NSE Podfile dependency — the OneSignal packages resolved for the app are expected to cover the extension import path.
+* If the NSE build fails with `No such module 'OneSignalExtension'`, explicitly link the **`OneSignalExtension`** product from `OneSignal-XCFramework` to the NSE target (same pattern as native iOS SPM). Do not work around this by adding an NSE-only Podfile to an SPM app.
 
 ---
 

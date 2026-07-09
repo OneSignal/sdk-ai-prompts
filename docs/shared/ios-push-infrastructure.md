@@ -412,8 +412,9 @@ Common mappings:
 
 * Native iOS with SPM: app target gets `OneSignalFramework` (plus recommended app products); NSE target gets `OneSignalExtension`
 * Native iOS with CocoaPods: add an NSE target block for the OneSignal iOS pod
-* Flutter and bare React Native: add/update the `ios/Podfile` NSE target block and run `pod install`
-* Unity: ensure the generated Xcode project includes the NSE target and links the iOS OneSignal extension dependency after Unity exports the iOS project
+* Flutter: follow the Flutter platform section — CocoaPods projects add/update the NSE `Podfile` target; SPM projects do **not** add an NSE-only Podfile (see Flutter integrate guidance)
+* Bare React Native: add/update the `ios/Podfile` NSE target block and run `pod install`
+* Unity: ensure the generated Xcode project includes the NSE target and links the iOS OneSignal extension dependency after Unity exports the iOS project; build the exported **`.xcworkspace`**, not the `.xcodeproj`
 
 ### SPM projects — pbxproj objects
 

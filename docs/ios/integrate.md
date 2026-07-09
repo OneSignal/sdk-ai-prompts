@@ -110,9 +110,8 @@ To enable Background Modes with Remote Notifications, you MUST make three change
 
 ### APNs Configuration
 
-- [ ] APNs Authentication Key (.p8) is uploaded to OneSignal dashboard
-  - OR APNs Certificate (.p12) is uploaded
-- [ ] Team ID and Key ID are configured in OneSignal dashboard
+- [ ] Do not treat APNs `.p8` / certificate upload as an agent task for this flow
+- [ ] If device push fails after a correct project setup, confirm dashboard iOS credentials match this app's team/bundle ID (troubleshooting only)
 
 ### Initialization
 
