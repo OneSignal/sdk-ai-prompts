@@ -34,15 +34,38 @@ Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google S
 
 ### iOS Build Settings
 
-- [ ] Target minimum iOS version 11.0+
-- [ ] Enable Push Notifications capability in Xcode after build
-- [ ] Enable Background Modes > Remote notifications in Xcode
+- [ ] Target minimum iOS version 12.0+
+- [ ] Verify the exported Xcode project has the Push Notifications and Background Modes (Remote notifications) capabilities (added automatically by the OneSignal build post-processor)
+- [ ] Verify the App Group `group.{bundle_id}.onesignal` is on BOTH the exported app target and `OneSignalNotificationServiceExtension` (added automatically)
+- [ ] Verify the `OneSignalNotificationServiceExtension` target exists in the exported Xcode project (added automatically)
+- [ ] A valid Apple Developer Team is selected (Automatically Sign in Player Settings, or signing configured in Xcode) so the App Group can be provisioned
 - [ ] APNs key/certificate uploaded to OneSignal dashboard
 
 ### Initialization
 
 - [ ] OneSignal initialized in a startup script or first scene
 - [ ] `RuntimeInitializeOnLoadMethod` or `Awake()` used for early initialization
+
+---
+
+## iOS Push Infrastructure
+
+Unity exports an Xcode project for iOS, and the OneSignal Unity SDK includes an iOS build post-processor (`com.onesignal.unity.ios/Editor/BuildPostProcessor.cs`) that configures the required push infrastructure automatically on every export. Do NOT recreate it manually. The post-processor:
+
+* Enables the Push Notifications and Background Modes (Remote notifications) capabilities on the main target
+* Adds the App Group `group.{bundle_id}.onesignal` to the entitlements of BOTH the main target and the NSE
+* Creates the `OneSignalNotificationServiceExtension` target with `NotificationService.swift`, `Info.plist`, and entitlements
+* Appends a `target 'OneSignalNotificationServiceExtension'` block with `OneSignalXCFramework/OneSignalExtension` to the generated Podfile
+
+Your job after export is to VERIFY this ran, using the "Shared iOS Push Infrastructure" section earlier in this document as the reference for what must be present (NSE target, App Group in both entitlements, Background Modes, Podfile block).
+
+Unity-specific notes:
+
+* Open the exported project via `.xcworkspace`, not `.xcodeproj`
+* Select a valid Apple Developer Team (Automatically Sign recommended) so Xcode can provision the App Group; with manual provisioning, the App Group and capabilities must already exist in the Apple Developer account
+* The post-processor does NOT run on Unity Cloud Build (`UNITY_CLOUD_BUILD`) — in that case, apply the shared iOS push infrastructure setup manually to the exported project
+* If a custom post-process script changes the bundle identifier, run it before OneSignal's post-processor (callback order 45) or the App Group name will be derived from the old bundle ID
+* Verify on an actual iOS device; Unity Editor Play mode cannot test APNs registration, rich push images, or Confirmed Delivery
 
 ---
 
@@ -501,6 +524,9 @@ public class OneSignalManagerTests
 | Issue | Solution |
 |-------|----------|
 | iOS build fails | Run EDM4U iOS Resolver, check Xcode capabilities |
+| iOS push received but no image | Verify the OneSignal build post-processor ran on export — the NSE target and App Group must be present (see iOS Push Infrastructure section) |
+| No Confirmed Delivery stat | Verify NSE + App Group setup in the exported Xcode project; dashboard display requires a paid OneSignal plan |
+| Xcode provisioning errors mentioning the App Group | Select a valid Team with Automatically Sign, refresh App Groups in Signing & Capabilities for BOTH targets, or pre-register the App Group in the Apple Developer portal |
 | Android build fails | Enable Custom Main Gradle Template (Player Settings ▸ Publishing Settings) so EDM4U patches `mainTemplate.gradle` |
 | `ClassNotFoundException` / no `com.onesignal.OneSignal` at runtime (silent init failure) | EDM4U is missing or Android deps never resolved — install EDM4U explicitly and enable Custom Main Gradle Template (see "Install External Dependency Manager") |
 | EDM4U "Force Resolve" fails with `GroovyBugError` / `ReflectionCache` | Its standalone resolver runs Gradle 5.1.1, which crashes on JDK 17 — resolve via Custom Main Gradle Template instead of Force Resolve |

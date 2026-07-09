@@ -26,6 +26,8 @@ If no App ID is present in the user's prompt, ask the user to provide one before
 
 ## Step 1 — Ask ONLY These Questions Before Making Changes
 
+If an answer is already clearly determined by the user's request, the repository contents, or the execution context (for example, the project is Swift-only, or the user already said how to handle git), do NOT ask — proceed with the determined answer and state the assumption in your summary. Only ask when the answer is genuinely unknown.
+
 1. **What language is the app written in?** (if applicable)
    - Android: Kotlin or Java
    - iOS: Swift or Objective-C
@@ -75,8 +77,9 @@ See platform-specific integration files for implementation examples.
 * Do NOT guess versions
 * Do NOT use other sources (npm, pub.dev, GitHub releases) for version numbers
 * The official JSON endpoint above has both **Stable** and **Current** versions for all platforms
+* iOS note: `OneSignal-XCFramework` (the SPM repo) shares version tags with `OneSignal-iOS-SDK` — the same version number applies to both
 
-Use the **Stable** track unless the user specifically requested Current. Do not use a version range.
+Use the **Stable** track unless the user specifically requested Current. Pin the selected version exactly (e.g. SPM `exactVersion`, exact npm/pub version) — do NOT invent version ranges. Exception: where a platform integration file shows a dependency line with an official constraint (e.g. the CocoaPods `pod 'OneSignalXCFramework', '~> 5.0'` blocks), use that constraint as written.
 
 When using the JSON source, read the exact version from:
 `<sdk entry>.channels.<track>.version`
@@ -112,6 +115,7 @@ Create a **single, centralized class/module** that wraps all OneSignal SDK inter
 
 * **No direct OneSignal SDK calls outside this wrapper**
 * All OneSignal interactions go through the centralized class/module
+* Some platform-file code examples (e.g. the Push Subscription Verification Dialog) show direct SDK calls for brevity — when implementing them, route those calls through the wrapper
 * Makes testing and future SDK updates easier
 
 See platform integration files for specific implementation patterns and method signatures.
@@ -124,8 +128,9 @@ Perform a **minimal, production-ready integration**, including:
 
 1. **Dependency configuration** (gradle, CocoaPods, pubspec, etc.)
 2. **Required app config changes** (manifest, plist, etc.)
-3. **SDK initialization** at the correct lifecycle point
-4. **Avoid deprecated APIs** — use the latest SDK patterns
+3. **Required notification infrastructure** — everything the platform integration file marks as **Required** (e.g. on iOS: the Notification Service Extension target and App Group). "Minimal" means no optional extras — it does **NOT** mean skipping required platform setup
+4. **SDK initialization** at the correct lifecycle point
+5. **Avoid deprecated APIs** — use the latest SDK patterns
 
 ---
 
@@ -148,8 +153,8 @@ Do NOT automatically create a PR — let the user copy it.
 ## Constraints
 
 * **Do NOT refactor unrelated code**
-* **Do NOT add optional OneSignal features** unless required
-* **Do NOT add push-notification features beyond SDK initialization and the Push Subscription Verification Dialog.** The dialog's on-tap permission request (Step 5 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
+* **Do NOT add optional OneSignal features** unless required. Anything the platform integration file marks as **Required** (e.g. the iOS Notification Service Extension and App Group) is part of the core integration — NOT an optional feature — and MUST be implemented
+* **Do NOT add push-notification features beyond SDK initialization, the Push Subscription Verification Dialog, and the sections the platform integration file marks as Required.** The dialog's on-tap permission request (Step 5 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)

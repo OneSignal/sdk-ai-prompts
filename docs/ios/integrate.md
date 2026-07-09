@@ -18,6 +18,15 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] **Background Modes** capability enabled with:
   - [x] Remote notifications
   - Xcode → Target → Signing & Capabilities → + Capability → Background Modes
+- [ ] **App Groups** capability enabled on BOTH the main app target and the Notification Service Extension target, with the **same** group ID (see the Notification Service Extension + App Group section)
+
+### Notification Service Extension + App Group
+
+- [ ] `OneSignalNotificationServiceExtension` target exists and builds
+- [ ] NSE target links the `OneSignalExtension` library (SPM) or the OneSignal pod (CocoaPods)
+- [ ] App Group `group.{MAIN_APP_BUNDLE_ID}.onesignal` is present in the `.entitlements` of BOTH the main app target and the NSE target
+- [ ] NSE deployment target matches the main app target
+- [ ] `NotificationService` forwards to `OneSignalExtension.didReceiveNotificationExtensionRequest`
 
 ### Entitlements
 
@@ -96,7 +105,7 @@ To enable Background Modes with Remote Notifications, you MUST make three change
 
 ### Deployment Target
 
-- [ ] Confirm minimum deployment target is iOS 12.0 or higher (iOS 14+ recommended)
+- [ ] Confirm minimum deployment target is iOS 12.0 or higher (iOS 16.2+ recommended; simulator push testing requires iOS 16.2+)
 - [ ] Do not change if it is already set
 
 ### APNs Configuration
@@ -112,6 +121,14 @@ To enable Background Modes with Remote Notifications, you MUST make three change
 
 ---
 
+## Shared iOS Push Infrastructure (Required)
+
+Complete the "Shared iOS Push Infrastructure" section earlier in this document. It is required and covers the Notification Service Extension, App Group, Background Modes, entitlements, project target wiring, dependency mapping, and verification steps.
+
+Do NOT skip that section. It is part of the minimal iOS integration because Confirmed Delivery, rich notifications, action buttons, and badges depend on it.
+
+---
+
 ## Architecture Guidance
 
 ### MVVM
@@ -119,13 +136,15 @@ To enable Background Modes with Remote Notifications, you MUST make three change
 ```
 YourApp/
 ├── Services/
-│   └── NotificationService.swift      # OneSignal wrapper
+│   └── OneSignalManager.swift          # OneSignal wrapper
 ├── ViewModels/
 │   └── ...
 ├── Views/
 │   └── ...
 └── AppDelegate.swift                   # Initialize here
 ```
+
+Do NOT name the wrapper class `NotificationService` — that name is reserved for the class inside the Notification Service Extension target.
 
 ### MVC
 
@@ -161,12 +180,12 @@ For advanced use cases where you need explicit threading control:
 actor OneSignalManager {
     static let shared = OneSignalManager()
 
-    func initialize(appId: String) async {
+    func initialize(appId: String, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) async {
         await Task.detached(priority: .background) {
             // Set log level for debugging (remove in production)
             OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-            // Initialize OneSignal
-            OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
+            // Initialize OneSignal (launchOptions is nil outside AppDelegate)
+            OneSignal.initialize(appId, withLaunchOptions: launchOptions)
         }.value
     }
 
@@ -185,12 +204,12 @@ class OneSignalManager {
     static let shared = OneSignalManager()
     private let queue = DispatchQueue(label: "com.app.onesignal", qos: .background)
 
-    func initialize(appId: String) {
+    func initialize(appId: String, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) {
         queue.async {
             // Set log level for debugging (remove in production)
             OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-            // Initialize OneSignal
-            OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
+            // Initialize OneSignal (launchOptions is nil outside AppDelegate)
+            OneSignal.initialize(appId, withLaunchOptions: launchOptions)
         }
     }
 }
@@ -235,12 +254,22 @@ Use the XCFramework-based package for smaller downloads:
    - `OneSignalFramework`
    - `OneSignalInAppMessages`
    - `OneSignalLocation`
+3. Add this library to the **OneSignalNotificationServiceExtension target**:
+   - `OneSignalExtension`
+
+Most common mistake: products attached to the wrong target. `OneSignalFramework` goes on the app target only; `OneSignalExtension` goes on the NSE target only.
 
 ### Dependency (CocoaPods)
 
 ```ruby
 # Podfile
-pod 'OneSignalXCFramework', '~> 5.0'
+target 'YourAppName' do
+  pod 'OneSignalXCFramework', '~> 5.0'
+end
+
+target 'OneSignalNotificationServiceExtension' do
+  pod 'OneSignalXCFramework', '~> 5.0'
+end
 ```
 
 Then run:
@@ -283,8 +312,8 @@ struct YourApp: App {
     init() {
         // Set log level for debugging (remove in production)
         OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-        // Initialize OneSignal
-        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
+        // Initialize OneSignal (no launchOptions in the SwiftUI lifecycle — pass nil)
+        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: nil)
     }
 
     var body: some Scene {
@@ -298,6 +327,7 @@ struct YourApp: App {
 ### Centralized Manager (Swift)
 
 ```swift
+import UIKit
 import OneSignalFramework
 
 final class OneSignalManager {
@@ -305,11 +335,11 @@ final class OneSignalManager {
 
     private init() {}
 
-    func initialize(appId: String) {
+    func initialize(appId: String, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) {
         // Set log level for debugging (remove in production)
         OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-        // Initialize OneSignal
-        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
+        // Initialize OneSignal (pass launchOptions from AppDelegate; nil elsewhere)
+        OneSignal.initialize(appId, withLaunchOptions: launchOptions)
     }
 
     func login(externalId: String) {
@@ -470,9 +500,14 @@ class IntegrationCompleteObserver: NSObject, OSPushSubscriptionObserver {
 
 ## Troubleshooting
 
-| Issue                         | Solution                                                     |
-| ----------------------------- | ------------------------------------------------------------ |
-| Push not received             | Verify APNs key/certificate is uploaded to OneSignal         |
-| Background notifications fail | Check Background Modes capability has "Remote notifications" |
-| Simulator issues              | Push notifications only work on physical devices             |
-| Entitlements error            | Regenerate provisioning profiles in Apple Developer portal   |
+| Issue                                | Solution                                                                                      |
+| ------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Push not received                    | Verify APNs key/certificate is uploaded to OneSignal                                          |
+| Background notifications fail        | Check Background Modes capability has "Remote notifications"                                  |
+| Simulator issues                     | Push notifications only work on physical devices                                              |
+| Entitlements error                   | Regenerate provisioning profiles in Apple Developer portal                                    |
+| Push received but no image           | NSE missing or not running — verify the target exists, links `OneSignalExtension`, and its deployment target matches the app |
+| No Confirmed Delivery stat           | App Group ID mismatch — must be byte-for-byte identical in both targets (also requires a paid plan) |
+| Badges not updating                  | App Groups capability missing from one of the two targets                                     |
+| `No such module 'OneSignalExtension'` | `OneSignalExtension` (SPM) or the OneSignal pod is not linked to the NSE target              |
+| "Multiple commands produce Info.plist" (NSE) | Add the NSE `Info.plist` to the NSE sync group's `membershipExceptions` (see "Add the NSE Target to the Xcode Project" in the Shared iOS Push Infrastructure section) |

@@ -30,7 +30,9 @@ Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google S
 
 - [ ] Push Notifications capability enabled in Xcode
 - [ ] Background Modes capability with Remote notifications
-- [ ] Minimum deployment target iOS 11.0+
+- [ ] App Groups capability configured on BOTH Runner and `OneSignalNotificationServiceExtension`
+- [ ] `OneSignalNotificationServiceExtension` target added and configured
+- [ ] Minimum deployment target iOS 12.0+
 - [ ] APNs key/certificate uploaded to OneSignal dashboard
 - [ ] Run `pod install` in `ios/` directory
 
@@ -38,6 +40,26 @@ Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google S
 
 - [ ] OneSignal initialized in `main()` before `runApp()`
 - [ ] Initialize on both platforms simultaneously
+
+---
+
+## iOS Push Infrastructure
+
+Flutter apps include a native iOS project under `ios/`. Complete the "Shared iOS Push Infrastructure" section earlier in this document. It is required for the Notification Service Extension, App Group, Background Modes, entitlements, and Confirmed Delivery/rich notification support.
+
+Flutter-specific notes:
+
+* The main iOS app target is usually `Runner`
+* The Xcode project is usually `ios/Runner.xcodeproj`
+* Add the App Group to `Runner.entitlements` (or create one if the project does not have it yet)
+* Add a `OneSignalNotificationServiceExtension` target to the same Xcode project
+* If CocoaPods is used, add the NSE target block to `ios/Podfile` and run `cd ios && pod install && cd ..`
+
+```ruby
+target 'OneSignalNotificationServiceExtension' do
+  pod 'OneSignalXCFramework', '~> 5.0'
+end
+```
 
 ---
 
@@ -383,5 +405,7 @@ void showIntegrationCompleteDialog(BuildContext context) {
 | iOS build fails | Run `cd ios && pod install --repo-update` |
 | Android build fails | Check `minSdkVersion` is 21+ and sync gradle |
 | Permission not working on iOS | Verify Push Notification capability in Xcode |
+| iOS push received but no image | Verify the shared iOS Notification Service Extension and App Group setup |
+| iOS Confirmed Delivery missing | Verify the shared App Group matches byte-for-byte in Runner and NSE entitlements, and confirm the OneSignal plan supports dashboard display |
 | Notifications not received | Check both Android and iOS platform configurations |
 | Hot reload breaks OneSignal | Restart app completely after OneSignal changes |

@@ -76,7 +76,7 @@ Before considering the integration complete, verify ALL of the following:
 
 - [ ] React Native 0.71 or higher
 - [ ] iOS minimum deployment target is iOS 12.0 or higher
-- [ ] Android `minSdkVersion` is 21 or higher (24+ recommended)
+- [ ] Android `minSdkVersion` is 21 or higher
 - [ ] Android `compileSdkVersion` is 33 or higher
 
 ### OneSignal Dashboard
@@ -89,8 +89,8 @@ Before considering the integration complete, verify ALL of the following:
 
 - [ ] Push Notifications capability enabled
 - [ ] Background Modes capability enabled with "Remote notifications" checked
-- [ ] App Groups capability configured
-- [ ] Notification Service Extension added and configured
+- [ ] App Groups capability configured on BOTH the app target and `OneSignalNotificationServiceExtension`
+- [ ] `OneSignalNotificationServiceExtension` target added and configured (see the Shared iOS Push Infrastructure section)
 
 ### Android Configuration
 
@@ -240,7 +240,7 @@ cd android && ./gradlew assembleDebug
 
 ## iOS Setup
 
-iOS requires additional configuration in Xcode. Follow these steps carefully.
+Bare React Native projects have a native iOS project under `ios/`. Complete the "Shared iOS Push Infrastructure" section earlier in this document. It is required for the Notification Service Extension, App Group, Background Modes, entitlements, and Confirmed Delivery/rich notification support.
 
 ### 1. Install CocoaPods Dependencies
 
@@ -250,163 +250,25 @@ cd ios && pod install && cd ..
 
 > **Note:** If `bundle install && bundle exec pod install` fails with Ruby native extension errors (common with Ruby 4.0+), use the global `pod install` command instead.
 
-### 2. Open Xcode Workspace
+### 2. Add the NSE Pod Target
 
-Always use the `.xcworkspace` file, not the `.xcodeproj`:
-
-```bash
-open ios/YourAppName.xcworkspace
-```
-
-### 3. Add Push Notifications Capability
-
-1. Select your app target in Xcode
-2. Go to **Signing & Capabilities** tab
-3. Click **+ Capability**
-4. Add **Push Notifications**
-
-### 4. Add Background Modes Capability
-
-1. Click **+ Capability** again
-2. Add **Background Modes**
-3. Check **Remote notifications**
-
-### 5. Add App Groups Capability
-
-App Groups enable data sharing between your app and the Notification Service Extension (required for Confirmed Delivery and Badges).
-
-1. Click **+ Capability**
-2. Add **App Groups**
-3. Click **+** to add a new container
-4. Use this format: `group.YOUR_BUNDLE_ID.onesignal`
-   - Example: For bundle ID `com.example.myapp`, use `group.com.example.myapp.onesignal`
-
-### 6. Add Notification Service Extension
-
-The Notification Service Extension (NSE) enables rich notifications, images, and Confirmed Delivery analytics.
-
-1. In Xcode: **File → New → Target...**
-2. Select **Notification Service Extension**, then click **Next**
-3. Set Product Name to `OneSignalNotificationServiceExtension`
-4. Click **Finish**
-5. When prompted, click **Don't Activate** (keep your main scheme active)
-
-### 7. Configure NSE Deployment Target
-
-1. Select the `OneSignalNotificationServiceExtension` target
-2. Go to **General** tab
-3. Set **Minimum Deployment** to match your main app (iOS 12.0+ recommended)
-
-### 8. Add App Groups to NSE Target
-
-1. Select `OneSignalNotificationServiceExtension` target
-2. Go to **Signing & Capabilities**
-3. Add **App Groups** capability
-4. Select the **same App Group** you created in step 5
-
-### 9. Update NSE Code
-
-Replace the contents of `NotificationService.swift` (or `NotificationService.m`) in the `OneSignalNotificationServiceExtension` folder:
-
-#### Swift Version (NotificationService.swift)
-
-```swift
-import UserNotifications
-import OneSignalExtension
-
-class NotificationService: UNNotificationServiceExtension {
-    var contentHandler: ((UNNotificationContent) -> Void)?
-    var receivedRequest: UNNotificationRequest!
-    var bestAttemptContent: UNMutableNotificationContent?
-
-    override func didReceive(
-        _ request: UNNotificationRequest,
-        withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void
-    ) {
-        self.receivedRequest = request
-        self.contentHandler = contentHandler
-        self.bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
-
-        if let bestAttemptContent = bestAttemptContent {
-            OneSignalExtension.didReceiveNotificationExtensionRequest(
-                self.receivedRequest,
-                with: bestAttemptContent,
-                withContentHandler: self.contentHandler
-            )
-        }
-    }
-
-    override func serviceExtensionTimeWillExpire() {
-        if let contentHandler = contentHandler, let bestAttemptContent = bestAttemptContent {
-            OneSignalExtension.serviceExtensionTimeWillExpireRequest(
-                self.receivedRequest,
-                with: self.bestAttemptContent
-            )
-            contentHandler(bestAttemptContent)
-        }
-    }
-}
-```
-
-#### Objective-C Version (NotificationService.m)
-
-```objc
-#import <OneSignalExtension/OneSignalExtension.h>
-#import "NotificationService.h"
-
-@interface NotificationService ()
-@property (nonatomic, strong) void (^contentHandler)(UNNotificationContent *contentToDeliver);
-@property (nonatomic, strong) UNNotificationRequest *receivedRequest;
-@property (nonatomic, strong) UNMutableNotificationContent *bestAttemptContent;
-@end
-
-@implementation NotificationService
-
-- (void)didReceiveNotificationRequest:(UNNotificationRequest *)request
-                   withContentHandler:(void (^)(UNNotificationContent *_Nonnull))contentHandler {
-    self.receivedRequest = request;
-    self.contentHandler = contentHandler;
-    self.bestAttemptContent = [request.content mutableCopy];
-
-    [OneSignalExtension didReceiveNotificationExtensionRequest:self.receivedRequest
-                                       withMutableNotificationContent:self.bestAttemptContent
-                                                   withContentHandler:self.contentHandler];
-}
-
-- (void)serviceExtensionTimeWillExpire {
-    [OneSignalExtension serviceExtensionTimeWillExpireRequest:self.receivedRequest
-                                  withMutableNotificationContent:self.bestAttemptContent];
-    self.contentHandler(self.bestAttemptContent);
-}
-
-@end
-```
-
-### 10. Add OneSignal to Podfile
-
-Add the Notification Service Extension target to your `ios/Podfile`:
+The shared iOS infrastructure section creates the native `OneSignalNotificationServiceExtension` target. Add a matching target block to `ios/Podfile`, then run `pod install` again:
 
 ```ruby
-# Add this after your main app target's "end"
-
 target 'OneSignalNotificationServiceExtension' do
-  pod 'OneSignalXCFramework', '>= 5.0.0', '< 6.0'
+  pod 'OneSignalXCFramework', '~> 5.0'
 end
 ```
 
-### 11. Install Pods
+### 3. Build for iOS
 
-```bash
-cd ios && pod install && cd ..
-```
-
-### 12. Build for iOS
+Always build through the workspace once pods are installed:
 
 ```bash
 npx react-native run-ios
 ```
 
-Or build from Xcode using the **Run** button.
+Or open `ios/YourAppName.xcworkspace` in Xcode and build there.
 
 ---
 
@@ -648,8 +510,9 @@ export const useOneSignal = (appId: string) => {
 | Bundle install fails with Ruby errors | Skip bundler, use global CocoaPods: `cd ios && pod install` |
 | Push capability missing | Add "Push Notifications" capability in Xcode under Signing & Capabilities |
 | Background notifications fail | Enable "Remote notifications" in Background Modes capability |
-| Notifications without images | Ensure Notification Service Extension is properly configured |
+| Notifications without images | Ensure the shared iOS Notification Service Extension setup is complete |
 | App Groups mismatch | Verify same App Group ID is used for main app and NSE targets |
+| No Confirmed Delivery stat | Verify NSE + App Group setup; dashboard display requires a paid OneSignal plan |
 | Build error: PBXFileSystemSynchronizedRootGroup | Right-click the NSE folder in Xcode and select "Convert to Group" |
 | Build error: Cycle Inside... | Move "Embed Foundation Extensions" build phase above "Run Script" in Build Phases |
 | objectVersion 70 error | Change `objectVersion = 70;` to `objectVersion = 55;` in `project.pbxproj` |
