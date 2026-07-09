@@ -9,106 +9,16 @@
 
 ## Pre-Flight Checklist
 
-Before considering the integration complete, verify ALL of the following:
+Before considering the integration complete, verify ALL of the following. For NSE, App Groups, entitlements, Background Modes, and embedding the extension, complete and use the checklist in the **Shared iOS Push Infrastructure** section earlier in this document — do not re-implement those steps here.
 
-### Xcode Capabilities
+### Xcode / project
 
-- [ ] **Push Notifications** capability enabled
-  - Xcode → Target → Signing & Capabilities → + Capability → Push Notifications
-- [ ] **Background Modes** capability enabled with:
-  - [x] Remote notifications
-  - Xcode → Target → Signing & Capabilities → + Capability → Background Modes
-- [ ] **App Groups** capability enabled on BOTH the main app target and the Notification Service Extension target, with the **same** group ID (see the Notification Service Extension + App Group section)
+- [ ] Shared iOS Push Infrastructure required outcomes are all satisfied (NSE, App Group, entitlements, Background Modes, embed phase)
+- [ ] Push Notifications capability is enabled on the main app target (via entitlements / Signing & Capabilities)
+- [ ] Minimum deployment target is iOS 12.0 or higher (iOS 16.2+ recommended); do not lower an existing higher target
+- [ ] `NSAppTransportSecurity` allows HTTPS (default; usually no changes)
 
-### Notification Service Extension + App Group
-
-- [ ] `OneSignalNotificationServiceExtension` target exists and builds
-- [ ] NSE target links the `OneSignalExtension` library (SPM) or the OneSignal pod (CocoaPods)
-- [ ] App Group `group.{MAIN_APP_BUNDLE_ID}.onesignal` is present in the `.entitlements` of BOTH the main app target and the NSE target
-- [ ] NSE deployment target matches the main app target
-- [ ] `NotificationService` forwards to `OneSignalExtension.didReceiveNotificationExtensionRequest`
-
-### Entitlements
-
-- [ ] `aps-environment` entitlement is present in `.entitlements` file
-  ```xml
-  <key>aps-environment</key>
-  <string>development</string> <!-- or "production" for release -->
-  ```
-
-### Background Modes (Info.plist + pbxproj)
-
-To enable Background Modes with Remote Notifications, you MUST make three changes:
-
-1. **Create an `Info.plist`** file in the app source directory (if one does not already exist) with `UIBackgroundModes`:
-
-   ```xml
-   <?xml version="1.0" encoding="UTF-8"?>
-   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-   <plist version="1.0">
-   <dict>
-   	<key>UIBackgroundModes</key>
-   	<array>
-   		<string>remote-notification</string>
-   	</array>
-   </dict>
-   </plist>
-   ```
-
-2. **Add both of these build settings** to the target's Debug AND Release `XCBuildConfiguration` sections in `project.pbxproj`:
-
-   ```
-   INFOPLIST_FILE = "YourApp/Info.plist";
-   INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
-   ```
-
-   Replace `YourApp/Info.plist` with the path to the Info.plist relative to the project root (the directory containing the `.xcodeproj`).
-
-   Both settings are required. `INFOPLIST_FILE` points Xcode to the explicit plist so the capability appears in the Signing & Capabilities tab. `INFOPLIST_KEY_UIBackgroundModes` ensures the value is included in the generated Info.plist at build time. If the project already has `GENERATE_INFOPLIST_FILE = YES`, keep it — Xcode will merge the explicit plist with auto-generated keys.
-
-3. **Exclude `Info.plist` from the resource copy phase** if the project uses `PBXFileSystemSynchronizedRootGroup` (Xcode 16+ project format). Without this, the file sync group automatically copies `Info.plist` as a bundle resource, which conflicts with the `INFOPLIST_FILE` build setting and causes a "Multiple commands produce Info.plist" build error.
-
-   Add a `PBXFileSystemSynchronizedBuildFileExceptionSet` section to `project.pbxproj`:
-
-   ```
-   /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-   		... /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-   			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-   			membershipExceptions = (
-   				Info.plist,
-   			);
-   			target = ... /* YourApp */;
-   		};
-   /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-   ```
-
-   Then reference it from the app's `PBXFileSystemSynchronizedRootGroup` entry by adding the `exceptions` array:
-
-   ```
-   /* Begin PBXFileSystemSynchronizedRootGroup section */
-   		... /* YourApp */ = {
-   			isa = PBXFileSystemSynchronizedRootGroup;
-   			exceptions = (
-   				... /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
-   			);
-   			path = "YourApp";
-   			sourceTree = "<group>";
-   		};
-   ```
-
-   This only applies to projects using file system synchronized groups. If the project uses traditional `PBXFileReference` and `PBXGroup` entries, this step is not needed.
-
-### Info.plist (other)
-
-- [ ] `NSAppTransportSecurity` allows HTTPS (default behavior, usually no changes needed)
-- [ ] Background fetch is not blocked
-
-### Deployment Target
-
-- [ ] Confirm minimum deployment target is iOS 12.0 or higher (iOS 16.2+ recommended; simulator push testing requires iOS 16.2+)
-- [ ] Do not change if it is already set
-
-### APNs Configuration
+### Dashboard credentials
 
 - [ ] Do not treat APNs `.p8` / certificate upload as an agent task for this flow
 - [ ] If device push fails after a correct project setup, confirm dashboard iOS credentials match this app's team/bundle ID (troubleshooting only)
@@ -122,10 +32,9 @@ To enable Background Modes with Remote Notifications, you MUST make three change
 
 ## Shared iOS Push Infrastructure (Required)
 
-Complete the "Shared iOS Push Infrastructure" section earlier in this document. It is required and covers the Notification Service Extension, App Group, Background Modes, entitlements, project target wiring, dependency mapping, and verification steps.
+Complete the "Shared iOS Push Infrastructure" section earlier in this document. It is the single source of truth for the Notification Service Extension, App Group, Background Modes, entitlements, project target wiring, dependency mapping, and verification steps.
 
 Do NOT skip that section. It is part of the minimal iOS integration because Confirmed Delivery, rich notifications, action buttons, and badges depend on it.
-
 ---
 
 ## Architecture Guidance
@@ -499,14 +408,11 @@ class IntegrationCompleteObserver: NSObject, OSPushSubscriptionObserver {
 
 ## Troubleshooting
 
-| Issue                                | Solution                                                                                      |
-| ------------------------------------ | --------------------------------------------------------------------------------------------- |
-| Push not received                    | Verify APNs key/certificate is uploaded to OneSignal                                          |
-| Background notifications fail        | Check Background Modes capability has "Remote notifications"                                  |
-| Simulator issues                     | Push notifications only work on physical devices                                              |
-| Entitlements error                   | Regenerate provisioning profiles in Apple Developer portal                                    |
-| Push received but no image           | NSE missing or not running — verify the target exists, links `OneSignalExtension`, and its deployment target matches the app |
-| No Confirmed Delivery stat           | App Group ID mismatch — must be byte-for-byte identical in both targets (also requires a paid plan) |
-| Badges not updating                  | App Groups capability missing from one of the two targets                                     |
-| `No such module 'OneSignalExtension'` | `OneSignalExtension` (SPM) or the OneSignal pod is not linked to the NSE target              |
-| "Multiple commands produce Info.plist" (NSE) | Add the NSE `Info.plist` to the NSE sync group's `membershipExceptions` (see "Add the NSE Target to the Xcode Project" in the Shared iOS Push Infrastructure section) |
+For NSE, App Group, `OneSignalExtension` module, and Info.plist sync-group issues, use the **iOS Infrastructure Troubleshooting** table in the Shared iOS Push Infrastructure section.
+
+| Issue                         | Solution                                                                 |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| Push not received             | Confirm dashboard iOS credentials match this app; check device permission |
+| Background notifications fail | Check Background Modes includes Remote notifications (see shared section) |
+| Simulator issues              | Full APNs delivery needs a physical device; simulator is fine for build/launch |
+| Entitlements / signing error  | Regenerate provisioning profiles; confirm `DEVELOPMENT_TEAM` and App Group |

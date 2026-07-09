@@ -70,24 +70,65 @@ Wire the file into the main app target:
 
 ## Background Modes
 
-Enable Background Modes with Remote notifications for the main app target. When editing files directly, add or update the app `Info.plist` with:
+Enable Background Modes with Remote notifications for the main app target. When editing files directly, you MUST make these changes:
+
+1. **Create or update an `Info.plist`** in the app source directory with `UIBackgroundModes`:
 
 ```xml
-<key>UIBackgroundModes</key>
-<array>
-	<string>remote-notification</string>
-</array>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+</dict>
+</plist>
 ```
 
-Also ensure the app target's Debug and Release build settings include:
+If the app already has an `Info.plist`, add only the `UIBackgroundModes` key (do not replace unrelated keys).
+
+2. **Add both of these build settings** to the target's Debug AND Release `XCBuildConfiguration` sections in `project.pbxproj`:
 
 ```text
 INFOPLIST_FILE = "PATH/TO/App/Info.plist";
 INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 ```
 
-If the project uses Xcode 16+ `PBXFileSystemSynchronizedRootGroup`, exclude `Info.plist` from the resource copy phase with a `PBXFileSystemSynchronizedBuildFileExceptionSet`. Otherwise Xcode may fail with "Multiple commands produce Info.plist".
+Replace `PATH/TO/App/Info.plist` with the path relative to the project root (the directory containing the `.xcodeproj`). Both settings are required. `INFOPLIST_FILE` points Xcode at the explicit plist so the capability appears in Signing & Capabilities. `INFOPLIST_KEY_UIBackgroundModes` ensures the value is included in the generated Info.plist at build time. If the project already has `GENERATE_INFOPLIST_FILE = YES`, keep it — Xcode will merge the explicit plist with auto-generated keys.
 
+3. **Exclude `Info.plist` from the resource copy phase** if the project uses `PBXFileSystemSynchronizedRootGroup` (Xcode 16+). Without this, the file sync group copies `Info.plist` as a bundle resource, which conflicts with `INFOPLIST_FILE` and causes "Multiple commands produce Info.plist".
+
+Add a `PBXFileSystemSynchronizedBuildFileExceptionSet` to `project.pbxproj`:
+
+```text
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		... /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = ... /* YourApp */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+```
+
+Then reference it from the app's `PBXFileSystemSynchronizedRootGroup` via an `exceptions` array:
+
+```text
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		... /* YourApp */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				... /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
+			path = "YourApp";
+			sourceTree = "<group>";
+		};
+```
+
+This only applies to file system synchronized groups. Traditional `PBXFileReference` / `PBXGroup` projects can skip step 3.
 ## Create the Notification Service Extension Files
 
 Create `OneSignalNotificationServiceExtension/` next to the `.xcodeproj` (or inside the generated iOS project root for cross-platform apps).
