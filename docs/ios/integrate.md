@@ -17,11 +17,7 @@ Before considering the integration complete, verify ALL of the following. For NS
 - [ ] Push Notifications capability is enabled on the main app target (via entitlements / Signing & Capabilities)
 - [ ] Minimum deployment target is iOS 12.0 or higher (iOS 16.2+ recommended); do not lower an existing higher target
 - [ ] `NSAppTransportSecurity` allows HTTPS (default; usually no changes)
-
-### Dashboard credentials
-
-- [ ] Do not treat APNs `.p8` / certificate upload as an agent task for this flow
-- [ ] If device push fails after a correct project setup, confirm dashboard iOS credentials match this app's team/bundle ID (troubleshooting only)
+- [ ] Signed app entitlements verified (`codesign -d --entitlements -` shows `aps-environment` + App Group); do not disable code signing on CLI builds
 
 ### Initialization
 
@@ -284,12 +280,15 @@ After completing SDK initialization, add a push subscription observer so the app
 
 ### SwiftUI
 
+OneSignal stores push subscription observers weakly. Retain the observer in `@State` (or equivalent) for the view's lifetime — a local `let` inside `.onAppear` is deallocated immediately and the dialog never appears.
+
 ```swift
 import SwiftUI
 import OneSignalFramework
 
 struct ContentView: View {
     @State private var showIntegrationCompleteAlert = false
+    @State private var pushObserver: PushSubscriptionObserver?
 
     var body: some View {
         YourMainView()
@@ -297,6 +296,7 @@ struct ContentView: View {
                 let observer = PushSubscriptionObserver {
                     showIntegrationCompleteAlert = true
                 }
+                pushObserver = observer
                 OneSignal.User.pushSubscription.addObserver(observer)
 
                 // The ID may already be assigned before the observer attaches,
@@ -398,21 +398,23 @@ class IntegrationCompleteObserver: NSObject, OSPushSubscriptionObserver {
     }
 }
 
-// Usage: After initializing OneSignal, register the observer and evaluate the current ID
-// let observer = IntegrationCompleteObserver(viewController: self)
-// OneSignal.User.pushSubscription.addObserver(observer)
-// observer.evaluate(OneSignal.User.pushSubscription.id)
+// Usage: store the observer as a view-controller property (OneSignal retains observers weakly).
+// After initializing OneSignal:
+// self.integrationCompleteObserver = IntegrationCompleteObserver(viewController: self)
+// OneSignal.User.pushSubscription.addObserver(self.integrationCompleteObserver!)
+// self.integrationCompleteObserver?.evaluate(OneSignal.User.pushSubscription.id)
 ```
 
 ---
 
 ## Troubleshooting
 
-For NSE, App Group, `OneSignalExtension` module, and Info.plist sync-group issues, use the **iOS Infrastructure Troubleshooting** table in the Shared iOS Push Infrastructure section.
+For NSE, App Group, `OneSignalExtension` module, Info.plist sync-group, and signing/entitlements issues, use the **iOS Infrastructure Troubleshooting** table in the Shared iOS Push Infrastructure section.
 
 | Issue                         | Solution                                                                 |
 | ----------------------------- | ------------------------------------------------------------------------ |
-| Push not received             | Confirm dashboard iOS credentials match this app; check device permission |
+| Push not received             | Check notification permission; confirm signed entitlements include `aps-environment` (see shared section) |
 | Background notifications fail | Check Background Modes includes Remote notifications (see shared section) |
-| Simulator issues              | Full APNs delivery needs a physical device; simulator is fine for build/launch |
-| Entitlements / signing error  | Regenerate provisioning profiles; confirm `DEVELOPMENT_TEAM` and App Group |
+| Verification dialog never appears | Retain the push subscription observer (weakly held by the SDK); evaluate the current ID immediately |
+| Simulator issues              | Simulator is fine for build/launch and the verification dialog; full APNs delivery may still need a device |
+| Entitlements / signing error  | Regenerate provisioning profiles; confirm `DEVELOPMENT_TEAM` and App Group; do not disable code signing |

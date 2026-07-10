@@ -78,11 +78,7 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] iOS minimum deployment target is iOS 12.0 or higher
 - [ ] Android `minSdkVersion` is 21 or higher
 - [ ] Android `compileSdkVersion` is 33 or higher
-
-### OneSignal Dashboard
-
 - [ ] OneSignal App ID is available (from the user prompt)
-- [ ] Do not treat APNs `.p8` or FCM credential upload as agent tasks for this flow
 
 ### iOS Configuration (in Xcode)
 
@@ -90,12 +86,13 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] Background Modes capability enabled with "Remote notifications" checked
 - [ ] App Groups capability configured on BOTH the app target and `OneSignalNotificationServiceExtension`
 - [ ] `OneSignalNotificationServiceExtension` target added and configured (see the Shared iOS Push Infrastructure section)
+- [ ] Keep normal code signing enabled (see Shared iOS Push Infrastructure — do not pass `CODE_SIGNING_ALLOWED=NO`)
 
 ### Android Configuration
 
 - [ ] Notification icons configured (optional but recommended)
 
-Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) live in the OneSignal dashboard, not in the app. Do **not** instruct the user to upload FCM credentials as part of this agent workflow.
+Note: Do NOT add the Google Services Gradle plugin or a `google-services.json` file for OneSignal — the SDK registers for FCM itself and these files are not required.
 
 ### Initialization
 
@@ -196,9 +193,9 @@ export default App;
 
 Android setup is minimal thanks to React Native autolinking. The SDK will be automatically linked when you run your Android build.
 
-### 1. FCM Credentials
+### 1. Google Services plugin
 
-The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) are configured in the OneSignal dashboard, not in the app.
+Do NOT add the Google Services Gradle plugin or a `google-services.json` file for OneSignal — the SDK registers for FCM itself and these files are not required.
 
 ### 2. Configure Notification Icons (Optional)
 
@@ -495,7 +492,7 @@ export const useOneSignal = (appId: string) => {
 | Issue | Solution |
 |-------|----------|
 | Module not found | Run `npm install` or `yarn install` to ensure dependencies are installed |
-| Notifications not received | Verify APNs/FCM credentials in OneSignal dashboard |
+| Notifications not received | Check App ID, notification permission, and that iOS/Android native setup completed |
 | Permission always false | Check notification settings in device Settings app |
 | NativeEventEmitter error | Wrap OneSignal initialization in `useEffect` hook |
 | New files not showing after build | Restart Metro with cache reset: `npm start -- --reset-cache` |
@@ -520,8 +517,7 @@ export const useOneSignal = (appId: string) => {
 
 | Issue | Solution |
 |-------|----------|
-| Push not received | Verify FCM credentials (Firebase Service Account JSON) are configured in the OneSignal dashboard |
-| FCM registration failed | Ensure Firebase project is properly configured with correct package name |
+| Push not received | Check notification permission, App ID, and internet connectivity |
 | Build fails with Gradle errors | Try `cd android && ./gradlew clean && cd ..` then rebuild |
 | Notification icon issues | Create proper notification icons in all `drawable-*` folders |
 | CMake configureCMakeDebug fails with "restricted method" | Use JDK 17 instead of JDK 25+. Set `JAVA_HOME` before building |

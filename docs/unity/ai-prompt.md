@@ -87,11 +87,6 @@ Inspect the project and note:
 * JavaScript apps: use the lockfile's package manager (npm / yarn / pnpm / bun).
 * Do **not** add an NSE-only CocoaPods `Podfile` to an SPM-based iOS/Flutter project. Follow the platform section for how to link the Notification Service Extension under the detected manager.
 
-### Dashboard credentials
-
-* Do **not** instruct the user to upload APNs keys (`.p8`) or FCM credentials as part of this integration, and do not treat those uploads as agent tasks.
-* If push fails after a correct project integration, troubleshooting may note that dashboard credentials must match this app — but credential upload is out of scope for the agent workflow.
-
 ---
 
 ## Push Subscription Verification Dialog (Required)
@@ -102,16 +97,18 @@ After completing SDK initialization, add a push subscription observer so the app
 
 1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
-2. **Treat the device as registered only when the push subscription ID is a real, server-assigned value** — non-empty and **not** prefixed with `local-`. The SDK assigns a `local-` placeholder ID during initialization (before the device registers with OneSignal's servers); that placeholder does **not** mean the device is registered.
+2. **Retain the observer for the lifetime of the screen/component that owns it.** OneSignal stores push subscription observers weakly — a local-only variable is deallocated immediately and the dialog never appears. Store it in framework-retained state (for example SwiftUI `@State`, a UIKit view-controller property, React `useRef` / component field, Flutter `State` field, or an Android/`Application`-scoped reference).
 
-3. **Evaluate the current subscription ID both on change and immediately at observer-registration time.** The ID may already be server-assigned before your observer attaches, so reacting only to the change event can miss the transition and the dialog would never appear.
+3. **Treat the device as registered only when the push subscription ID is a real, server-assigned value** — non-empty and **not** prefixed with `local-`. The SDK assigns a `local-` placeholder ID during initialization (before the device registers with OneSignal's servers); that placeholder does **not** mean the device is registered.
 
-4. **When a real subscription ID is present, show a platform-native dialog/alert exactly once** (guard with a "shown once" flag) with:
+4. **Evaluate the current subscription ID both on change and immediately at observer-registration time.** The ID may already be server-assigned before your observer attaches, so reacting only to the change event can miss the transition and the dialog would never appear.
+
+5. **When a real subscription ID is present, show a platform-native dialog/alert exactly once** (guard with a "shown once" flag) with:
    - **Title:** "Your OneSignal SDK integration is complete!"
    - **Message:** "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications."
    - **Single button:** **"Got it"**
 
-5. **On button tap**, request push permission.
+6. **On button tap**, request push permission.
 
 See platform-specific integration files for implementation examples.
 
@@ -198,7 +195,7 @@ Do NOT automatically create a PR — let the user copy it.
 * For cross-platform SDKs: which mobile platforms were selected and status for each (shared code, iOS native, Android native)
 * Bundle ID / applicationId used from the project (do not invent new ones in the summary either)
 * Step-by-step verification instructions (simulator is fine for build/launch and the verification dialog path)
-* Any follow-ups, limitations, or known risks — do **not** list APNs `.p8` or FCM credential upload as remaining agent/user setup steps for this flow
+* Any follow-ups, limitations, or known risks relevant to the code changes made
 
 ---
 
@@ -206,7 +203,7 @@ Do NOT automatically create a PR — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required. Anything the platform integration file marks as **Required** (e.g. the iOS Notification Service Extension and App Group) is part of the core integration — NOT an optional feature — and MUST be implemented
-* **Do NOT add push-notification features beyond SDK initialization, the Push Subscription Verification Dialog, and the sections the platform integration file marks as Required.** The dialog's on-tap permission request (Step 5 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
+* **Do NOT add push-notification features beyond SDK initialization, the Push Subscription Verification Dialog, and the sections the platform integration file marks as Required.** The dialog's on-tap permission request (Step 6 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)
@@ -277,6 +274,14 @@ Add Push Notifications and the shared App Group to the main app target's `.entit
 ```
 
 Use `development` for development builds. Release/TestFlight/App Store builds generally use `production`, depending on the project's signing setup.
+
+### Code signing (do not disable)
+
+Keep normal code signing enabled for iOS builds (simulator and device).
+
+* Do **not** pass `CODE_SIGNING_ALLOWED=NO`, empty `CODE_SIGN_IDENTITY`, or `CODE_SIGNING_REQUIRED=NO` on `xcodebuild` / CLI builds.
+* Disabling signing produces a binary that **drops entitlements** (`aps-environment`, App Groups). OneSignal then reports Push Notifications as missing and subscription fails, even when the `.entitlements` files are correct.
+* CocoaPods-based iOS projects (Unity export, React Native, Flutter CocoaPods) also need signing enabled so `[CP] Copy XCFrameworks` can resolve `OneSignalFramework` / `OneSignalExtension`.
 
 Wire the file into the main app target:
 
@@ -709,8 +714,11 @@ end
 2. The main app embeds `OneSignalNotificationServiceExtension.appex` under `PlugIns/`
 3. The App Group string is byte-for-byte identical in both targets' generated entitlements
 4. The main app generated `Info.plist` contains `UIBackgroundModes = remote-notification`
-5. To verify end-to-end on a physical device, send a test push with an image via the REST API (`"ios_attachments": {"logo": "https://avatars.githubusercontent.com/u/11823027?s=200&v=4"}`; OneSignal sets mutable content when needed) — the image renders only if the NSE is running
-6. Confirmed Delivery appears under Dashboard → Delivery → Sent Messages (requires a paid OneSignal plan; the NSE still reports it, but free plans do not display it)
+5. The **signed** main app binary carries Push + App Group entitlements. After building (with signing enabled), run:
+   `codesign -d --entitlements - path/to/App.app`
+   Confirm `aps-environment` and `com.apple.security.application-groups` (with `group.{MAIN_APP_BUNDLE_ID}.onesignal`) are present. On a simulator build you can also inspect `App.app/archived-expanded-entitlements.xcent` / `*-Simulated.xcent` if present.
+6. To verify rich media on a physical device, send a test push with an image via the REST API (`"ios_attachments": {"logo": "https://avatars.githubusercontent.com/u/11823027?s=200&v=4"}`; OneSignal sets mutable content when needed) — the image renders only if the NSE is running
+7. Confirmed Delivery appears under Dashboard → Delivery → Sent Messages (requires a paid OneSignal plan; the NSE still reports it, but free plans do not display it)
 
 ## iOS Infrastructure Troubleshooting
 
@@ -722,6 +730,8 @@ end
 | `No such module 'OneSignalExtension'` | The OneSignal extension product/pod is not linked to the NSE target |
 | "Multiple commands produce Info.plist" | Exclude `Info.plist` from the synchronized file group resource phase with `PBXFileSystemSynchronizedBuildFileExceptionSet` |
 | App Group works in simulator but fails on device | Select a valid Apple Developer Team and let Xcode register the App Group, or configure it in the Apple Developer portal |
+| Dashboard / SDK says Push Notifications capability is missing | Rebuild with normal signing (do not pass `CODE_SIGNING_ALLOWED=NO`); verify the signed app via `codesign -d --entitlements -` includes `aps-environment` |
+| Frameworks / pods fail to copy on CLI build | Do not disable code signing; CocoaPods `[CP] Copy XCFrameworks` needs signing enabled |
 
 ---
 
@@ -757,7 +767,7 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] Custom Main Gradle Template enabled (Player Settings ▸ Publishing Settings) so EDM4U can resolve Android dependencies on JDK 17
 - [ ] Internet permission granted (automatic with OneSignal)
 
-Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) live in the OneSignal dashboard, not in the app. Do **not** instruct the user to upload FCM credentials as part of this agent workflow.
+Note: Do NOT add the Google Services Gradle plugin or a `google-services.json` file for OneSignal — the SDK registers for FCM itself and these files are not required.
 
 ### iOS Build Settings
 
@@ -797,12 +807,12 @@ xcodebuild -workspace Unity-iPhone.xcworkspace -scheme Unity-iPhone \
   -destination 'platform=iOS Simulator,name=iPhone 16' build
 ```
 
-* Do **not** pass `CODE_SIGNING_ALLOWED=NO` when building a CocoaPods-based OneSignal iOS export — the `[CP] Copy XCFrameworks` script needs signing enabled or `OneSignalFramework` / `OneSignalExtension` will fail to resolve.
+* Keep normal code signing enabled — see **Code signing (do not disable)** in the Shared iOS Push Infrastructure section (do not pass `CODE_SIGNING_ALLOWED=NO`).
 * Select a valid Apple Developer Team (Automatically Sign recommended) so Xcode can provision the App Group; with manual provisioning, the App Group and capabilities must already exist in the Apple Developer account
 * The post-processor does NOT run on Unity Cloud Build (`UNITY_CLOUD_BUILD`) — in that case, apply the shared iOS push infrastructure setup manually to the exported project
 * If a custom post-process script changes the bundle identifier, run it before OneSignal's post-processor (callback order 45) or the App Group name will be derived from the old bundle ID
 * Keep the existing Unity iOS bundle identifier from Player Settings / the exported project; do not invent a new one
-* Simulator builds are fine for verifying the export, NSE target presence, and app launch; full APNs delivery still requires a configured device when testing real pushes
+* Simulator builds are fine for verifying the export, NSE target presence, app launch, and the verification dialog
 
 ---
 
@@ -1268,7 +1278,7 @@ public class OneSignalManagerTests
 | `ClassNotFoundException` / no `com.onesignal.OneSignal` at runtime (silent init failure) | EDM4U is missing or Android deps never resolved — install EDM4U explicitly and enable Custom Main Gradle Template (see "Install External Dependency Manager") |
 | EDM4U "Force Resolve" fails with `GroovyBugError` / `ReflectionCache` | Its standalone resolver runs Gradle 5.1.1, which crashes on JDK 17 — resolve via Custom Main Gradle Template instead of Force Resolve |
 | Verification dialog never appears | Expected in the Editor (native layer is a no-op) — build to a device/emulator; check `adb logcat -s OneSignal:V` |
-| Notifications not received | Verify platform configuration in OneSignal dashboard |
+| Notifications not received | Check App ID, platform build settings, and notification permission |
 | Permission not requested | Permission is requested when the user taps "Got it" on the verification dialog |
 | SDK not initializing | Check App ID is correct, verify internet connectivity |
 | Multiple instances | Ensure only one GameObject with OneSignal initialization |

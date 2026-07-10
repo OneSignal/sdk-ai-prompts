@@ -51,13 +51,9 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] `onesignal-expo-plugin` is the **first** item in the `plugins` array
 - [ ] Development build created (not using Expo Go)
 - [ ] For iOS builds, the plugin is allowed to add the Notification Service Extension (`disableNSE` is not `true`)
-
-### OneSignal Dashboard
-
 - [ ] OneSignal App ID is available (from the user prompt)
-- [ ] Do not treat APNs `.p8` or FCM credential upload as agent tasks for this flow
 
-Note: The OneSignal SDK handles FCM registration itself. Do NOT add `expo.android.googleServicesFile` or a `google-services.json` file for OneSignal — they are not required. Push credentials (the Firebase Service Account JSON) live in the OneSignal dashboard, not in the app. Do **not** instruct the user to upload FCM credentials as part of this agent workflow.
+Note: Do NOT add `expo.android.googleServicesFile` or a `google-services.json` file for OneSignal — the SDK registers for FCM itself and these files are not required.
 
 ### Initialization
 
@@ -540,7 +536,7 @@ export const useOneSignal = (appId: string) => {
 | Android build fails with Gradle errors | Ensure Java 17 is installed: `export JAVA_HOME="/path/to/java17"` then rebuild |
 | AssetCatalogSimulatorAgent failure (Xcode 16.1) | Simplify asset catalog or restart Mac. See workaround below. |
 | Build shows "0 errors" but fails | Capture stderr: `npx expo run:ios 2> error-logs.txt` and inspect the file |
-| Notifications not received | Verify APNs/FCM credentials in OneSignal dashboard |
+| Notifications not received | Check App ID, notification permission, and that a development build (not Expo Go) was used |
 | Permission always false | Check notification settings in device Settings app |
 | Module not found | Clear Metro cache: `npx expo start --clear` |
 

@@ -75,11 +75,6 @@ Inspect the project and note:
 * JavaScript apps: use the lockfile's package manager (npm / yarn / pnpm / bun).
 * Do **not** add an NSE-only CocoaPods `Podfile` to an SPM-based iOS/Flutter project. Follow the platform section for how to link the Notification Service Extension under the detected manager.
 
-### Dashboard credentials
-
-* Do **not** instruct the user to upload APNs keys (`.p8`) or FCM credentials as part of this integration, and do not treat those uploads as agent tasks.
-* If push fails after a correct project integration, troubleshooting may note that dashboard credentials must match this app — but credential upload is out of scope for the agent workflow.
-
 ---
 
 ## Push Subscription Verification Dialog (Required)
@@ -90,16 +85,18 @@ After completing SDK initialization, add a push subscription observer so the app
 
 1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
-2. **Treat the device as registered only when the push subscription ID is a real, server-assigned value** — non-empty and **not** prefixed with `local-`. The SDK assigns a `local-` placeholder ID during initialization (before the device registers with OneSignal's servers); that placeholder does **not** mean the device is registered.
+2. **Retain the observer for the lifetime of the screen/component that owns it.** OneSignal stores push subscription observers weakly — a local-only variable is deallocated immediately and the dialog never appears. Store it in framework-retained state (for example SwiftUI `@State`, a UIKit view-controller property, React `useRef` / component field, Flutter `State` field, or an Android/`Application`-scoped reference).
 
-3. **Evaluate the current subscription ID both on change and immediately at observer-registration time.** The ID may already be server-assigned before your observer attaches, so reacting only to the change event can miss the transition and the dialog would never appear.
+3. **Treat the device as registered only when the push subscription ID is a real, server-assigned value** — non-empty and **not** prefixed with `local-`. The SDK assigns a `local-` placeholder ID during initialization (before the device registers with OneSignal's servers); that placeholder does **not** mean the device is registered.
 
-4. **When a real subscription ID is present, show a platform-native dialog/alert exactly once** (guard with a "shown once" flag) with:
+4. **Evaluate the current subscription ID both on change and immediately at observer-registration time.** The ID may already be server-assigned before your observer attaches, so reacting only to the change event can miss the transition and the dialog would never appear.
+
+5. **When a real subscription ID is present, show a platform-native dialog/alert exactly once** (guard with a "shown once" flag) with:
    - **Title:** "Your OneSignal SDK integration is complete!"
    - **Message:** "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications."
    - **Single button:** **"Got it"**
 
-5. **On button tap**, request push permission.
+6. **On button tap**, request push permission.
 
 See platform-specific integration files for implementation examples.
 
@@ -186,7 +183,7 @@ Do NOT automatically create a PR — let the user copy it.
 * For cross-platform SDKs: which mobile platforms were selected and status for each (shared code, iOS native, Android native)
 * Bundle ID / applicationId used from the project (do not invent new ones in the summary either)
 * Step-by-step verification instructions (simulator is fine for build/launch and the verification dialog path)
-* Any follow-ups, limitations, or known risks — do **not** list APNs `.p8` or FCM credential upload as remaining agent/user setup steps for this flow
+* Any follow-ups, limitations, or known risks relevant to the code changes made
 
 ---
 
@@ -194,7 +191,7 @@ Do NOT automatically create a PR — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required. Anything the platform integration file marks as **Required** (e.g. the iOS Notification Service Extension and App Group) is part of the core integration — NOT an optional feature — and MUST be implemented
-* **Do NOT add push-notification features beyond SDK initialization, the Push Subscription Verification Dialog, and the sections the platform integration file marks as Required.** The dialog's on-tap permission request (Step 5 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
+* **Do NOT add push-notification features beyond SDK initialization, the Push Subscription Verification Dialog, and the sections the platform integration file marks as Required.** The dialog's on-tap permission request (Step 6 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)

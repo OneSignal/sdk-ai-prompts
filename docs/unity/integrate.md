@@ -30,7 +30,7 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] Custom Main Gradle Template enabled (Player Settings ▸ Publishing Settings) so EDM4U can resolve Android dependencies on JDK 17
 - [ ] Internet permission granted (automatic with OneSignal)
 
-Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) live in the OneSignal dashboard, not in the app. Do **not** instruct the user to upload FCM credentials as part of this agent workflow.
+Note: Do NOT add the Google Services Gradle plugin or a `google-services.json` file for OneSignal — the SDK registers for FCM itself and these files are not required.
 
 ### iOS Build Settings
 
@@ -70,12 +70,12 @@ xcodebuild -workspace Unity-iPhone.xcworkspace -scheme Unity-iPhone \
   -destination 'platform=iOS Simulator,name=iPhone 16' build
 ```
 
-* Do **not** pass `CODE_SIGNING_ALLOWED=NO` when building a CocoaPods-based OneSignal iOS export — the `[CP] Copy XCFrameworks` script needs signing enabled or `OneSignalFramework` / `OneSignalExtension` will fail to resolve.
+* Keep normal code signing enabled — see **Code signing (do not disable)** in the Shared iOS Push Infrastructure section (do not pass `CODE_SIGNING_ALLOWED=NO`).
 * Select a valid Apple Developer Team (Automatically Sign recommended) so Xcode can provision the App Group; with manual provisioning, the App Group and capabilities must already exist in the Apple Developer account
 * The post-processor does NOT run on Unity Cloud Build (`UNITY_CLOUD_BUILD`) — in that case, apply the shared iOS push infrastructure setup manually to the exported project
 * If a custom post-process script changes the bundle identifier, run it before OneSignal's post-processor (callback order 45) or the App Group name will be derived from the old bundle ID
 * Keep the existing Unity iOS bundle identifier from Player Settings / the exported project; do not invent a new one
-* Simulator builds are fine for verifying the export, NSE target presence, and app launch; full APNs delivery still requires a configured device when testing real pushes
+* Simulator builds are fine for verifying the export, NSE target presence, app launch, and the verification dialog
 
 ---
 
@@ -541,7 +541,7 @@ public class OneSignalManagerTests
 | `ClassNotFoundException` / no `com.onesignal.OneSignal` at runtime (silent init failure) | EDM4U is missing or Android deps never resolved — install EDM4U explicitly and enable Custom Main Gradle Template (see "Install External Dependency Manager") |
 | EDM4U "Force Resolve" fails with `GroovyBugError` / `ReflectionCache` | Its standalone resolver runs Gradle 5.1.1, which crashes on JDK 17 — resolve via Custom Main Gradle Template instead of Force Resolve |
 | Verification dialog never appears | Expected in the Editor (native layer is a no-op) — build to a device/emulator; check `adb logcat -s OneSignal:V` |
-| Notifications not received | Verify platform configuration in OneSignal dashboard |
+| Notifications not received | Check App ID, platform build settings, and notification permission |
 | Permission not requested | Permission is requested when the user taps "Got it" on the verification dialog |
 | SDK not initializing | Check App ID is correct, verify internet connectivity |
 | Multiple instances | Ensure only one GameObject with OneSignal initialization |

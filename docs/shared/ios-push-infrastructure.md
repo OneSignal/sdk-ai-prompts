@@ -63,6 +63,14 @@ Add Push Notifications and the shared App Group to the main app target's `.entit
 
 Use `development` for development builds. Release/TestFlight/App Store builds generally use `production`, depending on the project's signing setup.
 
+### Code signing (do not disable)
+
+Keep normal code signing enabled for iOS builds (simulator and device).
+
+* Do **not** pass `CODE_SIGNING_ALLOWED=NO`, empty `CODE_SIGN_IDENTITY`, or `CODE_SIGNING_REQUIRED=NO` on `xcodebuild` / CLI builds.
+* Disabling signing produces a binary that **drops entitlements** (`aps-environment`, App Groups). OneSignal then reports Push Notifications as missing and subscription fails, even when the `.entitlements` files are correct.
+* CocoaPods-based iOS projects (Unity export, React Native, Flutter CocoaPods) also need signing enabled so `[CP] Copy XCFrameworks` can resolve `OneSignalFramework` / `OneSignalExtension`.
+
 Wire the file into the main app target:
 
 * Set `CODE_SIGN_ENTITLEMENTS = PATH/TO/App/App.entitlements;` in the main app target's Debug and Release build configurations (skip if already set — then just edit the existing file)
@@ -494,8 +502,11 @@ end
 2. The main app embeds `OneSignalNotificationServiceExtension.appex` under `PlugIns/`
 3. The App Group string is byte-for-byte identical in both targets' generated entitlements
 4. The main app generated `Info.plist` contains `UIBackgroundModes = remote-notification`
-5. To verify end-to-end on a physical device, send a test push with an image via the REST API (`"ios_attachments": {"logo": "https://avatars.githubusercontent.com/u/11823027?s=200&v=4"}`; OneSignal sets mutable content when needed) — the image renders only if the NSE is running
-6. Confirmed Delivery appears under Dashboard → Delivery → Sent Messages (requires a paid OneSignal plan; the NSE still reports it, but free plans do not display it)
+5. The **signed** main app binary carries Push + App Group entitlements. After building (with signing enabled), run:
+   `codesign -d --entitlements - path/to/App.app`
+   Confirm `aps-environment` and `com.apple.security.application-groups` (with `group.{MAIN_APP_BUNDLE_ID}.onesignal`) are present. On a simulator build you can also inspect `App.app/archived-expanded-entitlements.xcent` / `*-Simulated.xcent` if present.
+6. To verify rich media on a physical device, send a test push with an image via the REST API (`"ios_attachments": {"logo": "https://avatars.githubusercontent.com/u/11823027?s=200&v=4"}`; OneSignal sets mutable content when needed) — the image renders only if the NSE is running
+7. Confirmed Delivery appears under Dashboard → Delivery → Sent Messages (requires a paid OneSignal plan; the NSE still reports it, but free plans do not display it)
 
 ## iOS Infrastructure Troubleshooting
 
@@ -507,3 +518,5 @@ end
 | `No such module 'OneSignalExtension'` | The OneSignal extension product/pod is not linked to the NSE target |
 | "Multiple commands produce Info.plist" | Exclude `Info.plist` from the synchronized file group resource phase with `PBXFileSystemSynchronizedBuildFileExceptionSet` |
 | App Group works in simulator but fails on device | Select a valid Apple Developer Team and let Xcode register the App Group, or configure it in the Apple Developer portal |
+| Dashboard / SDK says Push Notifications capability is missing | Rebuild with normal signing (do not pass `CODE_SIGNING_ALLOWED=NO`); verify the signed app via `codesign -d --entitlements -` includes `aps-environment` |
+| Frameworks / pods fail to copy on CLI build | Do not disable code signing; CocoaPods `[CP] Copy XCFrameworks` needs signing enabled |

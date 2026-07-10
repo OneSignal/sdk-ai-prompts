@@ -25,7 +25,7 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] `minSdkVersion` is 21 or higher
 - [ ] `compileSdkVersion` is 33 or higher (recommended)
 
-Note: The OneSignal SDK handles FCM registration itself. Do NOT add the Google Services Gradle plugin or a `google-services.json` file — they are not required. Push credentials (the Firebase Service Account JSON) live in the OneSignal dashboard, not in the app. Do **not** instruct the user to upload FCM credentials as part of this agent workflow.
+Note: Do NOT add the Google Services Gradle plugin or a `google-services.json` file for OneSignal — the SDK registers for FCM itself and these files are not required.
 
 ### ProGuard/R8 (if minification is enabled)
 
@@ -266,6 +266,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 // Ensures the dialog is shown exactly once
 private val dialogShown = AtomicBoolean(false)
 
+// OneSignal stores observers weakly — keep a strong reference for the screen/app lifetime.
+private var pushSubscriptionObserver: IPushSubscriptionObserver? = null
+
 // A real, server-assigned subscription ID is non-empty and not the local- placeholder
 private fun isRegistered(subscriptionId: String?): Boolean =
     !subscriptionId.isNullOrEmpty() && !subscriptionId.startsWith("local-")
@@ -279,11 +282,13 @@ private fun maybeShowIntegrationCompleteDialog(context: Context, subscriptionId:
 }
 
 fun setupPushSubscriptionObserver(context: Context) {
-    OneSignal.User.pushSubscription.addObserver(object : IPushSubscriptionObserver {
+    val observer = object : IPushSubscriptionObserver {
         override fun onPushSubscriptionChange(state: PushSubscriptionChangedState) {
             maybeShowIntegrationCompleteDialog(context, state.current.id)
         }
-    })
+    }
+    pushSubscriptionObserver = observer
+    OneSignal.User.pushSubscription.addObserver(observer)
 
     // The ID may already be server-assigned before the observer attaches,
     // so evaluate the current value immediately as well.
@@ -326,6 +331,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 // Ensures the dialog is shown exactly once
 private static final AtomicBoolean dialogShown = new AtomicBoolean(false);
 
+// OneSignal stores observers weakly — keep a strong reference for the screen/app lifetime.
+private static IPushSubscriptionObserver pushSubscriptionObserver;
+
 // A real, server-assigned subscription ID is non-empty and not the local- placeholder
 private static boolean isRegistered(String subscriptionId) {
     return subscriptionId != null && !subscriptionId.isEmpty() && !subscriptionId.startsWith("local-");
@@ -340,12 +348,14 @@ private static void maybeShowIntegrationCompleteDialog(Context context, String s
 }
 
 public static void setupPushSubscriptionObserver(Context context) {
-    OneSignal.getUser().getPushSubscription().addObserver(new IPushSubscriptionObserver() {
+    IPushSubscriptionObserver observer = new IPushSubscriptionObserver() {
         @Override
         public void onPushSubscriptionChange(PushSubscriptionChangedState state) {
             maybeShowIntegrationCompleteDialog(context, state.getCurrent().getId());
         }
-    });
+    };
+    pushSubscriptionObserver = observer;
+    OneSignal.getUser().getPushSubscription().addObserver(observer);
 
     // The ID may already be server-assigned before the observer attaches,
     // so evaluate the current value immediately as well.
@@ -373,7 +383,7 @@ public static void showIntegrationCompleteDialog(Context context) {
 
 | Issue | Solution |
 |-------|----------|
-| Push not received | Verify FCM credentials (Firebase Service Account JSON) are configured in the OneSignal dashboard |
+| Push not received | Check notification permission and that the App ID matches the project; confirm internet connectivity |
 | Permission denied | Ensure `POST_NOTIFICATIONS` is requested on Android 13+ |
 | Initialization failed | Verify App ID is correct and internet permission is granted |
 | ProGuard issues | Check OneSignal rules are not being stripped |
