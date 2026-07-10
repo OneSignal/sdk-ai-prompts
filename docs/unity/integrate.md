@@ -67,15 +67,18 @@ cd <ExportedIosProject>
 pod install   # if Pods are not already installed
 xcodebuild -workspace Unity-iPhone.xcworkspace -scheme Unity-iPhone \
   -configuration Debug -sdk iphonesimulator \
-  -destination 'platform=iOS Simulator,name=iPhone 16' build
+  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -scmProvider system \
+  build
 ```
 
 * Keep normal code signing enabled — see **Code signing (do not disable)** in the Shared iOS Push Infrastructure section (do not pass `CODE_SIGNING_ALLOWED=NO`).
+* Prefer `-scmProvider system` on CLI `xcodebuild` so SPM resolution does not hit the login-keychain password wall (see Shared iOS Push Infrastructure).
 * Select a valid Apple Developer Team (Automatically Sign recommended) so Xcode can provision the App Group; with manual provisioning, the App Group and capabilities must already exist in the Apple Developer account
 * The post-processor does NOT run on Unity Cloud Build (`UNITY_CLOUD_BUILD`) — in that case, apply the shared iOS push infrastructure setup manually to the exported project
 * If a custom post-process script changes the bundle identifier, run it before OneSignal's post-processor (callback order 45) or the App Group name will be derived from the old bundle ID
 * Keep the existing Unity iOS bundle identifier from Player Settings / the exported project; do not invent a new one
-* Simulator builds are fine for verifying the export, NSE target presence, app launch, and the verification dialog
+* Simulator builds are fine for verifying the export, NSE target presence, app launch, and the verification dialog; on Apple Silicon, sandbox APNs in Simulator is also valid
 
 ---
 
