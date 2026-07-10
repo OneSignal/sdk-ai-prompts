@@ -248,6 +248,8 @@ The verification flow is:
 4. On button tap, request push permission
 5. If permission is granted, no additional action is required
 
+Do **not** clear app data (`adb shell pm clear …`), wipe the emulator, or uninstall/reinstall just to re-check — that creates a second OneSignal subscription. Rebuild/relaunch while preserving app storage. See shared guidelines: **Verification without duplicate subscriptions**.
+
 ### Kotlin
 
 ```kotlin
@@ -384,6 +386,7 @@ public static void showIntegrationCompleteDialog(Context context) {
 | Issue | Solution |
 |-------|----------|
 | Push not received | Check notification permission and that the App ID matches the project; confirm internet connectivity |
+| Duplicate subscriptions after re-test | Do not clear app data or uninstall/reinstall to re-verify — relaunch preserving storage (see shared guidelines) |
 | Permission denied | Ensure `POST_NOTIFICATIONS` is requested on Android 13+ |
 | Initialization failed | Verify App ID is correct and internet permission is granted |
 | ProGuard issues | Check OneSignal rules are not being stripped |
