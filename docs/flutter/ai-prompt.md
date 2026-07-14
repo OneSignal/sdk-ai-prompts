@@ -126,7 +126,7 @@ See platform-specific integration files for implementation examples.
 * The official JSON endpoint above has both **Stable** and **Current** versions for all platforms
 * iOS note: `OneSignal-XCFramework` (the SPM repo) shares version tags with `OneSignal-iOS-SDK` — the same version number applies to both
 
-Use the **Stable** track unless the user specifically requested Current. Pin the selected version exactly (e.g. SPM `exactVersion`, exact npm/pub version) — do NOT invent version ranges. Exception: where a platform integration file shows a dependency line with an official constraint (e.g. the CocoaPods `pod 'OneSignalXCFramework', '~> 5.0'` blocks), use that constraint as written.
+Use the **Stable** track unless the user specifically requested Current. Always pin that exact version from the releases JSON (SPM `exactVersion`, exact npm/pub version, exact CocoaPods version like `'5.2.0'`). Do not invent or widen version ranges.
 
 When using the JSON source, read the exact version from:
 `<sdk entry>.channels.<track>.version`
@@ -704,7 +704,8 @@ Skip the SPM objects above. Add an NSE target block to the `Podfile` and run `po
 
 ```ruby
 target 'OneSignalNotificationServiceExtension' do
-  pod 'OneSignalXCFramework', '~> 5.0'
+  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
+  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
 end
 ```
 
@@ -785,9 +786,8 @@ Flutter apps include a native iOS project under `ios/`. Complete the "Shared iOS
 
 Flutter-specific notes:
 
-* The main iOS app target is usually `Runner`
-* The Xcode project is usually `ios/Runner.xcodeproj`
-* Add the App Group to `Runner.entitlements` (or create one if the project does not have it yet), using the **existing** Runner bundle identifier already in the project
+* Detect the iOS Xcode project under `ios/` (usually `ios/Runner.xcodeproj` / target `Runner`). If the project or app target uses a different name, record that name and use it for all later NSE, App Group, and Podfile steps — do not assume `Runner` when the project clearly differs.
+* Add the App Group to the main app target's entitlements (often `Runner.entitlements`; create one if missing), using the **existing** main-app bundle identifier already in the project
 * Add a `OneSignalNotificationServiceExtension` target to the same Xcode project
 * **Preserve the project's iOS dependency manager** (CocoaPods vs Swift Package Manager). Do not migrate between them unless the user asks.
 
@@ -795,16 +795,17 @@ Flutter-specific notes:
 
 If the app already uses CocoaPods (`ios/Podfile` present):
 
-* Ensure the Podfile is a **full** Flutter Podfile that installs pods for `Runner` via `flutter_install_all_ios_pods` (or the project's existing equivalent). Do **not** replace it with an NSE-only Podfile.
+* Ensure the Podfile is a **full** Flutter Podfile that installs pods for the main app target via `flutter_install_all_ios_pods` (or the project's existing equivalent). Do **not** replace it with an NSE-only Podfile.
 * Add the NSE target block and run `cd ios && pod install && cd ..`:
 
 ```ruby
 target 'OneSignalNotificationServiceExtension' do
-  pod 'OneSignalXCFramework', '~> 5.0'
+  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
+  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
 end
 ```
 
-Prefer nesting the NSE target under `Runner` with `inherit! :search_paths` when that matches the project's Podfile style and avoids duplicate OneSignal framework copies.
+Prefer nesting the NSE target under the main app target with `inherit! :search_paths` when that matches the project's Podfile style and avoids duplicate OneSignal framework copies.
 
 ### Swift Package Manager projects
 

@@ -492,7 +492,8 @@ Skip the SPM objects above. Add an NSE target block to the `Podfile` and run `po
 
 ```ruby
 target 'OneSignalNotificationServiceExtension' do
-  pod 'OneSignalXCFramework', '~> 5.0'
+  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
+  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
 end
 ```
 

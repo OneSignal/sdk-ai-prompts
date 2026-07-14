@@ -172,7 +172,8 @@ target 'YourAppName' do
 end
 
 target 'OneSignalNotificationServiceExtension' do
-  pod 'OneSignalXCFramework', '~> 5.0'
+  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
+  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
 end
 ```
 

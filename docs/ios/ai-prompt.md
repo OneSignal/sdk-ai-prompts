@@ -126,7 +126,7 @@ See platform-specific integration files for implementation examples.
 * The official JSON endpoint above has both **Stable** and **Current** versions for all platforms
 * iOS note: `OneSignal-XCFramework` (the SPM repo) shares version tags with `OneSignal-iOS-SDK` — the same version number applies to both
 
-Use the **Stable** track unless the user specifically requested Current. Pin the selected version exactly (e.g. SPM `exactVersion`, exact npm/pub version) — do NOT invent version ranges. Exception: where a platform integration file shows a dependency line with an official constraint (e.g. the CocoaPods `pod 'OneSignalXCFramework', '~> 5.0'` blocks), use that constraint as written.
+Use the **Stable** track unless the user specifically requested Current. Always pin that exact version from the releases JSON (SPM `exactVersion`, exact npm/pub version, exact CocoaPods version like `'5.2.0'`). Do not invent or widen version ranges.
 
 When using the JSON source, read the exact version from:
 `<sdk entry>.channels.<track>.version`
@@ -704,7 +704,8 @@ Skip the SPM objects above. Add an NSE target block to the `Podfile` and run `po
 
 ```ruby
 target 'OneSignalNotificationServiceExtension' do
-  pod 'OneSignalXCFramework', '~> 5.0'
+  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
+  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
 end
 ```
 
@@ -909,7 +910,8 @@ target 'YourAppName' do
 end
 
 target 'OneSignalNotificationServiceExtension' do
-  pod 'OneSignalXCFramework', '~> 5.0'
+  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
+  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
 end
 ```
 
