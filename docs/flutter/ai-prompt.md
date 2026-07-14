@@ -285,6 +285,8 @@ Keep normal code signing enabled for iOS builds (simulator and device).
 
 ### SPM resolution (avoid keychain prompts)
 
+**Only when the iOS project uses Swift Package Manager** (native iOS SPM, or Flutter with SPM enabled). Skip this subsection for CocoaPods-only OneSignal iOS setups such as **React Native** and **Unity** exports — those SDKs do not resolve OneSignal via SPM.
+
 When resolving or building Swift packages from the CLI (`xcodebuild`, agent-driven builds), pass:
 
 ```bash
@@ -752,7 +754,7 @@ end
 | App Group works in simulator but fails on device | Select a valid Apple Developer Team and let Xcode register the App Group, or configure it in the Apple Developer portal |
 | Dashboard / SDK says Push Notifications capability is missing | Rebuild with normal signing (do not pass `CODE_SIGNING_ALLOWED=NO`); verify the signed app via `codesign -d --entitlements -` includes `aps-environment` |
 | Frameworks / pods fail to copy on CLI build | Do not disable code signing; CocoaPods `[CP] Copy XCFrameworks` needs signing enabled |
-| Login keychain password prompts during SPM / `xcodebuild` | Pass `-scmProvider system` on CLI builds so package resolution does not use the login keychain; do not loop on Deny |
+| Login keychain password prompts during SPM / `xcodebuild` | **SPM projects only:** pass `-scmProvider system` on CLI builds so package resolution does not use the login keychain; do not loop on Deny. Skip for CocoaPods-only stacks (React Native, Unity OneSignal iOS). |
 | Push / APNs on simulator | On Apple Silicon Macs, the iOS Simulator can receive real sandbox APNs pushes. Prefer a physical device when background/lock-screen display is flaky, or when not on Apple Silicon |
 
 ---

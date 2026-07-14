@@ -163,7 +163,7 @@ Use the XCFramework-based package for smaller downloads:
 
 Most common mistake: products attached to the wrong target. `OneSignalFramework` goes on the app target only; `OneSignalExtension` goes on the NSE target only.
 
-When resolving or building SPM packages from the CLI, pass `-scmProvider system` on `xcodebuild` so package resolution does not prompt for the login keychain password (see Shared iOS Push Infrastructure).
+When resolving or building **Swift Package Manager** packages from the CLI, pass `-scmProvider system` on `xcodebuild` so package resolution does not prompt for the login keychain password (see Shared iOS Push Infrastructure). Skip this for CocoaPods-only projects.
 
 ### Dependency (CocoaPods)
 
