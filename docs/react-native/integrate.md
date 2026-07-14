@@ -87,7 +87,6 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] App Groups capability configured on BOTH the app target and `OneSignalNotificationServiceExtension`
 - [ ] `OneSignalNotificationServiceExtension` target added and configured (see the Shared iOS Push Infrastructure section)
 - [ ] Keep normal code signing enabled (see Shared iOS Push Infrastructure — do not pass `CODE_SIGNING_ALLOWED=NO`)
-- [ ] Prefer `-scmProvider system` on CLI `xcodebuild` / SPM resolve (see Shared iOS Push Infrastructure)
 
 ### Android Configuration
 
