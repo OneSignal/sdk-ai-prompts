@@ -163,6 +163,8 @@ Use the XCFramework-based package for smaller downloads:
 
 Most common mistake: products attached to the wrong target. `OneSignalFramework` goes on the app target only; `OneSignalExtension` goes on the NSE target only.
 
+When resolving or building **Swift Package Manager** packages from the CLI, pass `-scmProvider system` on `xcodebuild` so package resolution does not prompt for the login keychain password (see Shared iOS Push Infrastructure). Skip this for CocoaPods-only projects.
+
 ### Dependency (CocoaPods)
 
 ```ruby
@@ -417,5 +419,5 @@ For NSE, App Group, `OneSignalExtension` module, Info.plist sync-group, and sign
 | Push not received             | Check notification permission; confirm signed entitlements include `aps-environment` (see shared section) |
 | Background notifications fail | Check Background Modes includes Remote notifications (see shared section) |
 | Verification dialog never appears | Retain the push subscription observer (weakly held by the SDK); evaluate the current ID immediately |
-| Simulator issues              | Simulator is fine for build/launch and the verification dialog; full APNs delivery may still need a device |
+| Simulator / APNs              | Build/launch and the verification dialog work in Simulator. On Apple Silicon Macs, Simulator can receive real sandbox APNs pushes; use a physical device if background/lock-screen display is flaky or you are not on Apple Silicon |
 | Entitlements / signing error  | Regenerate provisioning profiles; confirm `DEVELOPMENT_TEAM` and App Group; do not disable code signing |

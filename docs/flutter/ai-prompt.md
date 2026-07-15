@@ -194,7 +194,7 @@ Do NOT automatically create a PR — let the user copy it.
 * Architecture decisions and where OneSignal logic is placed
 * For cross-platform SDKs: which mobile platforms were selected and status for each (shared code, iOS native, Android native)
 * Bundle ID / applicationId used from the project (do not invent new ones in the summary either)
-* Step-by-step verification instructions (simulator is fine for build/launch and the verification dialog path)
+* Step-by-step verification instructions (simulator is fine for build/launch and the verification dialog path; on Apple Silicon, sandbox APNs in Simulator is also valid — see Shared iOS Push Infrastructure)
 * Any follow-ups, limitations, or known risks relevant to the code changes made
 
 ---
@@ -282,6 +282,27 @@ Keep normal code signing enabled for iOS builds (simulator and device).
 * Do **not** pass `CODE_SIGNING_ALLOWED=NO`, empty `CODE_SIGN_IDENTITY`, or `CODE_SIGNING_REQUIRED=NO` on `xcodebuild` / CLI builds.
 * Disabling signing produces a binary that **drops entitlements** (`aps-environment`, App Groups). OneSignal then reports Push Notifications as missing and subscription fails, even when the `.entitlements` files are correct.
 * CocoaPods-based iOS projects (Unity export, React Native, Flutter CocoaPods) also need signing enabled so `[CP] Copy XCFrameworks` can resolve `OneSignalFramework` / `OneSignalExtension`.
+
+### SPM resolution (avoid keychain prompts)
+
+**Only when the iOS project uses Swift Package Manager** (native iOS SPM, or Flutter with SPM enabled). Skip this subsection for CocoaPods-only OneSignal iOS setups such as **React Native** and **Unity** exports — those SDKs do not resolve OneSignal via SPM.
+
+When resolving or building Swift packages from the CLI (`xcodebuild`, agent-driven builds), pass:
+
+```bash
+-scmProvider system
+```
+
+Example:
+
+```bash
+xcodebuild -project App.xcodeproj -scheme App \
+  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -scmProvider system \
+  build
+```
+
+Without this, Xcode's default SCM provider can repeatedly prompt for the **login keychain password**. Agents and unattended CLI runs cannot complete that prompt usefully — choosing Deny often just re-prompts and blocks the integration. `-scmProvider system` uses the system Git credential path and avoids the keychain wall. Prefer this flag whenever an agent or script resolves SPM packages; Xcode GUI builds are unaffected.
 
 Wire the file into the main app target:
 
@@ -718,7 +739,7 @@ end
 5. The **signed** main app binary carries Push + App Group entitlements. After building (with signing enabled), run:
    `codesign -d --entitlements - path/to/App.app`
    Confirm `aps-environment` and `com.apple.security.application-groups` (with `group.{MAIN_APP_BUNDLE_ID}.onesignal`) are present. On a simulator build you can also inspect `App.app/archived-expanded-entitlements.xcent` / `*-Simulated.xcent` if present.
-6. To verify rich media on a physical device, send a test push with an image via the REST API (`"ios_attachments": {"logo": "https://avatars.githubusercontent.com/u/11823027?s=200&v=4"}`; OneSignal sets mutable content when needed) — the image renders only if the NSE is running
+6. To verify rich media / visible push delivery, send a test push with an image via the REST API (`"ios_attachments": {"logo": "https://avatars.githubusercontent.com/u/11823027?s=200&v=4"}`; OneSignal sets mutable content when needed) — the image renders only if the NSE is running. Use a **physical device** or an **Apple Silicon Mac simulator** with the sandbox APNs environment (Intel Mac simulators do not receive real APNs).
 7. Confirmed Delivery appears under Dashboard → Delivery → Sent Messages (requires a paid OneSignal plan; the NSE still reports it, but free plans do not display it)
 
 ## iOS Infrastructure Troubleshooting
@@ -733,6 +754,8 @@ end
 | App Group works in simulator but fails on device | Select a valid Apple Developer Team and let Xcode register the App Group, or configure it in the Apple Developer portal |
 | Dashboard / SDK says Push Notifications capability is missing | Rebuild with normal signing (do not pass `CODE_SIGNING_ALLOWED=NO`); verify the signed app via `codesign -d --entitlements -` includes `aps-environment` |
 | Frameworks / pods fail to copy on CLI build | Do not disable code signing; CocoaPods `[CP] Copy XCFrameworks` needs signing enabled |
+| Login keychain password prompts during SPM / `xcodebuild` | **SPM projects only:** pass `-scmProvider system` on CLI builds so package resolution does not use the login keychain; do not loop on Deny. Skip for CocoaPods-only stacks (React Native, Unity OneSignal iOS). |
+| Push / APNs on simulator | On Apple Silicon Macs, the iOS Simulator can receive real sandbox APNs pushes. Prefer a physical device when background/lock-screen display is flaky, or when not on Apple Silicon |
 
 ---
 

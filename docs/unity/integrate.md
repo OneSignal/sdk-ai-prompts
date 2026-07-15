@@ -75,7 +75,7 @@ xcodebuild -workspace Unity-iPhone.xcworkspace -scheme Unity-iPhone \
 * The post-processor does NOT run on Unity Cloud Build (`UNITY_CLOUD_BUILD`) — in that case, apply the shared iOS push infrastructure setup manually to the exported project
 * If a custom post-process script changes the bundle identifier, run it before OneSignal's post-processor (callback order 45) or the App Group name will be derived from the old bundle ID
 * Keep the existing Unity iOS bundle identifier from Player Settings / the exported project; do not invent a new one
-* Simulator builds are fine for verifying the export, NSE target presence, app launch, and the verification dialog
+* Simulator builds are fine for verifying the export, NSE target presence, app launch, and the verification dialog; on Apple Silicon, sandbox APNs in Simulator is also valid
 
 ---
 
