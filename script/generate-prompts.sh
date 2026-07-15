@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCS_DIR="$SCRIPT_DIR/../docs"
 
 # Platforms to generate prompts for
-PLATFORMS=("android" "ios" "flutter" "unity" "react-native" "react-native-expo")
+PLATFORMS=("android" "ios" "flutter" "unity" "react-native" "react-native-expo" "web")
 
 echo "Generating combined AI prompt files..."
 

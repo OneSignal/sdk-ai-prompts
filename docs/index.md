@@ -13,6 +13,7 @@ Select your platform to get the AI integration prompt:
 | Flutter | Dart | [Get Prompt](integrate.html?platform=flutter) |
 | Unity | C# | [Get Prompt](integrate.html?platform=unity) |
 | React Native | JavaScript, TypeScript | [Get Prompt](integrate.html?platform=react-native) |
+| Web | JavaScript, TypeScript | [Get Prompt](integrate.html?platform=web) |
 
 ## How It Works
 
