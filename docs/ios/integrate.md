@@ -9,107 +9,28 @@
 
 ## Pre-Flight Checklist
 
-Before considering the integration complete, verify ALL of the following:
+Before considering the integration complete, verify ALL of the following. For NSE, App Groups, entitlements, Background Modes, and embedding the extension, complete and use the checklist in the **Shared iOS Push Infrastructure** section earlier in this document — do not re-implement those steps here.
 
-### Xcode Capabilities
+### Xcode / project
 
-- [ ] **Push Notifications** capability enabled
-  - Xcode → Target → Signing & Capabilities → + Capability → Push Notifications
-- [ ] **Background Modes** capability enabled with:
-  - [x] Remote notifications
-  - Xcode → Target → Signing & Capabilities → + Capability → Background Modes
-
-### Entitlements
-
-- [ ] `aps-environment` entitlement is present in `.entitlements` file
-  ```xml
-  <key>aps-environment</key>
-  <string>development</string> <!-- or "production" for release -->
-  ```
-
-### Background Modes (Info.plist + pbxproj)
-
-To enable Background Modes with Remote Notifications, you MUST make three changes:
-
-1. **Create an `Info.plist`** file in the app source directory (if one does not already exist) with `UIBackgroundModes`:
-
-   ```xml
-   <?xml version="1.0" encoding="UTF-8"?>
-   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-   <plist version="1.0">
-   <dict>
-   	<key>UIBackgroundModes</key>
-   	<array>
-   		<string>remote-notification</string>
-   	</array>
-   </dict>
-   </plist>
-   ```
-
-2. **Add both of these build settings** to the target's Debug AND Release `XCBuildConfiguration` sections in `project.pbxproj`:
-
-   ```
-   INFOPLIST_FILE = "YourApp/Info.plist";
-   INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
-   ```
-
-   Replace `YourApp/Info.plist` with the path to the Info.plist relative to the project root (the directory containing the `.xcodeproj`).
-
-   Both settings are required. `INFOPLIST_FILE` points Xcode to the explicit plist so the capability appears in the Signing & Capabilities tab. `INFOPLIST_KEY_UIBackgroundModes` ensures the value is included in the generated Info.plist at build time. If the project already has `GENERATE_INFOPLIST_FILE = YES`, keep it — Xcode will merge the explicit plist with auto-generated keys.
-
-3. **Exclude `Info.plist` from the resource copy phase** if the project uses `PBXFileSystemSynchronizedRootGroup` (Xcode 16+ project format). Without this, the file sync group automatically copies `Info.plist` as a bundle resource, which conflicts with the `INFOPLIST_FILE` build setting and causes a "Multiple commands produce Info.plist" build error.
-
-   Add a `PBXFileSystemSynchronizedBuildFileExceptionSet` section to `project.pbxproj`:
-
-   ```
-   /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-   		... /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-   			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-   			membershipExceptions = (
-   				Info.plist,
-   			);
-   			target = ... /* YourApp */;
-   		};
-   /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-   ```
-
-   Then reference it from the app's `PBXFileSystemSynchronizedRootGroup` entry by adding the `exceptions` array:
-
-   ```
-   /* Begin PBXFileSystemSynchronizedRootGroup section */
-   		... /* YourApp */ = {
-   			isa = PBXFileSystemSynchronizedRootGroup;
-   			exceptions = (
-   				... /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
-   			);
-   			path = "YourApp";
-   			sourceTree = "<group>";
-   		};
-   ```
-
-   This only applies to projects using file system synchronized groups. If the project uses traditional `PBXFileReference` and `PBXGroup` entries, this step is not needed.
-
-### Info.plist (other)
-
-- [ ] `NSAppTransportSecurity` allows HTTPS (default behavior, usually no changes needed)
-- [ ] Background fetch is not blocked
-
-### Deployment Target
-
-- [ ] Confirm minimum deployment target is iOS 12.0 or higher (iOS 14+ recommended)
-- [ ] Do not change if it is already set
-
-### APNs Configuration
-
-- [ ] APNs Authentication Key (.p8) is uploaded to OneSignal dashboard
-  - OR APNs Certificate (.p12) is uploaded
-- [ ] Team ID and Key ID are configured in OneSignal dashboard
+- [ ] Shared iOS Push Infrastructure required outcomes are all satisfied (NSE, App Group, entitlements, Background Modes, embed phase)
+- [ ] Push Notifications capability is enabled on the main app target (via entitlements / Signing & Capabilities)
+- [ ] Minimum deployment target is iOS 12.0 or higher (iOS 16.2+ recommended); do not lower an existing higher target
+- [ ] `NSAppTransportSecurity` allows HTTPS (default; usually no changes)
+- [ ] Signed app entitlements verified (`codesign -d --entitlements -` shows `aps-environment` + App Group); do not disable code signing on CLI builds
 
 ### Initialization
 
 - [ ] OneSignal is initialized in `AppDelegate.application(_:didFinishLaunchingWithOptions:)`
 - [ ] For SwiftUI apps using `@main`, use `init()` or `.onAppear` in the root view
 
+---
+
+## Shared iOS Push Infrastructure (Required)
+
+Complete the "Shared iOS Push Infrastructure" section earlier in this document. It is the single source of truth for the Notification Service Extension, App Group, Background Modes, entitlements, project target wiring, dependency mapping, and verification steps.
+
+Do NOT skip that section. It is part of the minimal iOS integration because Confirmed Delivery, rich notifications, action buttons, and badges depend on it.
 ---
 
 ## Architecture Guidance
@@ -119,13 +40,15 @@ To enable Background Modes with Remote Notifications, you MUST make three change
 ```
 YourApp/
 ├── Services/
-│   └── NotificationService.swift      # OneSignal wrapper
+│   └── OneSignalManager.swift          # OneSignal wrapper
 ├── ViewModels/
 │   └── ...
 ├── Views/
 │   └── ...
 └── AppDelegate.swift                   # Initialize here
 ```
+
+Do NOT name the wrapper class `NotificationService` — that name is reserved for the class inside the Notification Service Extension target.
 
 ### MVC
 
@@ -161,12 +84,12 @@ For advanced use cases where you need explicit threading control:
 actor OneSignalManager {
     static let shared = OneSignalManager()
 
-    func initialize(appId: String) async {
+    func initialize(appId: String, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) async {
         await Task.detached(priority: .background) {
             // Set log level for debugging (remove in production)
             OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-            // Initialize OneSignal
-            OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
+            // Initialize OneSignal (launchOptions is nil outside AppDelegate)
+            OneSignal.initialize(appId, withLaunchOptions: launchOptions)
         }.value
     }
 
@@ -185,12 +108,12 @@ class OneSignalManager {
     static let shared = OneSignalManager()
     private let queue = DispatchQueue(label: "com.app.onesignal", qos: .background)
 
-    func initialize(appId: String) {
+    func initialize(appId: String, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) {
         queue.async {
             // Set log level for debugging (remove in production)
             OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-            // Initialize OneSignal
-            OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
+            // Initialize OneSignal (launchOptions is nil outside AppDelegate)
+            OneSignal.initialize(appId, withLaunchOptions: launchOptions)
         }
     }
 }
@@ -235,12 +158,23 @@ Use the XCFramework-based package for smaller downloads:
    - `OneSignalFramework`
    - `OneSignalInAppMessages`
    - `OneSignalLocation`
+3. Add this library to the **OneSignalNotificationServiceExtension target**:
+   - `OneSignalExtension`
+
+Most common mistake: products attached to the wrong target. `OneSignalFramework` goes on the app target only; `OneSignalExtension` goes on the NSE target only.
 
 ### Dependency (CocoaPods)
 
 ```ruby
 # Podfile
-pod 'OneSignalXCFramework', '~> 5.0'
+target 'YourAppName' do
+  pod 'OneSignalXCFramework', '~> 5.0'
+end
+
+target 'OneSignalNotificationServiceExtension' do
+  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
+  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
+end
 ```
 
 Then run:
@@ -283,8 +217,8 @@ struct YourApp: App {
     init() {
         // Set log level for debugging (remove in production)
         OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-        // Initialize OneSignal
-        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
+        // Initialize OneSignal (no launchOptions in the SwiftUI lifecycle — pass nil)
+        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: nil)
     }
 
     var body: some Scene {
@@ -298,6 +232,7 @@ struct YourApp: App {
 ### Centralized Manager (Swift)
 
 ```swift
+import UIKit
 import OneSignalFramework
 
 final class OneSignalManager {
@@ -305,11 +240,11 @@ final class OneSignalManager {
 
     private init() {}
 
-    func initialize(appId: String) {
+    func initialize(appId: String, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) {
         // Set log level for debugging (remove in production)
         OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-        // Initialize OneSignal
-        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
+        // Initialize OneSignal (pass launchOptions from AppDelegate; nil elsewhere)
+        OneSignal.initialize(appId, withLaunchOptions: launchOptions)
     }
 
     func login(externalId: String) {
@@ -346,12 +281,15 @@ After completing SDK initialization, add a push subscription observer so the app
 
 ### SwiftUI
 
+OneSignal stores push subscription observers weakly. Retain the observer in `@State` (or equivalent) for the view's lifetime — a local `let` inside `.onAppear` is deallocated immediately and the dialog never appears.
+
 ```swift
 import SwiftUI
 import OneSignalFramework
 
 struct ContentView: View {
     @State private var showIntegrationCompleteAlert = false
+    @State private var pushObserver: PushSubscriptionObserver?
 
     var body: some View {
         YourMainView()
@@ -359,6 +297,7 @@ struct ContentView: View {
                 let observer = PushSubscriptionObserver {
                     showIntegrationCompleteAlert = true
                 }
+                pushObserver = observer
                 OneSignal.User.pushSubscription.addObserver(observer)
 
                 // The ID may already be assigned before the observer attaches,
@@ -460,19 +399,23 @@ class IntegrationCompleteObserver: NSObject, OSPushSubscriptionObserver {
     }
 }
 
-// Usage: After initializing OneSignal, register the observer and evaluate the current ID
-// let observer = IntegrationCompleteObserver(viewController: self)
-// OneSignal.User.pushSubscription.addObserver(observer)
-// observer.evaluate(OneSignal.User.pushSubscription.id)
+// Usage: store the observer as a view-controller property (OneSignal retains observers weakly).
+// After initializing OneSignal:
+// self.integrationCompleteObserver = IntegrationCompleteObserver(viewController: self)
+// OneSignal.User.pushSubscription.addObserver(self.integrationCompleteObserver!)
+// self.integrationCompleteObserver?.evaluate(OneSignal.User.pushSubscription.id)
 ```
 
 ---
 
 ## Troubleshooting
 
-| Issue                         | Solution                                                     |
-| ----------------------------- | ------------------------------------------------------------ |
-| Push not received             | Verify APNs key/certificate is uploaded to OneSignal         |
-| Background notifications fail | Check Background Modes capability has "Remote notifications" |
-| Simulator issues              | Push notifications only work on physical devices             |
-| Entitlements error            | Regenerate provisioning profiles in Apple Developer portal   |
+For NSE, App Group, `OneSignalExtension` module, Info.plist sync-group, and signing/entitlements issues, use the **iOS Infrastructure Troubleshooting** table in the Shared iOS Push Infrastructure section.
+
+| Issue                         | Solution                                                                 |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| Push not received             | Check notification permission; confirm signed entitlements include `aps-environment` (see shared section) |
+| Background notifications fail | Check Background Modes includes Remote notifications (see shared section) |
+| Verification dialog never appears | Retain the push subscription observer (weakly held by the SDK); evaluate the current ID immediately |
+| Simulator issues              | Simulator is fine for build/launch and the verification dialog; full APNs delivery may still need a device |
+| Entitlements / signing error  | Regenerate provisioning profiles; confirm `DEVELOPMENT_TEAM` and App Group; do not disable code signing |

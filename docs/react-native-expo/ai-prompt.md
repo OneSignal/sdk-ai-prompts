@@ -35,21 +35,56 @@ If no App ID is present in the user's prompt, ask the user to provide one before
 
 ---
 
-## Step 1 — Ask ONLY These Questions Before Making Changes
+## Step 1 — Detect First, Then Ask ONLY What Is Unknown
+
+Before editing files, inspect the repository and record a short readiness picture. Prefer detection over questions. If an answer is already clear from the user's request, the repo, or the execution context, do NOT ask — proceed and state the assumption in your summary.
+
+### Detect-first checklist (run before changes)
+
+Inspect the project and note:
+
+* Existing OneSignal usage (dependencies, init calls, wrappers)
+* iOS bundle identifier(s) and Android applicationId / package name as defined in the project today
+* iOS dependency manager in use: CocoaPods (`Podfile` / `Pods` / Pods xcconfig includes) vs Swift Package Manager (no Podfile or SPM-enabled Flutter/iOS setup, package references)
+* JS package manager when relevant (npm / yarn / pnpm / bun) from the lockfile
+* Existing push setup: Notification Service Extension, App Groups, Push / Background Modes capabilities, notification permission prompts
+* Signing clues on iOS targets (`DEVELOPMENT_TEAM`, `CODE_SIGN_STYLE`, entitlements files)
+
+### Questions to ask only when unknown
 
 1. **What language is the app written in?** (if applicable)
    - Android: Kotlin or Java
    - iOS: Swift or Objective-C
    - Flutter: Dart (no choice needed)
    - Unity: C# (no choice needed)
-   - React Native: JavaScript or TypeScript
+   - React Native / Expo: JavaScript or TypeScript
 
-2. **How would you like to handle version control?** (only ask if the project has a git repository)
+2. **Which mobile platforms should this integration cover?** (cross-platform SDKs only: Flutter, React Native, Expo, Unity)
+   - Ask: **iOS**, **Android**, or **both**
+   - Do **not** offer a code-only / skip-native option
+   - Native iOS and native Android prompts skip this question — the platform is already known
+   - Apply shared SDK / wrapper work once; apply native iOS or Android project work only for the selected platform(s)
+   - In the final summary, report status per selected platform (shared code, iOS native, Android native)
+
+3. **How would you like to handle version control?** (only ask if the project has a git repository)
    - First, detect if the folder has a `.git` directory
    - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
    - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
    - **Option B: Current branch** — Write all changes directly to the current branch without stashing or creating a new branch
    - If no git repository is detected, skip this question and proceed
+
+### Bundle ID and application ID (Required)
+
+* **Use the iOS bundle identifier and Android applicationId / package name already defined in the project.** Do not invent, rename, or "improve" them (including swapping to example or OneSignal-owned IDs) unless the user explicitly asks.
+* Derive the default App Group from the existing main-app bundle ID: `group.{MAIN_APP_BUNDLE_ID}.onesignal`. If the project already defines a custom App Group for OneSignal, keep it and set `OneSignal_app_groups_key` as documented in the iOS push infrastructure section.
+* If a required identifier is missing or clearly unusable for the selected platform(s), stop and ask the user to set a real value in the project, then continue. Do not proceed by making one up.
+
+### Package manager continuity (Required)
+
+* Detect the project's existing dependency managers and **keep using them**.
+* iOS: preserve CocoaPods vs Swift Package Manager. Do not migrate the app between them unless the user asks.
+* JavaScript apps: use the lockfile's package manager (npm / yarn / pnpm / bun).
+* Do **not** add an NSE-only CocoaPods `Podfile` to an SPM-based iOS/Flutter project. Follow the platform section for how to link the Notification Service Extension under the detected manager.
 
 ---
 
@@ -61,16 +96,18 @@ After completing SDK initialization, add a push subscription observer so the app
 
 1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
-2. **Treat the device as registered only when the push subscription ID is a real, server-assigned value** — non-empty and **not** prefixed with `local-`. The SDK assigns a `local-` placeholder ID during initialization (before the device registers with OneSignal's servers); that placeholder does **not** mean the device is registered.
+2. **Retain the observer for the lifetime of the screen/component that owns it.** OneSignal stores push subscription observers weakly — a local-only variable is deallocated immediately and the dialog never appears. Store it in framework-retained state (for example SwiftUI `@State`, a UIKit view-controller property, React `useRef` / component field, Flutter `State` field, or an Android/`Application`-scoped reference).
 
-3. **Evaluate the current subscription ID both on change and immediately at observer-registration time.** The ID may already be server-assigned before your observer attaches, so reacting only to the change event can miss the transition and the dialog would never appear.
+3. **Treat the device as registered only when the push subscription ID is a real, server-assigned value** — non-empty and **not** prefixed with `local-`. The SDK assigns a `local-` placeholder ID during initialization (before the device registers with OneSignal's servers); that placeholder does **not** mean the device is registered.
 
-4. **When a real subscription ID is present, show a platform-native dialog/alert exactly once** (guard with a "shown once" flag) with:
+4. **Evaluate the current subscription ID both on change and immediately at observer-registration time.** The ID may already be server-assigned before your observer attaches, so reacting only to the change event can miss the transition and the dialog would never appear.
+
+5. **When a real subscription ID is present, show a platform-native dialog/alert exactly once** (guard with a "shown once" flag) with:
    - **Title:** "Your OneSignal SDK integration is complete!"
    - **Message:** "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications."
    - **Single button:** **"Got it"**
 
-5. **On button tap**, request push permission.
+6. **On button tap**, request push permission.
 
 See platform-specific integration files for implementation examples.
 
@@ -86,8 +123,9 @@ See platform-specific integration files for implementation examples.
 * Do NOT guess versions
 * Do NOT use other sources (npm, pub.dev, GitHub releases) for version numbers
 * The official JSON endpoint above has both **Stable** and **Current** versions for all platforms
+* iOS note: `OneSignal-XCFramework` (the SPM repo) shares version tags with `OneSignal-iOS-SDK` — the same version number applies to both
 
-Use the **Stable** track unless the user specifically requested Current. Do not use a version range.
+Use the **Stable** track unless the user specifically requested Current. Always pin that exact version from the releases JSON (SPM `exactVersion`, exact npm/pub version, exact CocoaPods version like `'5.2.0'`). Do not invent or widen version ranges.
 
 When using the JSON source, read the exact version from:
 `<sdk entry>.channels.<track>.version`
@@ -123,6 +161,7 @@ Create a **single, centralized class/module** that wraps all OneSignal SDK inter
 
 * **No direct OneSignal SDK calls outside this wrapper**
 * All OneSignal interactions go through the centralized class/module
+* Some platform-file code examples (e.g. the Push Subscription Verification Dialog) show direct SDK calls for brevity — when implementing them, route those calls through the wrapper
 * Makes testing and future SDK updates easier
 
 See platform integration files for specific implementation patterns and method signatures.
@@ -135,8 +174,9 @@ Perform a **minimal, production-ready integration**, including:
 
 1. **Dependency configuration** (gradle, CocoaPods, pubspec, etc.)
 2. **Required app config changes** (manifest, plist, etc.)
-3. **SDK initialization** at the correct lifecycle point
-4. **Avoid deprecated APIs** — use the latest SDK patterns
+3. **Required notification infrastructure** — everything the platform integration file marks as **Required** (e.g. on iOS: the Notification Service Extension target and App Group). "Minimal" means no optional extras — it does **NOT** mean skipping required platform setup
+4. **SDK initialization** at the correct lifecycle point
+5. **Avoid deprecated APIs** — use the latest SDK patterns
 
 ---
 
@@ -151,16 +191,18 @@ Do NOT automatically create a PR — let the user copy it.
 * Key changes made to the codebase
 * SDK details (platform, version, track)
 * Architecture decisions and where OneSignal logic is placed
-* Step-by-step verification instructions
-* Any follow-ups, limitations, or known risks
+* For cross-platform SDKs: which mobile platforms were selected and status for each (shared code, iOS native, Android native)
+* Bundle ID / applicationId used from the project (do not invent new ones in the summary either)
+* Step-by-step verification instructions (simulator is fine for build/launch and the verification dialog path)
+* Any follow-ups, limitations, or known risks relevant to the code changes made
 
 ---
 
 ## Constraints
 
 * **Do NOT refactor unrelated code**
-* **Do NOT add optional OneSignal features** unless required
-* **Do NOT add push-notification features beyond SDK initialization and the Push Subscription Verification Dialog.** The dialog's on-tap permission request (Step 5 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
+* **Do NOT add optional OneSignal features** unless required. Anything the platform integration file marks as **Required** (e.g. the iOS Notification Service Extension and App Group) is part of the core integration — NOT an optional feature — and MUST be implemented
+* **Do NOT add push-notification features beyond SDK initialization, the Push Subscription Verification Dialog, and the sections the platform integration file marks as Required.** The dialog's on-tap permission request (Step 6 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)
@@ -171,6 +213,7 @@ Do NOT automatically create a PR — let the user copy it.
 
 ## Official Documentation
 
+* [OneSignal Expo SDK Setup](https://documentation.onesignal.com/docs/en/react-native-expo-sdk-setup)
 * [OneSignal React Native SDK Setup](https://documentation.onesignal.com/docs/react-native-sdk-setup)
 * [React Native SDK API Reference](https://documentation.onesignal.com/docs/react-native-sdk-api-reference)
 * [NPM Package](https://www.npmjs.com/package/react-native-onesignal)
@@ -192,7 +235,9 @@ Use the user's response to determine which code examples to provide throughout t
 
 > **Push notifications do NOT work in Expo Go.**
 >
-> You must create a development build to test push notifications:
+> This guide is for **managed Expo apps** using `onesignal-expo-plugin`. Bare React Native apps should use the React Native prompt instead.
+>
+> You must create a development build or EAS Build to test push notifications:
 > ```bash
 > npx expo prebuild
 > npx expo run:ios    # for iOS
@@ -209,17 +254,17 @@ Before considering the integration complete, verify ALL of the following:
 
 ### Expo Configuration
 
-- [ ] Expo SDK 49+ (recommended for best compatibility)
+- [ ] Expo SDK 53+ (React Native 0.79+) with New Architecture enabled
 - [ ] `bundleIdentifier` set in `app.json` under `expo.ios`
 - [ ] `package` set in `app.json` under `expo.android`
-- [ ] `onesignal-expo-plugin` configured in `app.json` plugins array
+- [ ] `ios.infoPlist.UIBackgroundModes` includes `remote-notification`
+- [ ] `ios.entitlements["aps-environment"]` is set to `development` or `production`
+- [ ] `onesignal-expo-plugin` is the **first** item in the `plugins` array
 - [ ] Development build created (not using Expo Go)
+- [ ] For iOS builds, the plugin is allowed to add the Notification Service Extension (`disableNSE` is not `true`)
+- [ ] OneSignal App ID is available (from the user prompt)
 
-### OneSignal Dashboard
-
-- [ ] OneSignal App ID obtained from dashboard
-- [ ] iOS: APNs key/certificate uploaded to OneSignal dashboard
-- [ ] Android: FCM credentials configured (Firebase Service Account JSON)
+Note: Do NOT add `expo.android.googleServicesFile` or a `google-services.json` file for OneSignal — the SDK registers for FCM itself and these files are not required.
 
 ### Initialization
 
@@ -233,14 +278,26 @@ Before considering the integration complete, verify ALL of the following:
 Install the OneSignal SDK and Expo plugin:
 
 ```bash
-npx expo install react-native-onesignal onesignal-expo-plugin
+npx expo install onesignal-expo-plugin
+npm install --save react-native-onesignal
+```
+
+Or with Yarn:
+
+```bash
+npx expo install onesignal-expo-plugin
+yarn add react-native-onesignal
 ```
 
 ---
 
-## app.json Configuration
+## Expo Configuration
 
-Add the OneSignal plugin to your `app.json` (or `app.config.js`):
+Configure OneSignal in `app.json`, `app.config.js`, or `app.config.ts`.
+
+### app.json
+
+The OneSignal plugin MUST be the first item in the `plugins` array. This prevents the `OneSignal/OneSignal.h file not found` build error.
 
 ```json
 {
@@ -248,7 +305,14 @@ Add the OneSignal plugin to your `app.json` (or `app.config.js`):
     "name": "YourAppName",
     "slug": "your-app-slug",
     "ios": {
-      "bundleIdentifier": "com.yourcompany.yourapp"
+      "bundleIdentifier": "com.yourcompany.yourapp",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      },
+      "entitlements": {
+        "aps-environment": "development"
+      },
+      "appleTeamId": "YOUR_APPLE_TEAM_ID"
     },
     "android": {
       "package": "com.yourcompany.yourapp"
@@ -265,17 +329,61 @@ Add the OneSignal plugin to your `app.json` (or `app.config.js`):
 }
 ```
 
+Use `mode: "development"` for local/dev builds and `mode: "production"` for TestFlight and App Store builds. `ios.entitlements["aps-environment"]` should match that mode.
+
+### app.config.ts
+
+Starting in `onesignal-expo-plugin` 2.6.0, you can import `withOneSignal` for typed plugin configuration:
+
+```typescript
+import { ConfigContext, ExpoConfig } from '@expo/config';
+import withOneSignal from 'onesignal-expo-plugin/plugin';
+
+export default ({ config }: ConfigContext): ExpoConfig => ({
+  ...config,
+  ios: {
+    ...config.ios,
+    bundleIdentifier: 'com.yourcompany.yourapp',
+    appleTeamId: 'YOUR_APPLE_TEAM_ID',
+    infoPlist: {
+      ...config.ios?.infoPlist,
+      UIBackgroundModes: ['remote-notification'],
+    },
+    entitlements: {
+      ...config.ios?.entitlements,
+      'aps-environment': 'development',
+    },
+  },
+  android: {
+    ...config.android,
+    package: 'com.yourcompany.yourapp',
+  },
+  plugins: [
+    withOneSignal({
+      mode: 'development',
+    }),
+    ...(config.plugins ?? []),
+  ],
+});
+```
+
 ### Plugin Options
 
-| Option | Description |
-|--------|-------------|
-| `mode` | Set to `"development"` for dev builds, `"production"` for release builds |
-| `devTeam` | (iOS only) Your Apple Developer Team ID - required for physical device builds |
-| `iPhoneDeploymentTarget` | (iOS only) Minimum iOS version, defaults to `"12.0"` |
-| `smallIcons` | (Android only) Array of small notification icon paths |
-| `largeIcons` | (Android only) Array of large notification icon paths |
+| Option | Required | Description |
+|--------|----------|-------------|
+| `mode` | ✅ | Configures the APNs environment entitlement. Use `"development"` for testing and `"production"` for TestFlight/App Store builds |
+| `devTeam` | Deprecated | Prefer `ios.appleTeamId` in Expo config. The plugin falls back to `devTeam` only if `appleTeamId` is missing |
+| `iPhoneDeploymentTarget` | No | iOS deployment target used when adding the Notification Service Extension. Match the minimum iOS version in the Podfile |
+| `smallIcons` | No | Android small notification icon paths (white transparent PNG, 96x96px), auto-scaled into resource folders |
+| `largeIcons` | No | Android large notification icon paths (256x256px) |
+| `smallIconAccentColor` | No | Android notification icon accent color, e.g. `"#FF0000"` |
+| `iosNSEFilePath` | No | Local path to a custom Objective-C Notification Service Extension file, e.g. `"./assets/NotificationService.m"` |
+| `appGroupName` | No | Custom iOS App Group name. Defaults to `group.{ios.bundleIdentifier}.onesignal` if omitted |
+| `nseBundleIdentifier` | No | Suffix for the NSE bundle ID. Defaults to `OneSignalNotificationServiceExtension` |
+| `disableNSE` | No | If `true`, the iOS NSE is not added. The NSE is required for badges, confirmed receipt, media attachments, and action buttons — only disable if the app intentionally needs basic push only |
+| `disableLocation` | No | If `true`, excludes the native OneSignal location module from iOS and Android. Requires `react-native-onesignal` 5.5.1+ |
 
-### Example with iOS Team ID (for physical device builds):
+### Example with Android icons and location disabled
 
 ```json
 {
@@ -284,12 +392,128 @@ Add the OneSignal plugin to your `app.json` (or `app.config.js`):
       "onesignal-expo-plugin",
       {
         "mode": "development",
-        "devTeam": "YOUR_APPLE_TEAM_ID"
+        "disableLocation": true,
+        "smallIcons": ["./assets/ic_stat_onesignal_default.png"],
+        "largeIcons": ["./assets/ic_onesignal_large_icon_default.png"],
+        "smallIconAccentColor": "#FF0000"
       }
     ]
   ]
 }
 ```
+
+---
+
+## iOS Native Push Infrastructure (Expo Plugin Managed)
+
+Expo uses `onesignal-expo-plugin` to generate the native iOS Notification Service Extension and App Group configuration. Do NOT start by manually creating an NSE target in Xcode for managed Expo apps. Configure the plugin first, then run prebuild/development build and inspect the generated native project only as a verification step.
+
+```bash
+npx expo prebuild
+npx expo run:ios
+```
+
+Do not claim iOS rich notifications or Confirmed Delivery are complete until the generated native project has:
+
+* Main app entitlements with `aps-environment` and `group.{BUNDLE_IDENTIFIER}.onesignal`
+* `OneSignalNotificationServiceExtension` target
+* NSE entitlements with the exact same App Group
+* `OneSignalExtension` linked to the NSE target
+* The NSE `.appex` embedded in the main app
+
+If these are missing, first verify:
+
+* `onesignal-expo-plugin` is first in the `plugins` array
+* `disableNSE` is not `true`
+* `ios.bundleIdentifier` is set
+* `ios.infoPlist.UIBackgroundModes` includes `remote-notification`
+* `ios.entitlements["aps-environment"]` is set
+
+Only use manual native edits as a fallback for generated projects where the plugin cannot express a required custom setup. For custom Objective-C NSE code, prefer the plugin's `iosNSEFilePath` option.
+
+---
+
+## SDK Initialization
+
+Initialize OneSignal in the root of the app. Use `App.tsx` / `App.js` for traditional Expo apps, or `app/_layout.tsx` / `app/_layout.js` for Expo Router.
+
+Do NOT request push permission during initialization. The verification dialog below requests permission when the user taps **Got it**.
+
+### Traditional App Entry
+
+```javascript
+import React, { useEffect } from 'react';
+import { View, Text } from 'react-native';
+import { OneSignal, LogLevel } from 'react-native-onesignal';
+
+const ONESIGNAL_APP_ID = 'YOUR_ONESIGNAL_APP_ID';
+
+export default function App() {
+  useEffect(() => {
+    OneSignal.Debug.setLogLevel(LogLevel.Verbose);
+    OneSignal.initialize(ONESIGNAL_APP_ID);
+
+    const clickListener = (event) => {
+      console.log('OneSignal: notification clicked:', event);
+    };
+
+    const foregroundListener = (event) => {
+      console.log('OneSignal: foreground will display:', event);
+    };
+
+    OneSignal.Notifications.addEventListener('click', clickListener);
+    OneSignal.Notifications.addEventListener('foregroundWillDisplay', foregroundListener);
+
+    return () => {
+      OneSignal.Notifications.removeEventListener('click', clickListener);
+      OneSignal.Notifications.removeEventListener('foregroundWillDisplay', foregroundListener);
+    };
+  }, []);
+
+  return (
+    <View>
+      <Text>Your App Content</Text>
+    </View>
+  );
+}
+```
+
+### Expo Router
+
+```javascript
+import React, { useEffect } from 'react';
+import { Stack } from 'expo-router';
+import { OneSignal, LogLevel } from 'react-native-onesignal';
+
+const ONESIGNAL_APP_ID = 'YOUR_ONESIGNAL_APP_ID';
+
+export default function RootLayout() {
+  useEffect(() => {
+    OneSignal.Debug.setLogLevel(LogLevel.Verbose);
+    OneSignal.initialize(ONESIGNAL_APP_ID);
+
+    const clickListener = (event) => {
+      console.log('OneSignal: notification clicked:', event);
+    };
+
+    const foregroundListener = (event) => {
+      console.log('OneSignal: foreground will display:', event);
+    };
+
+    OneSignal.Notifications.addEventListener('click', clickListener);
+    OneSignal.Notifications.addEventListener('foregroundWillDisplay', foregroundListener);
+
+    return () => {
+      OneSignal.Notifications.removeEventListener('click', clickListener);
+      OneSignal.Notifications.removeEventListener('foregroundWillDisplay', foregroundListener);
+    };
+  }, []);
+
+  return <Stack />;
+}
+```
+
+If a listener needs access to props or state, define it with `useCallback` so the same function reference is used for both `addEventListener` and `removeEventListener`.
 
 ---
 
@@ -518,10 +742,12 @@ export const useOneSignal = (appId: string) => {
 | Missing `bundleIdentifier` error | Add `"bundleIdentifier": "com.yourcompany.yourapp"` under `expo.ios` in `app.json` |
 | Missing `package` error | Add `"package": "com.yourcompany.yourapp"` under `expo.android` in `app.json` |
 | iOS build fails with pod errors | Run `npx expo prebuild --clean` to regenerate native projects |
+| iOS push received but no image | Verify the generated native project has the shared iOS Notification Service Extension and App Group setup |
+| No Confirmed Delivery stat | Verify NSE + App Group setup; dashboard display requires a paid OneSignal plan |
 | Android build fails with Gradle errors | Ensure Java 17 is installed: `export JAVA_HOME="/path/to/java17"` then rebuild |
 | AssetCatalogSimulatorAgent failure (Xcode 16.1) | Simplify asset catalog or restart Mac. See workaround below. |
 | Build shows "0 errors" but fails | Capture stderr: `npx expo run:ios 2> error-logs.txt` and inspect the file |
-| Notifications not received | Verify APNs/FCM credentials in OneSignal dashboard |
+| Notifications not received | Check App ID, notification permission, and that a development build (not Expo Go) was used |
 | Permission always false | Check notification settings in device Settings app |
 | Module not found | Clear Metro cache: `npx expo start --clear` |
 

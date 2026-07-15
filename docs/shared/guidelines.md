@@ -24,21 +24,56 @@ If no App ID is present in the user's prompt, ask the user to provide one before
 
 ---
 
-## Step 1 — Ask ONLY These Questions Before Making Changes
+## Step 1 — Detect First, Then Ask ONLY What Is Unknown
+
+Before editing files, inspect the repository and record a short readiness picture. Prefer detection over questions. If an answer is already clear from the user's request, the repo, or the execution context, do NOT ask — proceed and state the assumption in your summary.
+
+### Detect-first checklist (run before changes)
+
+Inspect the project and note:
+
+* Existing OneSignal usage (dependencies, init calls, wrappers)
+* iOS bundle identifier(s) and Android applicationId / package name as defined in the project today
+* iOS dependency manager in use: CocoaPods (`Podfile` / `Pods` / Pods xcconfig includes) vs Swift Package Manager (no Podfile or SPM-enabled Flutter/iOS setup, package references)
+* JS package manager when relevant (npm / yarn / pnpm / bun) from the lockfile
+* Existing push setup: Notification Service Extension, App Groups, Push / Background Modes capabilities, notification permission prompts
+* Signing clues on iOS targets (`DEVELOPMENT_TEAM`, `CODE_SIGN_STYLE`, entitlements files)
+
+### Questions to ask only when unknown
 
 1. **What language is the app written in?** (if applicable)
    - Android: Kotlin or Java
    - iOS: Swift or Objective-C
    - Flutter: Dart (no choice needed)
    - Unity: C# (no choice needed)
-   - React Native: JavaScript or TypeScript
+   - React Native / Expo: JavaScript or TypeScript
 
-2. **How would you like to handle version control?** (only ask if the project has a git repository)
+2. **Which mobile platforms should this integration cover?** (cross-platform SDKs only: Flutter, React Native, Expo, Unity)
+   - Ask: **iOS**, **Android**, or **both**
+   - Do **not** offer a code-only / skip-native option
+   - Native iOS and native Android prompts skip this question — the platform is already known
+   - Apply shared SDK / wrapper work once; apply native iOS or Android project work only for the selected platform(s)
+   - In the final summary, report status per selected platform (shared code, iOS native, Android native)
+
+3. **How would you like to handle version control?** (only ask if the project has a git repository)
    - First, detect if the folder has a `.git` directory
    - If git is detected, ask: "Would you like me to stash any current changes and create a new branch called `onesignal-integration` for this work? Or should I write the changes directly to the current branch?"
    - **Option A: New branch** — Stash existing changes, create and switch to `onesignal-integration` branch, commit all changes there, do NOT push to main/master directly
    - **Option B: Current branch** — Write all changes directly to the current branch without stashing or creating a new branch
    - If no git repository is detected, skip this question and proceed
+
+### Bundle ID and application ID (Required)
+
+* **Use the iOS bundle identifier and Android applicationId / package name already defined in the project.** Do not invent, rename, or "improve" them (including swapping to example or OneSignal-owned IDs) unless the user explicitly asks.
+* Derive the default App Group from the existing main-app bundle ID: `group.{MAIN_APP_BUNDLE_ID}.onesignal`. If the project already defines a custom App Group for OneSignal, keep it and set `OneSignal_app_groups_key` as documented in the iOS push infrastructure section.
+* If a required identifier is missing or clearly unusable for the selected platform(s), stop and ask the user to set a real value in the project, then continue. Do not proceed by making one up.
+
+### Package manager continuity (Required)
+
+* Detect the project's existing dependency managers and **keep using them**.
+* iOS: preserve CocoaPods vs Swift Package Manager. Do not migrate the app between them unless the user asks.
+* JavaScript apps: use the lockfile's package manager (npm / yarn / pnpm / bun).
+* Do **not** add an NSE-only CocoaPods `Podfile` to an SPM-based iOS/Flutter project. Follow the platform section for how to link the Notification Service Extension under the detected manager.
 
 ---
 
@@ -50,16 +85,18 @@ After completing SDK initialization, add a push subscription observer so the app
 
 1. **Register a push subscription observer** immediately after OneSignal is initialized.
 
-2. **Treat the device as registered only when the push subscription ID is a real, server-assigned value** — non-empty and **not** prefixed with `local-`. The SDK assigns a `local-` placeholder ID during initialization (before the device registers with OneSignal's servers); that placeholder does **not** mean the device is registered.
+2. **Retain the observer for the lifetime of the screen/component that owns it.** OneSignal stores push subscription observers weakly — a local-only variable is deallocated immediately and the dialog never appears. Store it in framework-retained state (for example SwiftUI `@State`, a UIKit view-controller property, React `useRef` / component field, Flutter `State` field, or an Android/`Application`-scoped reference).
 
-3. **Evaluate the current subscription ID both on change and immediately at observer-registration time.** The ID may already be server-assigned before your observer attaches, so reacting only to the change event can miss the transition and the dialog would never appear.
+3. **Treat the device as registered only when the push subscription ID is a real, server-assigned value** — non-empty and **not** prefixed with `local-`. The SDK assigns a `local-` placeholder ID during initialization (before the device registers with OneSignal's servers); that placeholder does **not** mean the device is registered.
 
-4. **When a real subscription ID is present, show a platform-native dialog/alert exactly once** (guard with a "shown once" flag) with:
+4. **Evaluate the current subscription ID both on change and immediately at observer-registration time.** The ID may already be server-assigned before your observer attaches, so reacting only to the change event can miss the transition and the dialog would never appear.
+
+5. **When a real subscription ID is present, show a platform-native dialog/alert exactly once** (guard with a "shown once" flag) with:
    - **Title:** "Your OneSignal SDK integration is complete!"
    - **Message:** "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications."
    - **Single button:** **"Got it"**
 
-5. **On button tap**, request push permission.
+6. **On button tap**, request push permission.
 
 See platform-specific integration files for implementation examples.
 
@@ -75,8 +112,9 @@ See platform-specific integration files for implementation examples.
 * Do NOT guess versions
 * Do NOT use other sources (npm, pub.dev, GitHub releases) for version numbers
 * The official JSON endpoint above has both **Stable** and **Current** versions for all platforms
+* iOS note: `OneSignal-XCFramework` (the SPM repo) shares version tags with `OneSignal-iOS-SDK` — the same version number applies to both
 
-Use the **Stable** track unless the user specifically requested Current. Do not use a version range.
+Use the **Stable** track unless the user specifically requested Current. Always pin that exact version from the releases JSON (SPM `exactVersion`, exact npm/pub version, exact CocoaPods version like `'5.2.0'`). Do not invent or widen version ranges.
 
 When using the JSON source, read the exact version from:
 `<sdk entry>.channels.<track>.version`
@@ -112,6 +150,7 @@ Create a **single, centralized class/module** that wraps all OneSignal SDK inter
 
 * **No direct OneSignal SDK calls outside this wrapper**
 * All OneSignal interactions go through the centralized class/module
+* Some platform-file code examples (e.g. the Push Subscription Verification Dialog) show direct SDK calls for brevity — when implementing them, route those calls through the wrapper
 * Makes testing and future SDK updates easier
 
 See platform integration files for specific implementation patterns and method signatures.
@@ -124,8 +163,9 @@ Perform a **minimal, production-ready integration**, including:
 
 1. **Dependency configuration** (gradle, CocoaPods, pubspec, etc.)
 2. **Required app config changes** (manifest, plist, etc.)
-3. **SDK initialization** at the correct lifecycle point
-4. **Avoid deprecated APIs** — use the latest SDK patterns
+3. **Required notification infrastructure** — everything the platform integration file marks as **Required** (e.g. on iOS: the Notification Service Extension target and App Group). "Minimal" means no optional extras — it does **NOT** mean skipping required platform setup
+4. **SDK initialization** at the correct lifecycle point
+5. **Avoid deprecated APIs** — use the latest SDK patterns
 
 ---
 
@@ -140,16 +180,18 @@ Do NOT automatically create a PR — let the user copy it.
 * Key changes made to the codebase
 * SDK details (platform, version, track)
 * Architecture decisions and where OneSignal logic is placed
-* Step-by-step verification instructions
-* Any follow-ups, limitations, or known risks
+* For cross-platform SDKs: which mobile platforms were selected and status for each (shared code, iOS native, Android native)
+* Bundle ID / applicationId used from the project (do not invent new ones in the summary either)
+* Step-by-step verification instructions (simulator is fine for build/launch and the verification dialog path)
+* Any follow-ups, limitations, or known risks relevant to the code changes made
 
 ---
 
 ## Constraints
 
 * **Do NOT refactor unrelated code**
-* **Do NOT add optional OneSignal features** unless required
-* **Do NOT add push-notification features beyond SDK initialization and the Push Subscription Verification Dialog.** The dialog's on-tap permission request (Step 5 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
+* **Do NOT add optional OneSignal features** unless required. Anything the platform integration file marks as **Required** (e.g. the iOS Notification Service Extension and App Group) is part of the core integration — NOT an optional feature — and MUST be implemented
+* **Do NOT add push-notification features beyond SDK initialization, the Push Subscription Verification Dialog, and the sections the platform integration file marks as Required.** The dialog's on-tap permission request (Step 6 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)
