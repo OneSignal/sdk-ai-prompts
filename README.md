@@ -16,6 +16,7 @@ Visit the GitHub Pages site to get started:
 - **Unity** (C#)
 - **React Native** (JavaScript & TypeScript)
 - **React Native Expo** (JavaScript & TypeScript)
+- **Web** (JavaScript & TypeScript — HTML, React, Next.js, Vue, Angular, Svelte)
 
 ## How It Works
 
@@ -37,7 +38,7 @@ Follow the instructions at:
 https://raw.githubusercontent.com/OneSignal/sdk-ai-prompts/main/docs/android/ai-prompt.md
 ```
 
-Replace `android` with your platform: `ios`, `flutter`, `unity`, `react-native`, or `react-native-expo`.
+Replace `android` with your platform: `ios`, `flutter`, `unity`, `react-native`, `react-native-expo`, or `web`.
 
 ## Repository Structure
 
@@ -62,7 +63,10 @@ docs/
 ├── react-native/
 │   ├── integrate.md
 │   └── ai-prompt.md
-└── react-native-expo/
+├── react-native-expo/
+│   ├── integrate.md
+│   └── ai-prompt.md
+└── web/
     ├── integrate.md
     └── ai-prompt.md
 script/
