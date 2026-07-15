@@ -109,6 +109,15 @@ After completing SDK initialization, add a push subscription observer so the app
 
 6. **On button tap**, request push permission.
 
+### Verification without duplicate subscriptions
+
+When building, launching, or re-checking the integration:
+
+* **Do NOT** clear app data, wipe the emulator/simulator, or uninstall/reinstall the app solely to re-verify setup.
+* Clearing storage / reinstalling resets the install identity. The platform then mints a new push token and OneSignal creates a **new** subscription, leaving the previous one orphaned — so the dashboard shows duplicates for the same test flow.
+* Prefer a normal rebuild + relaunch (or install over the existing app) that **preserves** app storage.
+* One successful server-assigned subscription and one verification dialog is enough. Do not deliberately create a second subscription to prove the integration works.
+
 See platform-specific integration files for implementation examples.
 
 ---
@@ -203,6 +212,7 @@ Do NOT automatically create a PR — let the user copy it.
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required. Anything the platform integration file marks as **Required** (e.g. the iOS Notification Service Extension and App Group) is part of the core integration — NOT an optional feature — and MUST be implemented
 * **Do NOT add push-notification features beyond SDK initialization, the Push Subscription Verification Dialog, and the sections the platform integration file marks as Required.** The dialog's on-tap permission request (Step 6 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
+* **Do NOT clear app data, wipe the emulator/simulator, or uninstall/reinstall solely to re-verify** — that creates duplicate OneSignal subscriptions (see Verification without duplicate subscriptions)
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
 * **Do NOT commit secrets** (API keys should be in environment variables or secure storage)
@@ -459,6 +469,8 @@ The verification flow is:
 4. On button tap, request push permission
 5. If permission is granted, no additional action is required
 
+Do **not** clear app data (`adb shell pm clear …`), wipe the emulator, or uninstall/reinstall just to re-check — that creates a second OneSignal subscription. Rebuild/relaunch while preserving app storage. See shared guidelines: **Verification without duplicate subscriptions**.
+
 ### Kotlin
 
 ```kotlin
@@ -595,6 +607,7 @@ public static void showIntegrationCompleteDialog(Context context) {
 | Issue | Solution |
 |-------|----------|
 | Push not received | Check notification permission and that the App ID matches the project; confirm internet connectivity |
+| Duplicate subscriptions after re-test | Do not clear app data or uninstall/reinstall to re-verify — relaunch preserving storage (see shared guidelines) |
 | Permission denied | Ensure `POST_NOTIFICATIONS` is requested on Android 13+ |
 | Initialization failed | Verify App ID is correct and internet permission is granted |
 | ProGuard issues | Check OneSignal rules are not being stripped |
