@@ -283,7 +283,7 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] `OneSignalSDKWorker.js` placed at the location that maps to the site root (or a configured subdirectory — see table below)
 - [ ] The worker file is included in the production build output and publicly reachable on the origin
 - [ ] SDK initialized once, as early as possible, with the App ID
-- [ ] All OneSignal calls routed through a single centralized wrapper module
+- [ ] All OneSignal access goes through a single point — the wrapper package directly, or the CDN service module (see Step C)
 - [ ] Push permission requested **only** from the verification dialog's "Got it" button — never automatically on page load
 
 ---
@@ -311,7 +311,7 @@ When a first-party wrapper matches the framework, prefer it. **This is the only 
 | Framework | Package | releases.json entry (`name`) |
 |-----------|---------|------------------------------|
 | React / Next.js | `react-onesignal` | `React` |
-| Vue 3 | `onesignal-vue3` | `Vue3` |
+| Vue 3 | `@onesignal/onesignal-vue3` | `Vue3` |
 | Angular | `onesignal-ngx` | `Angular` |
 
 For any framework without a first-party wrapper (Svelte, plain HTML, etc.), use the CDN approach.
@@ -441,13 +441,13 @@ Render `<OneSignalProvider>` in your root layout. In the Pages Router, initializ
 ### Vue 3
 
 ```bash
-npm install --save onesignal-vue3
+npm install --save @onesignal/onesignal-vue3
 ```
 
 ```typescript
 // main.ts
 import { createApp } from 'vue';
-import OneSignalVuePlugin from 'onesignal-vue3';
+import OneSignalVuePlugin from '@onesignal/onesignal-vue3';
 import App from './App.vue';
 
 createApp(App)
@@ -466,7 +466,7 @@ npm install --save onesignal-ngx
 ```typescript
 // app.component.ts
 import { Component, OnInit } from '@angular/core';
-import OneSignal from 'onesignal-ngx';
+import { OneSignal } from 'onesignal-ngx';
 
 @Component({ selector: 'app-root', templateUrl: './app.component.html' })
 export class AppComponent implements OnInit {
@@ -482,11 +482,19 @@ Remember to add `OneSignalSDKWorker.js` to the `assets` array in `angular.json`.
 
 ---
 
-## Step C — Centralized OneSignal Wrapper (Required)
+## Step C — Centralized OneSignal Access (Required)
 
-Per the shared guidelines, isolate all OneSignal calls behind a single module. For the CDN approach, wrap access to the deferred global; for the npm wrappers, import the SDK inside this module only.
+The shared guidelines require isolating OneSignal behind a single access point. How you satisfy that depends on the integration path.
 
-> **TypeScript projects:** The npm wrappers (`react-onesignal`, `onesignal-vue3`, `onesignal-ngx`) ship their own types, so wrapper-based code needs **no** `any` — import the typed `OneSignal` and use it directly. Only the **CDN/global** path (`window.OneSignalDeferred`) is untyped. In strict projects — especially those running `@typescript-eslint/no-explicit-any` — add a small ambient declaration for the surface you use instead of casting to `any`; plain-JS projects can skip it.
+### Wrapper projects (React / Vue / Angular)
+
+The wrapper package **is** the centralized, typed interface — a singleton (`react-onesignal`), a plugin exposing `$OneSignal` / `useOneSignal()` (`@onesignal/onesignal-vue3`), or an injectable service (`onesignal-ngx`). Use it directly as shown in Step B, and keep usage consistent (the same singleton import, the same injected service). Because the wrappers ship their own types, wrapper-based code needs **no** `any` and no ambient declarations.
+
+**Do NOT add a module that re-exports or re-wraps the wrapper.** That indirection is clunky, fights the wrapper's own typings, and isn't how these packages are used in practice. Route app-specific concerns (identity, consent) through your existing app layers by calling the wrapper from them — don't build a parallel SDK facade.
+
+### CDN / global projects
+
+The raw `window.OneSignalDeferred` global has no typed, single entry point, so here you *do* create a small centralized module. In strict TypeScript projects (especially with `@typescript-eslint/no-explicit-any`), add a minimal ambient declaration for the surface you use instead of casting to `any`; plain-JS projects can skip the `.d.ts`.
 
 ```typescript
 // src/types/onesignal.d.ts
@@ -527,11 +535,8 @@ export {};
 
 ```typescript
 // src/services/oneSignalService.ts
-//
-// The npm-wrapper version imports OneSignal directly (fully typed):
-//   import OneSignal from 'react-onesignal';
-// The CDN version resolves the SDK from the OneSignalDeferred queue,
-// typed via src/types/onesignal.d.ts:
+// CDN/global path only: resolve the SDK from the OneSignalDeferred queue,
+// typed via src/types/onesignal.d.ts.
 import type { OneSignalApi } from '../types/onesignal';
 
 function withOneSignal(fn: (oneSignal: OneSignalApi) => void): void {
@@ -627,7 +632,7 @@ Web push cannot be fully verified from a coding agent: the parts that prove push
 - [ ] `OneSignalSDKWorker.js` exists with the exact one-line contents and is emitted to the build output's web root (e.g. `public/` → `/`)
 - [ ] If a dev server is running, the worker is reachable and served as JavaScript — e.g. `curl -sI http://localhost:<port>/OneSignalSDKWorker.js` shows `content-type: application/javascript` (not `text/html`)
 - [ ] SDK is initialized exactly once, as early as possible, with the App ID
-- [ ] All OneSignal calls go through the centralized wrapper
+- [ ] All OneSignal access goes through a single point (wrapper package, or the CDN service module)
 - [ ] Push permission is requested **only** from the verification dialog's "Got it" button
 
 ### What only the developer can verify (report as a handoff, do not claim done)
@@ -662,4 +667,4 @@ State clearly in the final summary which items you verified and which are the de
 * Do NOT request push permission on page load — only from the verification dialog.
 * Do NOT host the service worker on a CDN or a different origin.
 * Do NOT pin the CDN URL to a build number — use the `v16` path.
-* Keep all OneSignal calls inside the centralized wrapper module.
+* Keep OneSignal access consistent — call the wrapper package directly (do NOT re-wrap it), or the CDN service module for the global path.
