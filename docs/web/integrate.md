@@ -259,14 +259,55 @@ Remember to add `OneSignalSDKWorker.js` to the `assets` array in `angular.json`.
 
 Per the shared guidelines, isolate all OneSignal calls behind a single module. For the CDN approach, wrap access to the deferred global; for the npm wrappers, import the SDK inside this module only.
 
+> **TypeScript projects:** The npm wrappers (`react-onesignal`, `onesignal-vue3`, `onesignal-ngx`) ship their own types, so wrapper-based code needs **no** `any` — import the typed `OneSignal` and use it directly. Only the **CDN/global** path (`window.OneSignalDeferred`) is untyped. In strict projects — especially those running `@typescript-eslint/no-explicit-any` — add a small ambient declaration for the surface you use instead of casting to `any`; plain-JS projects can skip it.
+
+```typescript
+// src/types/onesignal.d.ts
+// Minimal typings for the CDN/global (window.OneSignalDeferred) path only.
+// Not needed when using a typed npm wrapper.
+
+export interface OneSignalPushSubscription {
+  readonly id: string | null | undefined;
+  readonly token: string | null | undefined;
+  readonly optedIn: boolean;
+  addEventListener(event: 'change', listener: (change?: unknown) => void): void;
+  removeEventListener(event: 'change', listener: (change?: unknown) => void): void;
+}
+
+export interface OneSignalUser {
+  addEmail(email: string): void;
+  addSms(sms: string): void;
+  addTag(key: string, value: string): void;
+  readonly PushSubscription: OneSignalPushSubscription;
+}
+
+export interface OneSignalApi {
+  init(options: { appId: string; allowLocalhostAsSecureOrigin?: boolean }): Promise<void>;
+  login(externalId: string): Promise<void>;
+  logout(): Promise<void>;
+  Notifications: { requestPermission(): Promise<void> };
+  User: OneSignalUser;
+}
+
+declare global {
+  interface Window {
+    OneSignalDeferred: Array<(oneSignal: OneSignalApi) => void>;
+  }
+}
+
+export {};
+```
+
 ```typescript
 // src/services/oneSignalService.ts
 //
-// The npm-wrapper version imports OneSignal directly:
+// The npm-wrapper version imports OneSignal directly (fully typed):
 //   import OneSignal from 'react-onesignal';
-// The CDN version resolves the SDK from the OneSignalDeferred queue:
+// The CDN version resolves the SDK from the OneSignalDeferred queue,
+// typed via src/types/onesignal.d.ts:
+import type { OneSignalApi } from '../types/onesignal';
 
-function withOneSignal(fn: (os: any) => void): void {
+function withOneSignal(fn: (oneSignal: OneSignalApi) => void): void {
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(fn);
 }
@@ -321,8 +362,9 @@ function showIntegrationCompleteModal(onAcknowledge: () => void): void {
 }
 
 export function setupVerificationDialog(): void {
+  // `OneSignal` is typed as OneSignalApi via src/types/onesignal.d.ts — no `any`.
   window.OneSignalDeferred = window.OneSignalDeferred || [];
-  window.OneSignalDeferred.push((OneSignal: any) => {
+  window.OneSignalDeferred.push((OneSignal) => {
     // The SDK is initialized here — show the one-time confirmation.
     if (!dialogShown) {
       dialogShown = true;
