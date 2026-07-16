@@ -392,6 +392,31 @@ Wire `setupVerificationDialog()` in right after initialization. Keep the title, 
 
 ---
 
+## Definition of Done & Verification Handoff
+
+Web push cannot be fully verified from a coding agent: the parts that prove push actually works require a real browser, a secure origin (HTTPS or `localhost`), and dashboard state you cannot touch. Be honest about this boundary — report the integration as **code-complete and building**, not as "push works," and hand off the runtime checklist.
+
+### What the agent can and should verify
+
+- [ ] Project type-checks / builds without errors (`npm run build` or equivalent)
+- [ ] `OneSignalSDKWorker.js` exists with the exact one-line contents and is emitted to the build output's web root (e.g. `public/` → `/`)
+- [ ] If a dev server is running, the worker is reachable and served as JavaScript — e.g. `curl -sI http://localhost:<port>/OneSignalSDKWorker.js` shows `content-type: application/javascript` (not `text/html`)
+- [ ] SDK is initialized exactly once, as early as possible, with the App ID
+- [ ] All OneSignal calls go through the centralized wrapper
+- [ ] Push permission is requested **only** from the verification dialog's "Got it" button
+
+### What only the developer can verify (report as a handoff, do not claim done)
+
+- [ ] Dashboard app configured as **Custom Code** with **Site URL** matching the exact origin (separate app for localhost)
+- [ ] Loaded over HTTPS (or `localhost`) in a normal, non-incognito window
+- [ ] SDK loads from the CDN at runtime and the permission prompt appears from "Got it"
+- [ ] A real subscription appears under **Audience → Subscriptions** (status *Subscribed*) — this is the runtime equivalent of the non-null `PushSubscription.id`
+- [ ] A test push (dashboard or API) is received on the device
+
+State clearly in the final summary which items you verified and which are the developer's to complete.
+
+---
+
 ## Troubleshooting
 
 | Issue | Solution |
