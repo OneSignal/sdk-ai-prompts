@@ -301,18 +301,14 @@ Keep the shape consistent with the codebase's existing service/module convention
 
 The shared guidelines require a one-time "integration complete" confirmation that requests push permission on tap. Web differs from mobile in an important way:
 
-> **On web, a push subscription ID is normally only assigned *after* the user grants permission.** So we cannot wait for a real subscription ID before requesting permission — that would be circular. Instead, on web the dialog is shown once **OneSignal has initialized**, its "Got it" button drives the permission request, and a push subscription observer then **confirms** that a real, server-assigned subscription ID was created afterward.
+> **On web, a push subscription ID is normally only assigned *after* the user grants permission.** So we cannot wait for a real subscription ID before requesting permission — that would be circular. Instead, on web the dialog is shown once **OneSignal has initialized**, its "Got it" button drives the permission request, and a push subscription observer then **confirms** registration by reading `OneSignal.User.PushSubscription.id` once the user opts in.
 
-> **Uncertainty note:** The mobile SDKs use a `local-` placeholder subscription ID before server registration. I have **not** verified that the web SDK uses that same `local-` convention; on web the ID is generally absent (`null`/`undefined`) until opt-in and then becomes a UUID. The web check below therefore treats "registered" as *a non-empty ID that is not the `local-` placeholder*, which is safe under either behavior. If you can confirm the web SDK's exact pre-registration value, tighten this accordingly.
+> **Detecting registration on web:** The public `OneSignal.User.PushSubscription.id` getter returns `undefined` while the ID is still the SDK's internal `local-` placeholder, and only exposes a real, server-assigned UUID once the device is registered. On web you therefore never check for the `local-` prefix yourself — **a non-null `id` means registered.** (The getter filters local IDs in the Website SDK's `PushSubscriptionNamespace`/`IDManager`.)
 
 Show an **in-page modal** (not a mobile-style native alert — web has none). Build a minimal accessible modal with your framework, or fall back to `window.confirm` only if the project has no UI layer.
 
 ```typescript
 let dialogShown = false;
-
-function isRegistered(id: string | null | undefined): boolean {
-  return !!id && !id.startsWith('local-');
-}
 
 function showIntegrationCompleteModal(onAcknowledge: () => void): void {
   // Replace with a framework-native modal. Minimal fallback:
@@ -335,10 +331,13 @@ export function setupVerificationDialog(): void {
       });
     }
 
-    // Confirm a real subscription ID once the user opts in.
-    OneSignal.User.PushSubscription.addEventListener('change', (event: any) => {
-      if (isRegistered(event?.current?.id)) {
-        console.log('OneSignal push subscription registered:', event.current.id);
+    // Confirm registration once the user opts in. `id` is undefined until a real,
+    // server-assigned ID exists — the SDK never exposes the internal `local-`
+    // placeholder — so a non-null check is sufficient.
+    OneSignal.User.PushSubscription.addEventListener('change', () => {
+      const id = OneSignal.User.PushSubscription.id;
+      if (id) {
+        console.log('OneSignal push subscription registered:', id);
       }
     });
   });
