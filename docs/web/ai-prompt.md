@@ -290,21 +290,23 @@ Before considering the integration complete, verify ALL of the following:
 
 ## SDK Version Selection
 
-The Web SDK is delivered two ways. Choose based on the detected framework:
+The Web SDK is delivered two ways. Choose based on the detected framework. **The shared guidelines' *SDK Version Selection* (`releases.json`) step applies only to the npm-wrapper path below — skip it for CDN.**
 
 ### CDN (plain HTML, and the safe default for any site)
 
-Load the SDK from the **evergreen v16 CDN endpoint** — there is no version pin to choose:
+The CDN endpoint is **evergreen**: `v16` always serves the current stable Web SDK build. There is **no version to pin and no `releases.json` lookup to perform** for this path — just use the URL exactly as shown:
 
 ```
 https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js
 ```
 
-The `channels.stable.version` value for the **Web** entry in `https://onesignal.github.io/sdk-releases/releases.json` (e.g. an all-numeric build like `160607`) is the internal build number that the v16 CDN URL currently serves. **Do not** put that build number into the CDN URL — always use the `v16` path exactly as shown.
+Do **not** fetch or embed a build number. (The Web entry's `channels.stable.version` in `releases.json` — e.g. `160607` — is the internal build the `v16` path currently serves; it must never appear in the URL.)
 
 ### npm wrapper (React / Vue / Angular)
 
-When a first-party wrapper matches the framework, prefer it and pin the version from the official releases JSON (`https://onesignal.github.io/sdk-releases/releases.json`), using the **Stable** track unless the user asked for Current:
+When a first-party wrapper matches the framework, prefer it. **This is the only web path where the `releases.json` version step applies:** pin the wrapper's version from the official releases JSON (`https://onesignal.github.io/sdk-releases/releases.json`), using the **Stable** track unless the user asked for Current.
+
+`releases.json` is a top-level JSON array of SDK entries; find the entry by `name` and read the exact version from `<entry>.channels.stable.version`:
 
 | Framework | Package | releases.json entry (`name`) |
 |-----------|---------|------------------------------|
@@ -312,7 +314,7 @@ When a first-party wrapper matches the framework, prefer it and pin the version 
 | Vue 3 | `onesignal-vue3` | `Vue3` |
 | Angular | `onesignal-ngx` | `Angular` |
 
-Read the exact version from `<entry>.channels.stable.version`. For any framework without a first-party wrapper (Svelte, plain HTML, etc.), use the CDN approach.
+For any framework without a first-party wrapper (Svelte, plain HTML, etc.), use the CDN approach.
 
 ---
 
