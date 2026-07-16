@@ -43,6 +43,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Integration:
+    - Universal Prompt (Auto-Detect): ai-prompt.md
     - Shared Guidelines: shared/guidelines.md
     - Shared iOS Push Infrastructure: shared/ios-push-infrastructure.md
     - Android: android/integrate.md
