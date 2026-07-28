@@ -280,7 +280,7 @@ Before considering the integration complete, verify ALL of the following:
 
 ### Codebase
 
-- [ ] `OneSignalSDKWorker.js` placed at the location that maps to the site root (or a configured subdirectory — see table below)
+- [ ] `OneSignalSDKWorker.js` placed at the location that maps to the site root (or a scoped subdirectory when an existing service worker requires it — see Step A)
 - [ ] The worker file is included in the production build output and publicly reachable on the origin
 - [ ] SDK initialized once, as early as possible, with the App ID
 - [ ] All OneSignal access goes through a single point — the wrapper package directly, or the CDN service module (see Step C)
@@ -328,26 +328,55 @@ importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
 > This one line is the entire hostable worker file. It is intentionally tiny: it just imports the real, versioned worker from OneSignal's CDN. The OneSignal dashboard offers an identical file for download — use it to double-check the contents if needed, but the line above is authoritative for v16.
 
-### Where the file goes (by framework)
+### Where the file goes — follow this procedure
 
-The file must ultimately be reachable at the **root of the deployed origin** (`https://yourdomain.com/OneSignalSDKWorker.js`) unless you configure a subdirectory in the dashboard. Place the source file where the framework copies static assets to the web root:
+The file must ultimately be reachable at the **root of the deployed origin** (`https://yourdomain.com/OneSignalSDKWorker.js`), unless an existing service worker forces a subdirectory (see A.3). Do **not** guess the location from the framework name alone — derive it from the project's own configuration by following A.1 → A.4 in order.
 
-| Framework | Location in repo | Notes |
-|-----------|------------------|-------|
-| Plain HTML / vanilla JS | site root (next to `index.html`) | served directly |
+#### A.1 — Locate the app root
+
+Find the `package.json` whose scripts actually build and serve the site (`dev` / `build` / `start`). In a monorepo (npm/yarn/pnpm workspaces, Nx, Turborepo), there may be several packages: the worker belongs inside the **target app's** package — never create a `public/` directory at the repository root of a monorepo. If more than one web app could plausibly be the target, ask the user which one to integrate.
+
+#### A.2 — Determine the static-assets directory from config, not convention
+
+Check for framework/bundler config files **before** concluding the project is plain HTML: `vite.config.*`, `next.config.*`, `angular.json`, `svelte.config.*`, `nuxt.config.*`, `astro.config.*`, `gatsby-config.*`, etc. Vite projects also keep `index.html` at the project root, so an `index.html` at the root does **not** by itself mean plain HTML.
+
+Then read the config for a static-assets override — e.g. Vite `publicDir`, Angular `assets` entries, SvelteKit `kit.files.assets` — and use the configured directory when one is set. Only when there is no override, use the framework default:
+
+| Framework | Default location (relative to app root) | Notes |
+|-----------|------------------------------------------|-------|
 | React (CRA or Vite) | `public/` | copied to root at build |
-| Next.js | `public/` | served from root |
-| Vue 3 (Vite) | `public/` | served from root |
-| Angular | `src/` **and** add it to `angular.json` → `projects.<app>.architect.build.options.assets` | ensures it is emitted to the output root |
+| Next.js | `public/` | served from root at runtime |
+| Vue 3 (Vite) | `public/` | copied to root at build |
+| Angular (modern layout: `angular.json` assets includes `"input": "public"`) | `public/` | copied to root at build |
+| Angular (older layout: `src/`-based assets) | `src/` **and** add `"src/OneSignalSDKWorker.js"` as its own entry in `angular.json` → `projects.<app>.architect.build.options.assets` | a direct file entry is emitted at the output root — do **NOT** drop it into `src/assets/`, which emits to `/assets/`, not the root |
 | SvelteKit | `static/` | served from root |
 | Nuxt 3 | `public/` (Nuxt 2: `static/`) | served from root |
 | Gatsby / Astro | `static/` / `public/` respectively | served from root |
+| Plain HTML / vanilla JS (no bundler config found) | site root (next to `index.html`) | served directly |
 
-If you must place the worker in a subdirectory, the dashboard's **Advanced settings → Service workers → Path to service worker files** and **scope** must match, and the SDK `init` must be given `serviceWorkerParam` / `serviceWorkerPath`. Prefer the root unless the project structure forces otherwise; flag any subdirectory choice in the summary.
+#### A.3 — Check for existing service workers before placing the file
 
-### Verify
+Search the project for an existing service worker: `navigator.serviceWorker.register(...)` calls, a `sw.js` / `service-worker.js` in the static dir, or PWA tooling (`next-pwa`, `vite-plugin-pwa`, `@angular/service-worker` / `ngsw-config.json`, Workbox).
 
-After placing the file, confirm (or instruct the developer to confirm) that visiting `/{path}/OneSignalSDKWorker.js` on the running site returns the JavaScript above with a JavaScript content-type.
+* **No existing worker (the common case):** place `OneSignalSDKWorker.js` at the location from A.2 so it is served from the origin root. No extra `init` options are needed.
+* **Existing worker at root scope (e.g. a PWA):** only one service worker can control a scope — do **not** overwrite it, merge into it, or add a second root-scope worker. Instead, place `OneSignalSDKWorker.js` in a dedicated subdirectory of the static dir (e.g. `push/onesignal/`) and pass both options in `init`:
+
+  ```javascript
+  serviceWorkerPath: "push/onesignal/OneSignalSDKWorker.js",
+  serviceWorkerParam: { scope: "/push/onesignal/" },
+  ```
+
+  Flag this choice in the final summary. (Combining OneSignal into the existing worker file via `importScripts` is also documented, but prefer the separate-scope approach — see [OneSignal service worker](https://documentation.onesignal.com/docs/onesignal-service-worker).)
+
+#### A.4 — Verify placement (mandatory — do not skip or delegate)
+
+After placing the file, verify it **yourself**. Do not hand this off to the developer when the project has runnable scripts:
+
+* **Frameworks that copy static assets at build time** (Vite, CRA, Angular, SvelteKit, Astro, Gatsby): run the production build and confirm `OneSignalSDKWorker.js` exists at the **web root of the build output** (e.g. `dist/`, `build/`, `dist/<app>/browser/`). If it is missing, the placement is wrong — fix the placement; do not work around it.
+* **Frameworks that serve static files at runtime** (Next.js, Nuxt — `public/` is not copied into the build output): use a running dev server and confirm `curl -sI http://localhost:<port>/OneSignalSDKWorker.js` returns HTTP 200 with a JavaScript content-type (`application/javascript`, not `text/html`).
+* Confirm exactly **one** copy of the file exists in the repo — remove any stray copies left at wrong locations by earlier attempts.
+
+Only if the project has no build script and no way to run a dev server may verification be handed to the developer — and then the final summary must state that placement is **unverified** and give the exact URL to check.
 
 ---
 
@@ -478,7 +507,7 @@ export class AppComponent implements OnInit {
 }
 ```
 
-Remember to add `OneSignalSDKWorker.js` to the `assets` array in `angular.json`.
+Place `OneSignalSDKWorker.js` per Step A: modern Angular layouts drop it in `public/`; older `src/`-based layouts also need the `angular.json` assets entry.
 
 ---
 
@@ -656,6 +685,7 @@ State clearly in the final summary which items you verified and which are the de
 | Service worker 404 | The `OneSignalSDKWorker.js` file isn't reachable at the configured path on the origin |
 | Worker served as `text/html` | Ensure the host serves `.js` with `content-type: application/javascript` |
 | Worker works locally but not in prod | Confirm the build copies the file to the deploy root (e.g. `public/` → `/`) |
+| Existing PWA / service worker stops working, or OneSignal worker never activates | Only one service worker can control a scope — move the OneSignal worker to a scoped subdirectory with `serviceWorkerPath` + `serviceWorkerParam` (see Step A.3) |
 | Permission prompt never appears | Permission is requested only from the "Got it" button; also check the browser isn't blocking notifications |
 | iOS Safari not subscribing | iOS needs 16.4+, a `manifest.json`, and the user must add the site to their home screen — see the iOS web push docs |
 
