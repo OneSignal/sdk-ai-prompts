@@ -12,6 +12,9 @@
 
 ## User Prompts
 
+> **WordPress check (do this first):** If the project is a WordPress site (`wp-config.php`, a `wp-content/` directory, or a Bedrock-style `composer.json`), do **NOT** integrate the Web SDK manually — WordPress uses the official OneSignal plugin, which bundles the Web SDK. Stop here and follow the WordPress prompt instead:
+> `https://raw.githubusercontent.com/OneSignal/sdk-ai-prompts/main/docs/wordpress/ai-prompt.md`
+
 Before beginning the integration, detect the framework from the codebase, then confirm with the user and ask about language:
 
 1. **Framework**: Inspect the project (e.g. `package.json` dependencies, config files) to detect the framework, then confirm it with the user. Supported targets:
