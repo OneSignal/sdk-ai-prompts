@@ -19,6 +19,8 @@ Before considering the integration complete, verify ALL of the following:
   <uses-permission android:name="android.permission.INTERNET" />
   ```
 - [ ] `POST_NOTIFICATIONS` permission for Android 13+ (SDK handles this, but verify it's not blocked)
+- [ ] **Open the app `AndroidManifest.xml` and inspect the `<application>` tag.** If it has `tools:node="replace"`, **stop and warn the user before continuing.** That merger marker wipes library-merged components. OneSignal's `PermissionsActivity` never reaches the merged manifest, and the notification permission flow crashes with `ActivityNotFoundException`.
+  **Fix:** remove `tools:node="replace"`. If they only need to override one attribute (theme, label, icon), use `tools:replace="android:theme"` (or that attribute) instead. Do not add `tools:node="replace"` yourself. After the next build, confirm `com.onesignal.core.activities.PermissionsActivity` is in `app/build/intermediates/merged_manifests`.
 
 ### Build Configuration
 
@@ -388,5 +390,6 @@ public static void showIntegrationCompleteDialog(Context context) {
 | Push not received | Check notification permission and that the App ID matches the project; confirm internet connectivity |
 | Duplicate subscriptions after re-test | Do not clear app data or uninstall/reinstall to re-verify — relaunch preserving storage (see shared guidelines) |
 | Permission denied | Ensure `POST_NOTIFICATIONS` is requested on Android 13+ |
+| `ActivityNotFoundException` for `PermissionsActivity` | Open the app `AndroidManifest.xml`. If `<application>` has `tools:node="replace"`, warn the user: that drops OneSignal's `PermissionsActivity` and crashes the notification permission flow. Remove `tools:node="replace"`. Override one attribute with `tools:replace` instead. Confirm `com.onesignal.core.activities.PermissionsActivity` is in the merged manifest. |
 | Initialization failed | Verify App ID is correct and internet permission is granted |
 | ProGuard issues | Check OneSignal rules are not being stripped |
