@@ -1,0 +1,213 @@
+# OneSignal WordPress Integration Guide
+
+You are an expert WordPress integration agent with direct access to the developer's project files and, where available, a shell with WP-CLI.
+
+## Context
+
+This site is a **WordPress** site. Integrate OneSignal using the **official OneSignal WordPress plugin** — do **NOT** hand-integrate the OneSignal Web SDK into the theme.
+
+> **This is the single most important rule of this guide.** The plugin bundles the v16 Web SDK, injects the initialization snippet into every page via `wp_head`, serves the service worker from its own plugin directory, and sends notifications when posts are published. Manually adding the CDN snippet, a root `OneSignalSDKWorker.js` file, or custom `OneSignal.*` calls to a WordPress theme duplicates the plugin, conflicts with it, and is explicitly unsupported since plugin v3.
+
+## Official Documentation
+
+* [WordPress setup guide](https://documentation.onesignal.com/docs/wordpress)
+* [Plugin on WordPress.org](https://wordpress.org/plugins/onesignal-free-web-push-notifications/)
+* [Plugin source on GitHub](https://github.com/OneSignal/OneSignal-WordPress-Plugin)
+
+---
+
+## Credentials
+
+The integration needs two values from the OneSignal dashboard:
+
+1. **App ID** — used by the bundled Web SDK on the site's frontend.
+2. **REST API Key** — used server-side by the plugin to send notifications when posts are published. Either a Rich (per-app) or Legacy REST API key works.
+
+The App ID is provided in the user's prompt — the same message that linked you to this file. If it is missing, ask for it before proceeding. **Never** hardcode a demo or fallback App ID.
+
+Ask for the REST API Key when you are ready to configure the plugin (Step 3). Treat it as a **secret**:
+
+* It belongs only in the WordPress database (that is where the plugin stores it — obfuscated in the admin UI).
+* Never write it into a committed file, an example config, or the final summary.
+* If the user cannot share it, complete every other step and hand off entering the key via **WP Admin → OneSignal → Settings**.
+
+---
+
+## Step 1 — Detect First, Then Ask ONLY What Is Unknown
+
+Inspect the project before changing anything. Prefer detection over questions; state assumptions in the final summary.
+
+### Detect the WordPress setup
+
+* **Confirm it is WordPress**: `wp-config.php`, a `wp-content/` directory, a Bedrock-style `composer.json` (`roots/wordpress`, `wpackagist-*` packages), `wp-env` config, or a `docker-compose.yml` with a WordPress image.
+* **How plugins are managed** — this decides the install path in Step 2:
+  - Composer-managed (Bedrock / `wpackagist-plugin/*` dependencies) → install via Composer
+  - Plugins directory in the repo / plain server → install via WP-CLI
+  - No file or shell access to the live site → hand off manual installation via WP Admin
+* **Whether WP-CLI is available**, and how to reach it: directly (`wp`), through Docker (`docker compose exec <service> wp`), or through wp-env (`npx wp-env run cli wp`).
+* **Which URL serves the site** locally and in production. Web push requires **HTTPS** (or `localhost` for development).
+
+### Detect existing OneSignal state
+
+* **Plugin already installed?** Check `wp-content/plugins/onesignal-free-web-push-notifications/` or `wp plugin list`.
+* **Legacy (v2) configuration?** If the `OneSignalWPSetting` option already has an `app_id` but the `onesignal_plugin_migrated` option is not set, the plugin loads its **v2 code path** and shows a migration notice. Do not hand-edit options to force v3 — direct the user through the plugin's built-in migration flow, then continue.
+* **Custom Web SDK code in the theme?** Search the theme and mu-plugins for `OneSignal`, `OneSignalDeferred`, `OneSignalSDK`, or a root-level `OneSignalSDKWorker.js`. Plugin v3 requires such code to be **removed** — flag anything you find, and remove it only with the user's confirmation.
+
+### Version control (only ask if the project has a git repository)
+
+If a `.git` directory exists, ask whether to create an `onesignal-integration` branch or commit to the current branch — same options as any OneSignal integration. Note the WordPress twist: plugin activation and settings live in the **database**, so parts of this integration may produce no committable diff. Commit whatever the repo does track (e.g. `composer.json` / `composer.lock`, or the plugin directory if plugins are vendored).
+
+---
+
+## Step 2 — Install and Activate the Plugin
+
+Install the **latest** plugin release from the WordPress plugin directory. Do **not** pin a specific plugin version and do not consult the SDK releases JSON — the plugin directory is the source of truth, and it bundles the correct Web SDK.
+
+> **Order matters: activate the plugin before writing any settings.** On a fresh install, the plugin marks itself migrated to v3 the first time it loads. If `OneSignalWPSetting` is created with an `app_id` *before* the plugin has ever loaded, it will boot into the legacy v2 code path instead.
+
+### Path A — WP-CLI (plain WordPress, Docker, wp-env)
+
+```bash
+wp plugin install onesignal-free-web-push-notifications --activate
+```
+
+### Path B — Composer (Bedrock and similar)
+
+```bash
+composer require wpackagist-plugin/onesignal-free-web-push-notifications
+wp plugin activate onesignal-free-web-push-notifications
+```
+
+(Requires the standard `wpackagist.org` repository entry in `composer.json`; Bedrock has it by default.)
+
+### Path C — No shell or file access (handoff)
+
+Instruct the user: **WP Admin → Plugins → Add New Plugin → search "OneSignal" → Install Now → Activate**. Then continue with the configuration handoff in Step 3.
+
+---
+
+## Step 3 — Configure App ID and REST API Key
+
+The plugin stores all settings in a single array option named `OneSignalWPSetting`. Activation pre-creates it with defaults.
+
+### Via WP-CLI
+
+Inspect the current settings, then insert or update the two keys (`patch insert` for keys not present yet, `patch update` for existing ones):
+
+```bash
+wp option get OneSignalWPSetting --format=json
+
+wp option patch insert OneSignalWPSetting app_id "YOUR_ONESIGNAL_APP_ID"
+wp option patch insert OneSignalWPSetting app_rest_api_key "YOUR_REST_API_KEY"
+```
+
+Do not echo the REST API key back into chat output or the final summary after running these commands.
+
+### Via WP Admin (fallback / handoff)
+
+**WP Admin → OneSignal → Settings**: paste the App ID and REST API Key, then **Save Settings**.
+
+### Optional behavior settings — leave at defaults unless asked
+
+`OneSignalWPSetting` also holds notification-behavior flags (`notification_on_post`, `notification_on_page`, `notification_on_post_update`, `notification_on_page_update`, `notification_on_post_from_plugin`, `send_to_mobile_platforms`, `utm_additional_url_params`, `allowed_custom_post_types`). Do **not** change them unless the user explicitly requests a behavior. Post authors can always send per-post from the OneSignal metabox in the editor.
+
+---
+
+## What the Plugin Already Does (Do NOT Re-implement)
+
+With the plugin active and configured, every frontend page automatically gets:
+
+* A `<meta name="onesignal-plugin" content="wordpress-…">` tag (useful for verification)
+* The v16 Web SDK loaded from `https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js`
+* `OneSignal.init(...)` with the configured App ID
+* A service worker served from the **plugin's own directory** — `…/wp-content/plugins/onesignal-free-web-push-notifications/sdk_files/OneSignalSDKWorker.js`, registered under a plugin-scoped path. **No file at the site root is needed.**
+
+Therefore:
+
+* Do **NOT** create `OneSignalSDKWorker.js` at the site root or in the theme.
+* Do **NOT** add the CDN `<script>` snippet or an `OneSignal.init` call to the theme.
+* Do **NOT** call `OneSignal.*` / push `OneSignalDeferred` callbacks from theme code.
+* Do **NOT** build a wrapper module, verification dialog, or permission-prompt code. Opt-in prompts (slide prompt, bell, native prompt) are configured in the **OneSignal dashboard**, not in code — this replaces the verification-dialog step used by the code-level SDK prompts.
+
+---
+
+## Dashboard Prerequisites (Developer Action)
+
+These live in the OneSignal dashboard and cannot be completed from the codebase — call them out in the final summary:
+
+- [ ] A OneSignal app exists with the Web platform configured as **WordPress Plugin or Website Builder → WordPress** ([setup guide](https://documentation.onesignal.com/docs/wordpress))
+- [ ] **Site URL** exactly matches the site's origin (for local testing, use a separate OneSignal app whose Site URL is the localhost URL)
+- [ ] App ID and REST API Key copied from the dashboard into the plugin settings
+- [ ] Opt-in prompting (slide prompt / bell) configured in the dashboard's web settings
+
+---
+
+## Verification
+
+### What the agent can and should verify
+
+- [ ] Plugin installed and active: `wp plugin is-active onesignal-free-web-push-notifications` (exit code 0), or the plugin appears active in `wp plugin list`
+- [ ] `wp option get OneSignalWPSetting --format=json` shows the correct `app_id` and a non-empty `app_rest_api_key`
+- [ ] The rendered frontend contains the plugin meta tag and SDK script — e.g. on a running site:
+
+  ```bash
+  curl -s http://localhost:8080/ | grep -E "onesignal-plugin|OneSignalSDK.page.js"
+  ```
+
+- [ ] The service worker is reachable and served as JavaScript:
+
+  ```bash
+  curl -sI http://localhost:8080/wp-content/plugins/onesignal-free-web-push-notifications/sdk_files/OneSignalSDKWorker.js
+  ```
+
+  Expect HTTP 200 with a JavaScript content type.
+- [ ] No leftover manual Web SDK code in the theme (Step 1 detection came back clean, or removals were confirmed)
+
+If a page-cache plugin is active (WP Super Cache, W3 Total Cache, LiteSpeed, etc.), flush its cache before checking the frontend — cached pages predate the plugin's head output.
+
+### What only the developer can verify (report as a handoff, do not claim done)
+
+- [ ] Dashboard configured per the prerequisites above
+- [ ] Site loads over HTTPS (or localhost) in a normal, non-incognito window and shows the configured opt-in prompt
+- [ ] After opting in, a subscription appears under **Audience → Subscriptions** in the dashboard
+- [ ] Publishing a post with "Send notification on publish" checked (or a dashboard test push) delivers a notification
+
+> **Do not publish test posts on a production site** to verify sending — with auto-send or the metabox checkbox enabled this pushes a real notification to all subscribers. Leave send verification to the developer unless the user explicitly asks and confirms the environment is safe.
+
+---
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Plugin admin shows the old (v2) UI and a migration notice | Legacy settings predate v3 — complete the plugin's migration flow; don't hand-edit `onesignal_plugin_migrated` |
+| No SDK script/meta tag in the page head | Plugin inactive, page cache serving stale HTML (flush it), or a theme that doesn't call `wp_head()` |
+| Prompt never appears | Prompting is configured in the OneSignal dashboard, not the plugin; also confirm HTTPS and that the dashboard Site URL matches the origin |
+| Two service workers / conflicts after a previous manual install | Remove the manual snippet and root worker file; the plugin auto-unregisters its own legacy `OneSignalSDKWorker.js.php` worker but not custom ones |
+| Notification fails on publish | `app_rest_api_key` missing or wrong in plugin settings; check the key in **OneSignal → Settings** |
+| Works in prod, not locally | Local origin needs its own OneSignal app with a matching localhost Site URL |
+
+---
+
+## Final Summary (Output in Chat)
+
+Output a clean, copy-ready summary. Do NOT automatically create a PR — many WordPress changes live in the database, not the repo.
+
+Include:
+
+* How the plugin was installed (WP-CLI / Composer / manual handoff) and activated
+* What was configured (App ID value; REST API key **set but never printed**)
+* Any legacy v2 settings or manual Web SDK code found, and what was done about it
+* Which verification checks you ran and their results
+* The dashboard prerequisites and developer-only verification steps that remain
+* If the project is a git repo: what was committed vs. what exists only in the database
+
+## Constraints Recap
+
+* Use the official plugin — never a manual Web SDK integration in the theme.
+* Activate the plugin **before** writing `OneSignalWPSetting`.
+* Install the latest plugin release; do not pin versions or use the SDK releases JSON.
+* Never hardcode a demo App ID; never print or commit the REST API key.
+* Do not change notification-behavior settings unless asked.
+* Do not send test notifications from a production site without explicit user confirmation.
+* Keep changes scoped: no theme refactors, no extra plugins, no custom prompt/permission code.

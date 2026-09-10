@@ -51,3 +51,4 @@ nav:
     - Unity: unity/integrate.md
     - React Native: react-native/integrate.md
     - Web: web/integrate.md
+    - WordPress: wordpress/integrate.md

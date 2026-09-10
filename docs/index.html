@@ -132,6 +132,18 @@
               <p>Browser push setup for HTML, React, Next.js, Vue, and Angular sites.</p>
             </div>
           </a>
+
+          <a href="?platform=wordpress" class="platform-card">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zM3.5 12c0-1.232.264-2.402.736-3.459l4.06 11.123C5.462 18.294 3.5 15.377 3.5 12zm8.5 8.5c-.834 0-1.64-.122-2.402-.346l2.552-7.414 2.614 7.161c.017.042.038.08.06.117A8.463 8.463 0 0 1 12 20.5zm1.172-12.485c.512-.027.973-.081.973-.081.458-.054.404-.727-.054-.7 0 0-1.376.108-2.265.108-.834 0-2.238-.108-2.238-.108-.459-.027-.512.673-.054.7 0 0 .434.054.892.081l1.324 3.629-1.86 5.578-3.096-9.207c.512-.027.973-.081.973-.081.458-.054.404-.727-.054-.7 0 0-1.376.108-2.265.108-.16 0-.347-.004-.547-.01A8.482 8.482 0 0 1 12 3.5c2.213 0 4.228.846 5.74 2.232-.037-.002-.072-.007-.11-.007-.834 0-1.426.727-1.426 1.508 0 .7.404 1.292.834 1.992.323.566.7 1.292.7 2.342 0 .727-.28 1.57-.646 2.746l-.847 2.83-3.073-9.128zm3.1 11.332l2.596-7.506c.485-1.213.646-2.182.646-3.045 0-.313-.02-.603-.057-.874A8.455 8.455 0 0 1 20.5 12a8.489 8.489 0 0 1-4.228 7.347z"/>
+              </svg>
+            </div>
+            <div class="platform-card-content">
+              <h3>WordPress</h3>
+              <p>Official plugin setup for WordPress sites — no manual SDK code needed.</p>
+            </div>
+          </a>
         </div>
 
         <section class="how-it-works">
@@ -295,6 +307,12 @@
       web: {
         name: 'Web',
         description: 'JavaScript SDK integration for HTML, React, Next.js, Vue, and Angular sites.'
+      },
+      wordpress: {
+        name: 'WordPress',
+        description: 'Official OneSignal plugin setup for WordPress sites — no manual SDK code needed.',
+        pageTitle: 'WordPress Plugin Integration',
+        bootstrapIntro: 'Set up OneSignal push notifications on this WordPress site using the official OneSignal plugin.'
       }
     };
 
@@ -311,9 +329,10 @@
       integrationView.style.display = 'block';
       
       const platformInfo = platforms[platform];
-      document.getElementById('pageTitle').textContent = `${platformInfo.name} SDK Integration`;
+      const pageTitle = platformInfo.pageTitle || `${platformInfo.name} SDK Integration`;
+      document.getElementById('pageTitle').textContent = pageTitle;
       document.getElementById('pageDescription').textContent = platformInfo.description;
-      document.title = `${platformInfo.name} SDK Integration - OneSignal AI Prompts`;
+      document.title = `${pageTitle} - OneSignal AI Prompts`;
 
       // URLs
       const siteUrl = 'https://onesignal.github.io/sdk-ai-prompts';
@@ -323,7 +342,8 @@
       
       // Generate bootstrap prompt - single URL to combined ai-prompt.md
       const rawBaseUrl = 'https://raw.githubusercontent.com/OneSignal/sdk-ai-prompts/main/docs';
-      const bootstrapPrompt = `Integrate the OneSignal SDK into this codebase.
+      const bootstrapIntro = platformInfo.bootstrapIntro || 'Integrate the OneSignal SDK into this codebase.';
+      const bootstrapPrompt = `${bootstrapIntro}
 
 Follow the instructions at:
 ${rawBaseUrl}/${platform}/ai-prompt.md`;
