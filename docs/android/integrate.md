@@ -185,6 +185,9 @@ Rules that matter when writing the call:
   unsubscribes it. Leave the flag unset to send no status, which subscribes a new address and
   leaves an existing address's status unchanged. Setting the flag is the only way to
   resubscribe an address that previously opted out, which `addEmail()` and `addSms()` cannot do.
+* **Do not key the flag off whether you have the address.** Having a user's email is not
+  consent, and `true` resubscribes someone who opted out. Set it only from a real signal, such
+  as a checkbox the user just ticked. If the app has no such signal, leave it unset.
 * Do not pass an email or phone number the user typed without verifying it. An address that
   already belongs to another user moves to whoever logs in. Pair it with Identity Verification.
 * Ordering no longer matters for anything in the profile, because it ships inside the login
@@ -213,21 +216,28 @@ class OneSignalManager @Inject constructor(
     /**
      * Identifies the user and sets their email, SMS, and tags in one request.
      * Pass only what you have; every profile field is optional.
+     *
+     * Leave [emailSubscribed] / [smsSubscribed] null unless the user actually
+     * opted in or out. Passing true resubscribes an address that opted out, so
+     * having the address is not a reason to send a status.
      */
     suspend fun login(
         externalId: String,
         email: String? = null,
         smsE164: String? = null,
-        tags: Map<String, String> = emptyMap()
+        tags: Map<String, String> = emptyMap(),
+        emailSubscribed: Boolean? = null,
+        smsSubscribed: Boolean? = null
     ): OneSignalResult<LoginData> = withContext(Dispatchers.IO) {
         val profile = OneSignalUserProfile.builder()
             .setEmail(email)
             .setSms(smsE164)
             .setTags(tags)
             .apply {
-                // Only state a status when the app knows the user's intent.
-                if (email != null) setEmailEnabled(true)
-                if (smsE164 != null) setSmsEnabled(true)
+                // Set a status only where the user actually expressed intent.
+                // Null leaves an existing address's status untouched.
+                emailSubscribed?.let { setEmailEnabled(it) }
+                smsSubscribed?.let { setSmsEnabled(it) }
             }
             .build()
 
@@ -279,9 +289,10 @@ class MainViewModel @Inject constructor(
         }
     }
     
-    fun login(externalId: String, email: String?, smsE164: String?) {
+    // emailSubscribed comes from a real opt-in signal, not from having the address.
+    fun login(externalId: String, email: String?, smsE164: String?, emailSubscribed: Boolean?) {
         viewModelScope.launch {
-            val result = oneSignalManager.login(externalId, email, smsE164)
+            val result = oneSignalManager.login(externalId, email, smsE164, emailSubscribed = emailSubscribed)
             if (!result.isSuccess) {
                 // The device is on the new external ID either way, so report and move on.
                 Log.w("OneSignal", "Login failed: ${result.error?.first?.message}")
