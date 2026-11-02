@@ -324,13 +324,20 @@ class OneSignalManager @Inject constructor(
         OneSignal.initWithContext(appContext, appId)
     }
     
-    suspend fun login(externalId: String) = withContext(ioDispatcher) {
-        OneSignal.login(externalId)
+    suspend fun login(
+        externalId: String,
+        profile: OneSignalUserProfile
+    ): OneSignalResult<LoginData> = withContext(ioDispatcher) {
+        OneSignal.login(externalId, profile)
     }
 }
 ```
 
 ### Java (Executors)
+
+`OneSignal.login(externalId, profile)` is a Kotlin `suspend` function. From Java, pass
+`Continue.with` as the trailing argument instead of calling it on an executor. It requires
+Android API level 24 or later, and its callback may not run on the main thread.
 
 ```java
 public class OneSignalManager {
@@ -343,6 +350,20 @@ public class OneSignalManager {
             // Initialize OneSignal
             OneSignal.initWithContext(context, appId);
         });
+    }
+
+    public void login(String externalId, OneSignalUserProfile profile) {
+        OneSignal.login(externalId, profile, Continue.with(continueResult -> {
+            if (!continueResult.isSuccess()) {
+                Log.w("OneSignal", "Login threw", continueResult.getThrowable());
+                return;
+            }
+            OneSignalResult<LoginData> result = continueResult.getData();
+            if (!result.isSuccess()) {
+                Log.w("OneSignal", "Login failed: "
+                        + result.getError().getFirst().getMessage());
+            }
+        }));
     }
 }
 ```
@@ -367,6 +388,36 @@ dependencies {
 }
 ```
 
+`login(externalId, profile)` was added in 5.11.0. If the project pins an older version, either
+raise the pin or fall back to `login(externalId)` plus `addEmail()` / `addSms()` / `addTag()`.
+
+### Identifying users: use `login(externalId, profile)`
+
+On SDK 5.11.0 and later this is the method to reach for. It sends the external ID together
+with the user's email, SMS number, tags, and aliases as a single Create User request, and it
+returns a `OneSignalResult<LoginData>` so the caller can see whether it worked. Build the
+profile with `OneSignalUserProfile.builder()`; every field is optional.
+
+Use identity-only `login(externalId)` only when you have nothing but the user's ID at
+sign-in, then add the rest with `addEmail()` / `addSms()` / `addTag()` afterward.
+
+Rules that matter when writing the call:
+
+* It is a `suspend` function. Call it from a coroutine in Kotlin, or pass `Continue.with` in Java.
+* `setSms()` requires E.164 with the leading `+` (for example `+15551234567`). A malformed
+  number returns `INVALID_ARGUMENT` and sends no request.
+* `setEmailEnabled(true)` / `setSmsEnabled(true)` subscribe that address, and `false`
+  unsubscribes it. Leave the flag unset to send no status, which subscribes a new address and
+  leaves an existing address's status unchanged. Setting the flag is the only way to
+  resubscribe an address that previously opted out, which `addEmail()` and `addSms()` cannot do.
+* **Do not key the flag off whether you have the address.** Having a user's email is not
+  consent, and `true` resubscribes someone who opted out. Set it only from a real signal, such
+  as a checkbox the user just ticked. If the app has no such signal, leave it unset.
+* Do not pass an email or phone number the user typed without verifying it. An address that
+  already belongs to another user moves to whoever logs in. Pair it with Identity Verification.
+* Ordering no longer matters for anything in the profile, because it ships inside the login
+  request. The "login before tags/email/sms" rule still applies to the granular methods.
+
 ### Centralized Manager (Kotlin)
 
 Create a singleton manager that wraps all OneSignal SDK calls:
@@ -387,14 +438,42 @@ class OneSignalManager @Inject constructor(
         isInitialized = true
     }
     
-    suspend fun login(externalId: String) = withContext(Dispatchers.IO) {
-        OneSignal.login(externalId)
+    /**
+     * Identifies the user and sets their email, SMS, and tags in one request.
+     * Pass only what you have; every profile field is optional.
+     *
+     * Leave [emailSubscribed] / [smsSubscribed] null unless the user actually
+     * opted in or out. Passing true resubscribes an address that opted out, so
+     * having the address is not a reason to send a status.
+     */
+    suspend fun login(
+        externalId: String,
+        email: String? = null,
+        smsE164: String? = null,
+        tags: Map<String, String> = emptyMap(),
+        emailSubscribed: Boolean? = null,
+        smsSubscribed: Boolean? = null
+    ): OneSignalResult<LoginData> = withContext(Dispatchers.IO) {
+        val profile = OneSignalUserProfile.builder()
+            .setEmail(email)
+            .setSms(smsE164)
+            .setTags(tags)
+            .apply {
+                // Set a status only where the user actually expressed intent.
+                // Null leaves an existing address's status untouched.
+                emailSubscribed?.let { setEmailEnabled(it) }
+                smsSubscribed?.let { setSmsEnabled(it) }
+            }
+            .build()
+
+        OneSignal.login(externalId, profile)
     }
-    
+
     suspend fun logout() = withContext(Dispatchers.IO) {
         OneSignal.logout()
     }
-    
+
+    /** Use when the user supplies an address after sign-in. Always sends it subscribed. */
     suspend fun setEmail(email: String) = withContext(Dispatchers.IO) {
         OneSignal.User.addEmail(email)
     }
@@ -435,9 +514,14 @@ class MainViewModel @Inject constructor(
         }
     }
     
-    fun login(externalId: String) {
+    // emailSubscribed comes from a real opt-in signal, not from having the address.
+    fun login(externalId: String, email: String?, smsE164: String?, emailSubscribed: Boolean?) {
         viewModelScope.launch {
-            oneSignalManager.login(externalId)
+            val result = oneSignalManager.login(externalId, email, smsE164, emailSubscribed = emailSubscribed)
+            if (!result.isSuccess) {
+                // The device is on the new external ID either way, so report and move on.
+                Log.w("OneSignal", "Login failed: ${result.error?.first?.message}")
+            }
         }
     }
     
