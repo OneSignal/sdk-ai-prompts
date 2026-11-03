@@ -83,10 +83,11 @@ If the app already uses CocoaPods (`ios/Podfile` present):
 
 ```ruby
 target 'OneSignalNotificationServiceExtension' do
-  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
-  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
+  pod 'OneSignalXCFramework', '>= 5.0.0', '< 6.0'
 end
 ```
+
+This must match what `onesignal_flutter`'s podspec requests: the aggregate pod by default, or `OneSignalXCFramework/OneSignal` plus `OneSignalXCFramework/OneSignalInAppMessages` when `ONESIGNAL_DISABLE_LOCATION=true` (see the shared **CocoaPods projects — Podfile block**). A mismatch fails the build with "Multiple commands produce".
 
 Prefer nesting the NSE target under the main app target with `inherit! :search_paths` when that matches the project's Podfile style and avoids duplicate OneSignal framework copies.
 
@@ -267,6 +268,7 @@ In the Changes Summary, for each platform selected in Step 1:
 | Issue | Solution |
 |-------|----------|
 | iOS build fails | Run `cd ios && pod install --repo-update` |
+| `Multiple commands produce '.../XCFrameworkIntermediates/OneSignalXCFramework/...'` | The NSE and the app request different `OneSignalXCFramework` subspecs. Make the NSE block match the plugin's podspec (see **CocoaPods projects**), then `pod install` |
 | Android build fails | Sync Gradle and check the error; if it mentions `minSdkVersion`, raise it to what the error asks |
 | `Plugin [id: 'com.google.gms.google-services'] was not found` | Add `google()` to `pluginManagement { repositories }` in `android/settings.gradle` |
 | Incompatible AGP version | Update Android Studio; ask before lowering AGP |

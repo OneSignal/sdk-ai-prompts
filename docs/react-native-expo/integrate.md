@@ -249,14 +249,17 @@ Wraps every OneSignal call. Initialization only: no login, email, SMS, or tag me
 ```typescript
 import { OneSignal, LogLevel } from 'react-native-onesignal';
 
+// The App ID from Step 1, or the YOUR_APP_ID placeholder if it was skipped.
+const ONESIGNAL_APP_ID = 'YOUR_APP_ID';
+
 let isInitialized = false;
 
 export const OneSignalService = {
-  initialize(appId: string): void {
+  initialize(): void {
     if (isInitialized) return;
     // Enable verbose logging for debugging (remove in production)
     OneSignal.Debug.setLogLevel(LogLevel.Verbose);
-    OneSignal.initialize(appId);
+    OneSignal.initialize(ONESIGNAL_APP_ID);
     isInitialized = true;
   },
 
@@ -273,7 +276,7 @@ export const OneSignalService = {
 
 ### Root Component
 
-Follows the official setup guide: initialize and request permission in a `useEffect` in the root component. Use `App.tsx` / `App.js` for traditional Expo apps, or `app/_layout.tsx` / `app/_layout.js` for Expo Router. Replace `YOUR_APP_ID` with the App ID from Step 1. Keep the component's existing content; only add the effect.
+Follows the official setup guide: initialize and request permission in a `useEffect` in the root component. Use `App.tsx` / `App.js` for traditional Expo apps, or `app/_layout.tsx` / `app/_layout.js` for Expo Router. The App ID lives only in the service. Keep the component's existing content; only add the effect.
 
 ```typescript
 import React, { useEffect } from 'react';
@@ -282,7 +285,7 @@ import { OneSignalService } from '../src/services/oneSignalService';
 
 export default function RootLayout() {
   useEffect(() => {
-    OneSignalService.initialize('YOUR_APP_ID');
+    OneSignalService.initialize();
     // In production, consider an in-app message instead for better opt-in rates.
     OneSignalService.requestPushPermission();
   }, []);

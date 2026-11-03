@@ -117,14 +117,17 @@ Wraps every OneSignal call. Initialization only: no login, email, SMS, or tag me
 ```typescript
 import { OneSignal, LogLevel } from 'react-native-onesignal';
 
+// The App ID from Step 1, or the YOUR_APP_ID placeholder if it was skipped.
+const ONESIGNAL_APP_ID = 'YOUR_APP_ID';
+
 let isInitialized = false;
 
 export const OneSignalService = {
-  initialize(appId: string): void {
+  initialize(): void {
     if (isInitialized) return;
     // Enable verbose logging for debugging (remove in production)
     OneSignal.Debug.setLogLevel(LogLevel.Verbose);
-    OneSignal.initialize(appId);
+    OneSignal.initialize(ONESIGNAL_APP_ID);
     isInitialized = true;
   },
 
@@ -141,7 +144,7 @@ export const OneSignalService = {
 
 ### Root Component (App.tsx / App.js)
 
-Follows the official setup guide: initialize and request permission in a `useEffect`. Replace `YOUR_APP_ID` with the App ID from Step 1. Keep the component's existing content; only add the effect.
+Follows the official setup guide: initialize and request permission in a `useEffect`. The App ID lives only in the service. Keep the component's existing content; only add the effect.
 
 ```typescript
 import React, { useEffect } from 'react';
@@ -149,7 +152,7 @@ import { OneSignalService } from './src/services/oneSignalService';
 
 export default function App() {
   useEffect(() => {
-    OneSignalService.initialize('YOUR_APP_ID');
+    OneSignalService.initialize();
     // In production, consider an in-app message instead for better opt-in rates.
     OneSignalService.requestPushPermission();
   }, []);
@@ -207,15 +210,15 @@ Bare React Native projects have a native iOS project under `ios/`. Complete the 
 
 ### 1. Add the NSE Pod Target
 
-Add this block to `ios/Podfile` (official guide), after the app target:
+Add this block to `ios/Podfile`, after the app target:
 
 ```ruby
 target 'OneSignalNotificationServiceExtension' do
-  pod 'OneSignalXCFramework/OneSignal', '>= 5.0.0', '< 6.0'
+  pod 'OneSignalXCFramework', '>= 5.0.0', '< 6.0'
 end
 ```
 
-Use the modular subspec, not the aggregate `pod 'OneSignalXCFramework'`.
+The NSE must request the same `OneSignalXCFramework` subspecs as `react-native-onesignal`'s podspec, or Xcode fails with `Multiple commands produce '.../XCFrameworkIntermediates/OneSignalXCFramework/...'`. By default the podspec uses the aggregate pod, as above. With `ONESIGNAL_DISABLE_LOCATION=true`, list `OneSignalXCFramework/OneSignal` and `OneSignalXCFramework/OneSignalInAppMessages` instead (see the shared **CocoaPods projects — Podfile block**).
 
 ### 2. Install pods and build
 
@@ -267,6 +270,7 @@ In the Changes Summary, for each platform selected in Step 1:
 | Issue | Solution |
 |-------|----------|
 | Pod install fails | Delete `Podfile.lock`, `Pods/` folder, and `.xcworkspace`, then run `pod install` again |
+| `Multiple commands produce '.../XCFrameworkIntermediates/OneSignalXCFramework/...'` | The NSE and the app request different `OneSignalXCFramework` subspecs. Make the NSE block match the podspec (see **1. Add the NSE Pod Target**), then `pod install` |
 | Bundle install fails with Ruby errors | Skip bundler, use global CocoaPods: `cd ios && pod install` |
 | Notifications without images | Ensure the shared iOS Notification Service Extension setup is complete |
 | No Confirmed Delivery stat | Verify NSE + App Group setup; dashboard display requires a paid OneSignal plan |
