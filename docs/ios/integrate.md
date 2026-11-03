@@ -2,8 +2,10 @@
 
 ## Official Documentation
 
-* [OneSignal iOS SDK Setup](https://documentation.onesignal.com/docs/ios-sdk-setup)
+* [OneSignal iOS SDK Setup](https://documentation.onesignal.com/docs/en/ios-sdk-setup)
 * [GitHub Repository](https://github.com/OneSignal/OneSignal-iOS-SDK)
+
+If this file and the official [iOS SDK setup](https://documentation.onesignal.com/docs/en/ios-sdk-setup) page disagree, follow the official page.
 
 ---
 
@@ -15,14 +17,20 @@ Before considering the integration complete, verify ALL of the following. For NS
 
 - [ ] Shared iOS Push Infrastructure required outcomes are all satisfied (NSE, App Group, entitlements, Background Modes, embed phase)
 - [ ] Push Notifications capability is enabled on the main app target (via entitlements / Signing & Capabilities)
-- [ ] Minimum deployment target is iOS 12.0 or higher (iOS 16.2+ recommended); do not lower an existing higher target
+- [ ] Minimum deployment target is iOS 15.0 or higher (iOS 16.2+ recommended), per the official setup guide; do not lower an existing higher target
 - [ ] `NSAppTransportSecurity` allows HTTPS (default; usually no changes)
 - [ ] Signed app entitlements verified (`codesign -d --entitlements -` shows `aps-environment` + App Group); do not disable code signing on CLI builds
 
 ### Initialization
 
-- [ ] OneSignal is initialized in `AppDelegate.application(_:didFinishLaunchingWithOptions:)`
-- [ ] For SwiftUI apps using `@main`, use `init()` or `.onAppear` in the root view
+- [ ] OneSignal is initialized in `AppDelegate.application(_:didFinishLaunchingWithOptions:)`, as in the official setup guide
+- [ ] SwiftUI apps (`@main struct ... : App`) add an `AppDelegate` with `@UIApplicationDelegateAdaptor` and initialize there. Don't initialize in a view's `init()` or `.onAppear`.
+- [ ] Initialize on the main thread, directly in `didFinishLaunchingWithOptions`. Don't move it to a background queue or `Task`.
+- [ ] Push permission is requested right after initialization (see **Push Permission Request**)
+
+### Notification Icons
+
+iOS uses the app icon for notifications; no extra step.
 
 ---
 
@@ -31,6 +39,7 @@ Before considering the integration complete, verify ALL of the following. For NS
 Complete the "Shared iOS Push Infrastructure" section earlier in this document. It is the single source of truth for the Notification Service Extension, App Group, Background Modes, entitlements, project target wiring, dependency mapping, and verification steps.
 
 Do NOT skip that section. It is part of the minimal iOS integration because Confirmed Delivery, rich notifications, action buttons, and badges depend on it.
+
 ---
 
 ## Architecture Guidance
@@ -69,77 +78,7 @@ YourApp/
 │   └── OneSignalManager.swift
 ├── Views/
 │   └── ...
-└── YourApp.swift                       # @main entry point
-```
-
----
-
-## Threading Model (Optional)
-
-For advanced use cases where you need explicit threading control:
-
-### Swift (async/await)
-
-```swift
-actor OneSignalManager {
-    static let shared = OneSignalManager()
-
-    func initialize(appId: String, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) async {
-        await Task.detached(priority: .background) {
-            // Set log level for debugging (remove in production)
-            OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-            // Initialize OneSignal (launchOptions is nil outside AppDelegate)
-            OneSignal.initialize(appId, withLaunchOptions: launchOptions)
-        }.value
-    }
-
-    func login(externalId: String) async {
-        await Task.detached(priority: .background) {
-            OneSignal.login(externalId)
-        }.value
-    }
-}
-```
-
-### Swift (GCD)
-
-```swift
-class OneSignalManager {
-    static let shared = OneSignalManager()
-    private let queue = DispatchQueue(label: "com.app.onesignal", qos: .background)
-
-    func initialize(appId: String, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) {
-        queue.async {
-            // Set log level for debugging (remove in production)
-            OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-            // Initialize OneSignal (launchOptions is nil outside AppDelegate)
-            OneSignal.initialize(appId, withLaunchOptions: launchOptions)
-        }
-    }
-}
-```
-
-### Objective-C
-
-```objc
-@implementation OneSignalManager
-
-+ (instancetype)shared {
-    static OneSignalManager *instance = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        instance = [[self alloc] init];
-    });
-    return instance;
-}
-
-- (void)initializeWithAppId:(NSString *)appId {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
-        [OneSignal initialize:appId withLaunchOptions:nil];
-    });
-}
-
-@end
+└── YourApp.swift                       # @main entry point + AppDelegate adaptor
 ```
 
 ---
@@ -167,15 +106,21 @@ When resolving or building **Swift Package Manager** packages from the CLI, pass
 
 ### Dependency (CocoaPods)
 
+Requires CocoaPods 1.16.2+. Use the official guide's Podfile and version range exactly:
+
 ```ruby
 # Podfile
+# If platform is uncommented, set to the same value as your minimum deployments target in Xcode
+# platform :ios, '15.0'
+
 target 'YourAppName' do
-  pod 'OneSignalXCFramework', '~> 5.0'
+  pod 'OneSignal/OneSignal', '>= 5.2.9', '< 6.0'
+  pod 'OneSignal/OneSignalInAppMessages', '>= 5.2.9', '< 6.0'
+  pod 'OneSignal/OneSignalLocation', '>= 5.2.9', '< 6.0' # Optional
 end
 
 target 'OneSignalNotificationServiceExtension' do
-  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
-  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
+  pod 'OneSignal/OneSignal', '>= 5.2.9', '< 6.0'
 end
 ```
 
@@ -185,53 +130,11 @@ Then run:
 pod install
 ```
 
-### AppDelegate (Swift)
-
-```swift
-import OneSignalFramework
-
-@main
-class AppDelegate: UIResponder, UIApplicationDelegate {
-
-    func application(
-        _ application: UIApplication,
-        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
-    ) -> Bool {
-        // Set log level for debugging (remove in production)
-        OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-        // Initialize OneSignal
-        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: launchOptions)
-
-        return true
-    }
-}
-```
-
-### SwiftUI App (Swift)
-
-```swift
-import SwiftUI
-import OneSignalFramework
-
-@main
-struct YourApp: App {
-
-    init() {
-        // Set log level for debugging (remove in production)
-        OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-        // Initialize OneSignal (no launchOptions in the SwiftUI lifecycle — pass nil)
-        OneSignal.initialize("YOUR_ONESIGNAL_APP_ID", withLaunchOptions: nil)
-    }
-
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-    }
-}
-```
+Report the resolved version from `Podfile.lock` in the summary.
 
 ### Centralized Manager (Swift)
+
+Wraps every OneSignal call. Initialization only: no login, email, SMS, or tag methods (see **Scope: initialization only** in the shared guidelines).
 
 ```swift
 import UIKit
@@ -242,31 +145,18 @@ final class OneSignalManager {
 
     private init() {}
 
-    func initialize(appId: String, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) {
-        // Set log level for debugging (remove in production)
+    /// Call from application(_:didFinishLaunchingWithOptions:), before any other OneSignal call.
+    func initialize(appId: String, launchOptions: [UIApplication.LaunchOptionsKey: Any]?) {
+        // Enable verbose logging to debug issues (remove in production)
         OneSignal.Debug.setLogLevel(.LL_VERBOSE)
-        // Initialize OneSignal (pass launchOptions from AppDelegate; nil elsewhere)
         OneSignal.initialize(appId, withLaunchOptions: launchOptions)
     }
 
-    func login(externalId: String) {
-        OneSignal.login(externalId)
-    }
-
-    func logout() {
-        OneSignal.logout()
-    }
-
-    func setEmail(_ email: String) {
-        OneSignal.User.addEmail(email)
-    }
-
-    func setSmsNumber(_ number: String) {
-        OneSignal.User.addSms(number)
-    }
-
-    func setTag(key: String, value: String) {
-        OneSignal.User.addTag(key: key, value: value)
+    /// fallbackToSettings: false, as in the official guide.
+    func requestPushPermission() {
+        OneSignal.Notifications.requestPermission({ accepted in
+            print("User accepted notifications: \(accepted)")
+        }, fallbackToSettings: false)
     }
 
     func setLogLevel(_ level: ONE_S_LOG_LEVEL) {
@@ -275,138 +165,105 @@ final class OneSignalManager {
 }
 ```
 
----
+### SwiftUI App (Swift)
 
-## Push Subscription Verification Dialog
-
-After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully. When the subscription ID is received, show a dialog and request push permission on tap.
-
-### SwiftUI
-
-OneSignal stores push subscription observers weakly. Retain the observer in `@State` (or equivalent) for the view's lifetime — a local `let` inside `.onAppear` is deallocated immediately and the dialog never appears.
+Following the official setup guide, add an `AppDelegate` through `@UIApplicationDelegateAdaptor`. Replace `YOUR_APP_ID` with the App ID from Step 1.
 
 ```swift
 import SwiftUI
-import OneSignalFramework
 
-struct ContentView: View {
-    @State private var showIntegrationCompleteAlert = false
-    @State private var pushObserver: PushSubscriptionObserver?
+@main
+struct YourApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
-    var body: some View {
-        YourMainView()
-            .onAppear {
-                let observer = PushSubscriptionObserver {
-                    showIntegrationCompleteAlert = true
-                }
-                pushObserver = observer
-                OneSignal.User.pushSubscription.addObserver(observer)
-
-                // The ID may already be assigned before the observer attaches,
-                // so evaluate the current value immediately as well.
-                observer.evaluate(OneSignal.User.pushSubscription.id)
-            }
-            .alert("Your OneSignal SDK integration is complete!", isPresented: $showIntegrationCompleteAlert) {
-                Button("Got it") {
-                    OneSignal.Notifications.requestPermission({ accepted in
-                        print("User accepted notifications: \(accepted)")
-                    }, fallbackToSettings: true)
-                }
-            } message: {
-                Text("You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.")
-            }
-    }
-}
-
-// A real, server-assigned subscription ID is non-empty and not the local- placeholder
-private func isRegistered(_ subscriptionId: String?) -> Bool {
-    guard let id = subscriptionId else { return false }
-    return !id.isEmpty && !id.hasPrefix("local-")
-}
-
-class PushSubscriptionObserver: NSObject, OSPushSubscriptionObserver {
-    private let onSubscribed: () -> Void
-    private var hasShown = false
-
-    init(onSubscribed: @escaping () -> Void) {
-        self.onSubscribed = onSubscribed
-    }
-
-    func onPushSubscriptionDidChange(state: OSPushSubscriptionChangedState) {
-        evaluate(state.current.id)
-    }
-
-    // Shows the dialog exactly once, and only for a real server-assigned ID.
-    func evaluate(_ subscriptionId: String?) {
-        guard isRegistered(subscriptionId) else { return }
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self, !self.hasShown else { return }
-            self.hasShown = true
-            self.onSubscribed()
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
         }
+    }
+}
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        OneSignalManager.shared.initialize(appId: "YOUR_APP_ID", launchOptions: launchOptions)
+        OneSignalManager.shared.requestPushPermission()
+        return true
     }
 }
 ```
 
-### UIKit
+### AppDelegate (UIKit)
 
 ```swift
 import UIKit
-import OneSignalFramework
 
-// A real, server-assigned subscription ID is non-empty and not the local- placeholder
-private func isRegistered(_ subscriptionId: String?) -> Bool {
-    guard let id = subscriptionId else { return false }
-    return !id.isEmpty && !id.hasPrefix("local-")
-}
-
-class IntegrationCompleteObserver: NSObject, OSPushSubscriptionObserver {
-    private weak var viewController: UIViewController?
-    private var hasShown = false
-
-    init(viewController: UIViewController) {
-        self.viewController = viewController
-    }
-
-    func onPushSubscriptionDidChange(state: OSPushSubscriptionChangedState) {
-        evaluate(state.current.id)
-    }
-
-    // Shows the dialog exactly once, and only for a real server-assigned ID.
-    func evaluate(_ subscriptionId: String?) {
-        guard isRegistered(subscriptionId) else { return }
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self, !self.hasShown else { return }
-            self.hasShown = true
-            self.showIntegrationCompleteDialog()
-        }
-    }
-
-    private func showIntegrationCompleteDialog() {
-        guard let viewController = viewController else { return }
-
-        let alert = UIAlertController(
-            title: "Your OneSignal SDK integration is complete!",
-            message: "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.",
-            preferredStyle: .alert
-        )
-
-        alert.addAction(UIAlertAction(title: "Got it", style: .default) { _ in
-            OneSignal.Notifications.requestPermission({ accepted in
-                print("User accepted notifications: \(accepted)")
-            }, fallbackToSettings: true)
-        })
-
-        viewController.present(alert, animated: true)
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        OneSignalManager.shared.initialize(appId: "YOUR_APP_ID", launchOptions: launchOptions)
+        OneSignalManager.shared.requestPushPermission()
+        return true
     }
 }
-
-// Usage: store the observer as a view-controller property (OneSignal retains observers weakly).
-// After initializing OneSignal:
-// self.integrationCompleteObserver = IntegrationCompleteObserver(viewController: self)
-// OneSignal.User.pushSubscription.addObserver(self.integrationCompleteObserver!)
-// self.integrationCompleteObserver?.evaluate(OneSignal.User.pushSubscription.id)
 ```
+
+### Objective-C
+
+```objc
+#import <OneSignalFramework/OneSignalFramework.h>
+
+- (BOOL)application:(UIApplication *)application
+    didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+    // Enable verbose logging to debug issues (remove in production)
+    [OneSignal.Debug setLogLevel:ONE_S_LL_VERBOSE];
+    [OneSignal initialize:@"YOUR_APP_ID" withLaunchOptions:launchOptions];
+
+    // fallbackToSettings:false, as in the official guide
+    [OneSignal.Notifications requestPermission:^(BOOL accepted) {
+        NSLog(@"User accepted notifications: %d", accepted);
+    } fallbackToSettings:false];
+
+    return YES;
+}
+```
+
+In Objective-C projects, keep these calls in a single wrapper class (for example `OneSignalManager`) and call it from the app delegate.
+
+---
+
+## Push Permission Request
+
+Follow the official setup guide: request push permission in `didFinishLaunchingWithOptions`, right after initialization, through the wrapper, with `fallbackToSettings: false`. Don't add a verification dialog, and don't request permission anywhere else.
+
+In the Changes Summary, mention the official guide's advice: in production, consider prompting with an in-app message instead, for better opt-in rates.
+
+If the developer skipped the App ID, still add the permission request, and include this alert at the top of the Changes Summary, next to the App ID reminder:
+
+> **The app will show the push permission prompt at launch, but the device won't register with OneSignal until you set your App ID.** Users who accept now won't be reachable until a build with your real App ID ships.
+
+---
+
+## Verification
+
+Give the developer these steps in the Changes Summary, following the official guide:
+
+1. Build and launch the app on a device (or an iOS 16.2+ Simulator on Apple Silicon).
+2. In the OneSignal dashboard, open **Audience → Users & subscriptions → Subscriptions**. The new Subscription shows **Never Subscribed**.
+3. Accept the permission prompt in the app.
+4. Refresh the dashboard. The status changes to **Subscribed**.
+5. Send a test push. This needs APNs credentials in the OneSignal dashboard (see **After Setup: APNs Credentials in OneSignal**).
+
+Do **not** erase the Simulator or uninstall/reinstall just to re-check — that creates a second OneSignal subscription. See shared guidelines: **Verification without duplicate subscriptions**.
+
+---
+
+## After Setup: APNs Credentials in OneSignal
+
+Once the SDK is set up in the app, tell the developer in the Changes Summary (don't ask about it in Step 1):
+
+> **Push won't reach iOS devices until your OneSignal app has APNs credentials.** In OneSignal, go to **Settings → Push & In-App → Apple iOS (APNs)** and add your p8 Auth Key (recommended) or p12 Certificate. Guide: https://documentation.onesignal.com/docs/en/ios-sdk-setup
 
 ---
 
@@ -416,8 +273,8 @@ For NSE, App Group, `OneSignalExtension` module, Info.plist sync-group, and sign
 
 | Issue                         | Solution                                                                 |
 | ----------------------------- | ------------------------------------------------------------------------ |
-| Push not received             | Check notification permission; confirm signed entitlements include `aps-environment` (see shared section) |
+| Push not received             | Check notification permission and APNs credentials in OneSignal; confirm signed entitlements include `aps-environment` (see shared section) |
 | Background notifications fail | Check Background Modes includes Remote notifications (see shared section) |
-| Verification dialog never appears | Retain the push subscription observer (weakly held by the SDK); evaluate the current ID immediately |
-| Simulator / APNs              | Build/launch and the verification dialog work in Simulator. On Apple Silicon Macs, Simulator can receive real sandbox APNs pushes; use a physical device if background/lock-screen display is flaky or you are not on Apple Silicon |
+| Permission prompt never appears | Confirm `requestPushPermission()` runs right after `initialize` in `didFinishLaunchingWithOptions`. If the user already answered, iOS won't prompt again |
+| Simulator / APNs              | Build/launch and the permission prompt work in Simulator. On Apple Silicon Macs, Simulator can receive real sandbox APNs pushes; use a physical device if background/lock-screen display is flaky or you are not on Apple Silicon |
 | Entitlements / signing error  | Regenerate provisioning profiles; confirm `DEVELOPMENT_TEAM` and App Group; do not disable code signing |

@@ -511,12 +511,15 @@ If the project does not already reference the OneSignal package, add an `XCRemot
 
 Skip the SPM objects above. Add an NSE target block to the `Podfile` and run `pod install`, which generates the linking:
 
+Use the NSE block from the platform integration file, which follows the official setup guide. For cross-platform SDKs (Flutter, React Native, Expo, Unity), that is:
+
 ```ruby
 target 'OneSignalNotificationServiceExtension' do
-  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
-  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
+  pod 'OneSignalXCFramework/OneSignal', '>= 5.0.0', '< 6.0'
 end
 ```
+
+Use the modular `OneSignalXCFramework/OneSignal` subspec, not the aggregate `pod 'OneSignalXCFramework'`. Don't pin the NSE to an exact version: the wrapper SDK chooses the native iOS version, and a different exact pin fails `pod install`.
 
 ## Verify the iOS Infrastructure
 
