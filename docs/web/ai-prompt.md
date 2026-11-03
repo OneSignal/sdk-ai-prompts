@@ -30,9 +30,22 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ## App ID
 
-The App ID is provided in the user's prompt — the same message that linked you to this file. Use **that** App ID for all OneSignal SDK initialization and any REST calls in the verification scaffolding.
+The App ID is usually provided in the user's prompt — the same message that linked you to this file. Use **that** App ID for all OneSignal SDK initialization and any REST calls in the verification scaffolding.
 
-If no App ID is present in the user's prompt, ask the user to provide one before proceeding. **Never** hardcode a demo or fallback App ID.
+If no App ID is present in the user's prompt, ask for it in Step 1, together with any other questions. Ask it as an open text question, not multiple choice. Only use buttons if an option can hold typed text, labeled **Here it is: [App ID]** and **Skip for now**.
+
+> **What's your OneSignal App ID?**
+> Find it in the OneSignal dashboard under **Settings → Keys & IDs** ([guide](https://documentation.onesignal.com/docs/en/keys-and-ids)).
+>
+> * **Here it is:** paste your App ID as your reply
+> * **Skip for now:** reply "skip". No users or devices will register with OneSignal until you add it.
+
+Handling the answer:
+
+* **App ID provided:** an App ID is a UUID (for example `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`). If the value doesn't look like one, it is probably a REST API key or an Organization key. Ask again, and don't put API keys in the app.
+* **Skipped:** complete the integration with a single, clearly named placeholder (`YOUR_APP_ID`, as in the official docs) defined in one place, inside the centralized OneSignal wrapper. Tell the user the device won't register with OneSignal until a real App ID is set. Start the Changes Summary with this follow-up and name the file and line to update.
+
+**Never** invent, hardcode, or reuse a demo or fallback App ID.
 
 ---
 
@@ -75,6 +88,14 @@ Inspect the project and note:
    - **Option B: Current branch** — Write all changes directly to the current branch without stashing or creating a new branch
    - If no git repository is detected, skip this question and proceed
 
+4. **What's your OneSignal App ID?** (only if it wasn't in the user's prompt; see **App ID** above for the exact wording)
+
+5. **Is there a `google-services.json`?** (only when the integration builds for Android and the file isn't detected; see **Android Firebase Configuration** below for the wording)
+
+6. **Platform-specific questions** from the platform integration file, if any
+
+Ask all applicable questions together in one round, not one at a time. If any question needs typed text (such as the App ID) and your tool can't attach text to an option, ask the whole round as a chat message so the user can answer everything in one reply.
+
 ### Bundle ID and application ID (Required)
 
 * **Use the iOS bundle identifier and Android applicationId / package name already defined in the project.** Do not invent, rename, or "improve" them (including swapping to example or OneSignal-owned IDs) unless the user explicitly asks.
@@ -90,26 +111,15 @@ Inspect the project and note:
 
 ---
 
-## Push Subscription Verification Dialog (Required)
+## Push Permission Request (Required)
 
-After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully.
+Request push permission **exactly where and how the platform integration file says**. Each platform file follows its official setup guide:
 
-### Requirements (All Platforms)
-
-1. **Register a push subscription observer** immediately after OneSignal is initialized.
-
-2. **Retain the observer for the lifetime of the screen/component that owns it.** OneSignal stores push subscription observers weakly — a local-only variable is deallocated immediately and the dialog never appears. Store it in framework-retained state (for example SwiftUI `@State`, a UIKit view-controller property, React `useRef` / component field, Flutter `State` field, or an Android/`Application`-scoped reference).
-
-3. **Treat the device as registered only when the push subscription ID is a real, server-assigned value** — non-empty and **not** prefixed with `local-`. The SDK assigns a `local-` placeholder ID during initialization (before the device registers with OneSignal's servers); that placeholder does **not** mean the device is registered.
-
-4. **Evaluate the current subscription ID both on change and immediately at observer-registration time.** The ID may already be server-assigned before your observer attaches, so reacting only to the change event can miss the transition and the dialog would never appear.
-
-5. **When a real subscription ID is present, show a dialog exactly once** (guard with a "shown once" flag) — a platform-native alert on mobile, or an in-page modal on web — with:
-   - **Title:** "Your OneSignal SDK integration is complete!"
-   - **Message:** "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications."
-   - **Single button:** **"Got it"**
-
-6. **On button tap**, request push permission.
+* **Mobile (Android, iOS, Flutter, React Native, Expo, Unity):** request permission at launch, right after initialization, through the wrapper, with the call the official guide uses. Don't add a verification dialog or any other custom UI.
+* **Web:** don't request permission in code. The official guide configures the permission prompt in the OneSignal dashboard (see the Web integration file).
+* In the Changes Summary, mention the official guides' advice: in production, consider prompting with an in-app message instead, for better opt-in rates.
+* **If the App ID was skipped** (mobile; Web has its own alert in the Web file), still add the permission request, and put this alert at the top of the Changes Summary, next to the App ID reminder:
+  > **The app will show the push permission prompt at launch, but the device won't register with OneSignal until you set your App ID.** Users who accept now won't be reachable until a build with your real App ID ships.
 
 ### Verification without duplicate subscriptions
 
@@ -118,11 +128,50 @@ When building, launching, or re-checking the integration:
 * **Do NOT** clear app data, wipe the emulator/simulator, or uninstall/reinstall the app solely to re-verify setup.
 * Clearing storage / reinstalling resets the install identity. The platform then mints a new push token and OneSignal creates a **new** subscription, leaving the previous one orphaned — so the dashboard shows duplicates for the same test flow.
 * Prefer a normal rebuild + relaunch (or install over the existing app) that **preserves** app storage.
-* One successful server-assigned subscription and one verification dialog is enough. Do not deliberately create a second subscription to prove the integration works.
+* One successful server-assigned subscription is enough. Do not deliberately create a second subscription to prove the integration works.
 
-> **Platform note:** Registration timing differs across platforms. On the mobile SDKs the device can register (and receive a real subscription ID) *before* push permission is granted, so the dialog gates the permission request. On **web**, a push subscription ID is typically only assigned *after* the user opts in, so the web integration file adapts this flow — see it for the exact, platform-correct implementation.
+---
 
-See platform-specific integration files for implementation examples.
+## Android Firebase Configuration (All Platforms That Build for Android)
+
+On the Current SDK versions, the official docs recommend adding the app's own Firebase configuration for every platform that builds for Android. Treat it as part of the integration, not an optional feature. The platform integration file says where the file goes and how the build processes it. Reference: https://documentation.onesignal.com/docs/en/android-firebase-credentials
+
+Skip this section for iOS-only and Web integrations, and for cross-platform projects where the developer didn't select Android.
+
+### Rules
+
+* **Never create, generate, or edit `google-services.json`.** It comes from the developer's Firebase project.
+* Its `package_name` must match the app's Android package name (`applicationId`, or `android.package` on Expo).
+* It must come from the **same Firebase project** as the FCM Service Account uploaded to OneSignal. Compare `project_info.project_id` in the file with the Firebase Project ID in the OneSignal dashboard. A mismatch causes subscription status `-6`.
+* Complete the platform's processing step. Without it the file does nothing, and the build gives no warning.
+* After building, confirm the file took effect as the platform file describes. A successful build alone doesn't prove it.
+* Don't add Firebase SDKs (Analytics, Crashlytics, etc.) or call `FirebaseMessaging` APIs for OneSignal. OneSignal owns the push token lifecycle.
+
+### If the file is not detected
+
+Ask during Step 1, together with the other questions. Fill in the app's real Android package name. Use a multiple-choice question if your tool supports it:
+
+> **I couldn't find a `google-services.json` file in your project.**
+> OneSignal recommends adding it for Android. Download it from the **same Firebase project** you use to generate the FCM Service Account file for OneSignal, check that its package name is `{package name}`, and place it in `{expected location}`. How to get both files: https://documentation.onesignal.com/docs/en/android-firebase-credentials
+>
+> * **I've added it, check again**
+> * **Skip for now.** I understand that adding it later may affect push delivery for my existing Android users.
+
+Handling the answer:
+
+* **"I've added it":** check the expected location again and confirm the `package_name` matches. If it is still missing or doesn't match, say what you found and ask again.
+* **Found in the wrong place:** if a `google-services.json` with a matching `package_name` is elsewhere in the project, or at a path the developer mentions, tell the developer where you found it and add this option to the question:
+  * **Copy it from there** (`{path}`)
+
+  On that answer, copy the file to the expected location unchanged and confirm the `package_name` matches. Don't search outside the project unless the developer points you to a location.
+* **Skipped:** don't add the file or its build step. Finish the integration and list the Firebase configuration as a follow-up in the Changes Summary, with the link above.
+* **Skipped, and Firebase Installation ID registration is on** (the merged manifest has `firebase_messaging_installation_id_enabled` set to boolean `true`): tell the user plainly that push won't work on Android (subscription status `-32`) until the Firebase configuration is added. Start the Changes Summary with this; don't present it as an optional follow-up.
+
+### After setup: FCM credentials in OneSignal
+
+Once the SDK is set up in the app, tell the developer in the Changes Summary (don't ask about it in Step 1):
+
+> **Push won't reach Android devices until your OneSignal app has FCM credentials.** In OneSignal, go to **Settings → Push & In-App → Google Android (FCM)** and upload your Firebase Service Account JSON. It should come from the same Firebase project as your `google-services.json`. Guide: https://documentation.onesignal.com/docs/en/android-firebase-credentials
 
 ---
 
@@ -138,12 +187,14 @@ See platform-specific integration files for implementation examples.
 * The official JSON endpoint above has both **Stable** and **Current** versions for all platforms
 * iOS note: `OneSignal-XCFramework` (the SPM repo) shares version tags with `OneSignal-iOS-SDK` — the same version number applies to both
 
-Use the **Stable** track unless the user specifically requested Current. Always pin that exact version from the releases JSON (SPM `exactVersion`, exact npm/pub version, exact CocoaPods version like `'5.2.0'`). Do not invent or widen version ranges.
+Always use the **Current** track (`channels.current.version`). Do not use Stable unless the user specifically asks for it.
+
+Write the dependency the way the platform integration file says, which follows the official setup guide. Where it gives a range (for example Android `[5.6.1, 5.99.99]` or CocoaPods `'>= 5.2.9', '< 6.0'`), copy the range exactly and make sure the Current version falls inside it. Where it gives no range, use the Current version (npm exact version, pub caret `^X.Y.Z`, SPM "Up to Next Major Version" from X.Y.Z). Don't invent or widen ranges. Report the resolved version in the Changes Summary.
 
 When using the JSON source, read the exact version from:
 `<sdk entry>.channels.<track>.version`
 
-Find the SDK entry by matching the requested platform against the entry's `name` or `displayName`. For example, for iOS Stable, find the entry with `name: "iOS"` and use `channels.stable.version`. Do not infer the Stable version from the newest tag, GitHub release order, GitHub `prerelease` status, or semantic-version sorting.
+Find the SDK entry by matching the requested platform against the entry's `name` or `displayName`. For example, for iOS, find the entry with `name: "iOS"` and use `channels.current.version`. Do not infer the version from the newest tag, GitHub release order, GitHub `prerelease` status, or semantic-version sorting.
 
 ---
 
@@ -164,17 +215,21 @@ Create a **single, centralized class/module** that wraps all OneSignal SDK inter
 ### Responsibilities
 
 * Initialize the SDK
-* Manage user identity (login/logout)
-* Handle email and SMS subscriptions
-* Manage user tags
+* Request push permission (see **Push Permission Request**)
 * Control logging levels
 * Isolate all direct OneSignal SDK calls
+
+### Scope: initialization only
+
+Follow the official setup guide, which covers installing and initializing the SDK. **Do NOT add login/logout, External ID, email, SMS, or tag calls**, even if the app has a login screen or collects emails. If a platform file shows them for reference, don't implement them.
+
+In the Changes Summary, recommend the next step from the official docs: assign an External ID with `OneSignal.login("user_id")` when users sign in, so their subscriptions are unified across devices. Link the platform's SDK setup guide.
 
 ### Rules
 
 * **No direct OneSignal SDK calls outside this wrapper**
 * All OneSignal interactions go through the centralized class/module
-* Some platform-file code examples (e.g. the Push Subscription Verification Dialog) show direct SDK calls for brevity — when implementing them, route those calls through the wrapper
+* Official-guide snippets call the SDK directly; when you copy them, route those calls through the wrapper
 * Makes testing and future SDK updates easier
 
 See platform integration files for specific implementation patterns and method signatures.
@@ -206,7 +261,7 @@ Do NOT automatically create a PR — let the user copy it.
 * Architecture decisions and where OneSignal logic is placed
 * For cross-platform SDKs: which mobile platforms were selected and status for each (shared code, iOS native, Android native)
 * Bundle ID / applicationId used from the project (do not invent new ones in the summary either)
-* Step-by-step verification instructions (simulator is fine for build/launch and the verification dialog path; on Apple Silicon, sandbox APNs in Simulator is also valid — see Shared iOS Push Infrastructure)
+* Step-by-step verification instructions (simulator is fine for build/launch and the permission prompt; on Apple Silicon, sandbox APNs in Simulator is also valid — see Shared iOS Push Infrastructure)
 * Any follow-ups, limitations, or known risks relevant to the code changes made
 
 ---
@@ -215,7 +270,7 @@ Do NOT automatically create a PR — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required. Anything the platform integration file marks as **Required** (e.g. the iOS Notification Service Extension and App Group) is part of the core integration — NOT an optional feature — and MUST be implemented
-* **Do NOT add push-notification features beyond SDK initialization, the Push Subscription Verification Dialog, and the sections the platform integration file marks as Required.** The dialog's on-tap permission request (Step 6 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
+* **Do NOT add push-notification features beyond SDK initialization, the push permission request, and the sections the platform integration file marks as Required.** Request push permission **only** where the platform integration file says (see **Push Permission Request**): at launch on mobile, and through the dashboard-configured prompt on web. Don't request it anywhere else.
 * **Do NOT clear app data, wipe the emulator/simulator, or uninstall/reinstall solely to re-verify** — that creates duplicate OneSignal subscriptions (see Verification without duplicate subscriptions)
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
@@ -227,19 +282,22 @@ Do NOT automatically create a PR — let the user copy it.
 
 ## Official Documentation
 
-* [Web SDK setup](https://documentation.onesignal.com/docs/web-sdk-setup)
-* [Web SDK reference](https://documentation.onesignal.com/docs/web-sdk-reference)
-* [OneSignal service worker](https://documentation.onesignal.com/docs/onesignal-service-worker)
-* [Website SDK repository](https://github.com/OneSignal/OneSignal-Website-SDK)
+* [Web SDK setup](https://documentation.onesignal.com/docs/en/web-sdk-setup)
+* Framework guides: [React / Next.js](https://documentation.onesignal.com/docs/en/react-js-setup), [Vue](https://documentation.onesignal.com/docs/en/vue-js-setup), [Angular](https://documentation.onesignal.com/docs/en/angular-setup)
+* [Web permission prompts](https://documentation.onesignal.com/docs/en/permission-requests)
+* [OneSignal service worker](https://documentation.onesignal.com/docs/en/onesignal-service-worker)
+* [Web SDK reference](https://documentation.onesignal.com/docs/en/web-sdk-reference)
 * Framework wrappers: [react-onesignal](https://github.com/OneSignal/react-onesignal), [onesignal-vue3](https://github.com/OneSignal/onesignal-vue3), [onesignal-ngx](https://github.com/OneSignal/onesignal-ngx)
+
+If this file and the official [Web SDK setup](https://documentation.onesignal.com/docs/en/web-sdk-setup) page disagree, follow the official page.
 
 ---
 
 ## User Prompts
 
-Before beginning the integration, detect the framework from the codebase, then confirm with the user and ask about language:
+Before beginning the integration, detect the framework from the codebase, then confirm it with the user together with the Step 1 questions (one round):
 
-1. **Framework**: Inspect the project (e.g. `package.json` dependencies, config files) to detect the framework, then confirm it with the user. Supported targets:
+1. **Framework**: Inspect the project (e.g. `package.json` dependencies, config files) to detect the framework, then confirm it. Supported targets:
    - Plain HTML / vanilla JS (no bundler)
    - React (Create React App or Vite)
    - Next.js
@@ -248,9 +306,9 @@ Before beginning the integration, detect the framework from the codebase, then c
    - Svelte / SvelteKit
    - Other (fall back to the CDN snippet approach)
 
-2. **Language Preference** (where a choice exists): JavaScript or TypeScript. Use the user's response to decide which code examples to apply.
+2. **Language Preference** (where a choice exists): JavaScript or TypeScript. If the project already uses TypeScript, don't ask.
 
-> Do NOT ask which *platform* this is — it is already known to be Web. Only detect/confirm the **framework** and language.
+> Do NOT ask which *platform* this is — it is already known to be Web. Don't ask about google-services.json (web doesn't use it).
 
 ---
 
@@ -259,32 +317,29 @@ Before beginning the integration, detect the framework from the codebase, then c
 Web push has hard browser requirements that differ from mobile. The integration will silently fail if these are not met:
 
 1. **HTTPS only.** Web push does not work over HTTP, or in incognito/private windows. The **only** exception is `localhost` / `127.0.0.1`, which browsers treat as secure origins for development.
-2. **Same-origin service worker.** The `OneSignalSDKWorker.js` file **must** be served from the site's own origin (e.g. `https://yourdomain.com/OneSignalSDKWorker.js`). It **cannot** be hosted on a CDN or a different origin, and cannot be reached via a redirect.
+2. **Same-origin service worker.** `OneSignalSDKWorker.js` **must** be served from the site's own origin. It **cannot** be hosted on a CDN or a different origin, and cannot be reached via a redirect.
 3. **Correct content-type.** The worker file must be served as JavaScript (`content-type: application/javascript`), never `text/html`.
-4. **Dashboard app must be configured as "Custom Code."** In the OneSignal dashboard under **Settings → Push & In-App → Web**, the app must use the **Custom Code** (Typical Site) integration and the **Site URL** must exactly match the origin being tested (including `http://localhost` for local testing — use a *separate* OneSignal app for localhost).
+4. **Dashboard setup (developer action).** In **Settings → Push & In-App → Web**, the official guide recommends the **Typical Site** integration type. The **Site URL** must exactly match the origin being tested. For localhost, use a *separate* OneSignal app whose Site URL matches the localhost URL.
 
-These are environment/account prerequisites the agent cannot fully perform from the codebase. Call them out explicitly in the final summary so the developer can complete them in the dashboard.
+These are environment/account prerequisites the agent cannot perform from the codebase. Call them out in the final summary.
 
 ---
 
 ## Pre-Flight Checklist
 
-Before considering the integration complete, verify ALL of the following:
+### OneSignal Dashboard (developer action — list in the summary)
 
-### OneSignal Dashboard (developer action)
-
-- [ ] A OneSignal app exists with the **Web** platform configured as **Custom Code**
+- [ ] A OneSignal app with the **Web** platform, integration type **Typical Site** (recommended)
 - [ ] **Site URL** matches the exact origin (production or localhost)
-- [ ] For local testing: a **separate** OneSignal app whose Site URL matches the localhost URL, with "Treat HTTP localhost as HTTPS" enabled if serving over HTTP
-- [ ] App ID obtained (provided in the user's prompt)
+- [ ] For local testing: a **separate** OneSignal app whose Site URL matches the localhost URL, with **Treat HTTP localhost as HTTPS** enabled if serving over HTTP
+- [ ] **Permission prompts** configured under the web settings. With Typical Site, the dashboard controls when and how the prompt appears. Guide: https://documentation.onesignal.com/docs/en/permission-requests
 
 ### Codebase
 
-- [ ] `OneSignalSDKWorker.js` placed at the location that maps to the site root (or a scoped subdirectory when an existing service worker requires it — see Step A)
+- [ ] `OneSignalSDKWorker.js` placed so it is served from the site root (see Step A)
 - [ ] The worker file is included in the production build output and publicly reachable on the origin
 - [ ] SDK initialized once, as early as possible, with the App ID
-- [ ] All OneSignal access goes through a single point — the wrapper package directly, or the CDN service module (see Step C)
-- [ ] Push permission requested **only** from the verification dialog's "Got it" button — never automatically on page load
+- [ ] **No permission request in code.** Typical Site prompts come from the dashboard configuration (see **Push Permission Request**)
 
 ---
 
@@ -294,19 +349,17 @@ The Web SDK is delivered two ways. Choose based on the detected framework. **The
 
 ### CDN (plain HTML, and the safe default for any site)
 
-The CDN endpoint is **evergreen**: `v16` always serves the current stable Web SDK build. There is **no version to pin and no `releases.json` lookup to perform** for this path — just use the URL exactly as shown:
+The CDN endpoint is **evergreen**: `v16` always serves the current Web SDK build. There is **no version to pin**:
 
 ```
 https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js
 ```
 
-Do **not** fetch or embed a build number. (The Web entry's `channels.stable.version` in `releases.json` — e.g. `160607` — is the internal build the `v16` path currently serves; it must never appear in the URL.)
+Do **not** put a build number in the URL. (The Web entry's `channels.current.version` in `releases.json`, e.g. `160700`, is the internal build number; it must never appear in the URL.)
 
 ### npm wrapper (React / Vue / Angular)
 
-When a first-party wrapper matches the framework, prefer it. **This is the only web path where the `releases.json` version step applies:** pin the wrapper's version from the official releases JSON (`https://onesignal.github.io/sdk-releases/releases.json`), using the **Stable** track unless the user asked for Current.
-
-`releases.json` is a top-level JSON array of SDK entries; find the entry by `name` and read the exact version from `<entry>.channels.stable.version`:
+The official setup guide says to use the matching framework guide for Angular, React, or Vue sites. Install the wrapper at its **Current** version from `releases.json` (find the entry by `name`, read `<entry>.channels.current.version`):
 
 | Framework | Package | releases.json entry (`name`) |
 |-----------|---------|------------------------------|
@@ -320,21 +373,19 @@ For any framework without a first-party wrapper (Svelte, plain HTML, etc.), use 
 
 ## Step A — Service Worker File (Deterministic, Do Not Improvise)
 
-Create a file named **exactly** `OneSignalSDKWorker.js` with **exactly** this content — do not generate, rename, or modify it:
+Create a file named **exactly** `OneSignalSDKWorker.js` with **exactly** this content (from the official guide):
 
 ```javascript
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 ```
 
-> This one line is the entire hostable worker file. It is intentionally tiny: it just imports the real, versioned worker from OneSignal's CDN. The OneSignal dashboard offers an identical file for download — use it to double-check the contents if needed, but the line above is authoritative for v16.
-
 ### Where the file goes — follow this procedure
 
-The file must ultimately be reachable at the **root of the deployed origin** (`https://yourdomain.com/OneSignalSDKWorker.js`), unless an existing service worker forces a subdirectory (see A.3). Do **not** guess the location from the framework name alone — derive it from the project's own configuration by following A.1 → A.4 in order.
+The file must be reachable at the **root of the deployed origin** (`https://yourdomain.com/OneSignalSDKWorker.js`), unless an existing service worker forces a subdirectory (see A.3). Derive the location from the project's configuration by following A.1 → A.4 in order.
 
 #### A.1 — Locate the app root
 
-Find the `package.json` whose scripts actually build and serve the site (`dev` / `build` / `start`). In a monorepo (npm/yarn/pnpm workspaces, Nx, Turborepo), there may be several packages: the worker belongs inside the **target app's** package — never create a `public/` directory at the repository root of a monorepo. If more than one web app could plausibly be the target, ask the user which one to integrate.
+Find the `package.json` whose scripts actually build and serve the site (`dev` / `build` / `start`). In a monorepo (npm/yarn/pnpm workspaces, Nx, Turborepo), the worker belongs inside the **target app's** package — never create a `public/` directory at the repository root of a monorepo. If more than one web app could plausibly be the target, ask the user which one to integrate.
 
 #### A.2 — Determine the static-assets directory from config, not convention
 
@@ -348,7 +399,7 @@ Then read the config for a static-assets override — e.g. Vite `publicDir`, Ang
 | Next.js | `public/` | served from root at runtime |
 | Vue 3 (Vite) | `public/` | copied to root at build |
 | Angular (modern layout: `angular.json` assets includes `"input": "public"`) | `public/` | copied to root at build |
-| Angular (older layout: `src/`-based assets) | `src/` **and** add `"src/OneSignalSDKWorker.js"` as its own entry in `angular.json` → `projects.<app>.architect.build.options.assets` | a direct file entry is emitted at the output root — do **NOT** drop it into `src/assets/`, which emits to `/assets/`, not the root |
+| Angular (older layout: `src/`-based assets) | `src/` **and** add `"src/OneSignalSDKWorker.js"` as its own entry in `angular.json` → `projects.<app>.architect.build.options.assets` | a direct file entry is emitted at the output root — do **NOT** drop it into `src/assets/`, which emits to `/assets/` |
 | SvelteKit | `static/` | served from root |
 | Nuxt 3 | `public/` (Nuxt 2: `static/`) | served from root |
 | Gatsby / Astro | `static/` / `public/` respectively | served from root |
@@ -358,59 +409,54 @@ Then read the config for a static-assets override — e.g. Vite `publicDir`, Ang
 
 Search the project for an existing service worker: `navigator.serviceWorker.register(...)` calls, a `sw.js` / `service-worker.js` in the static dir, or PWA tooling (`next-pwa`, `vite-plugin-pwa`, `@angular/service-worker` / `ngsw-config.json`, Workbox).
 
-* **No existing worker (the common case):** place `OneSignalSDKWorker.js` at the location from A.2 so it is served from the origin root. No extra `init` options are needed.
-* **Existing worker at root scope (e.g. a PWA):** only one service worker can control a scope — do **not** overwrite it, merge into it, or add a second root-scope worker. Instead, place `OneSignalSDKWorker.js` in a dedicated subdirectory of the static dir (e.g. `push/onesignal/`) and pass both options in `init`:
-
-  ```javascript
-  serviceWorkerPath: "push/onesignal/OneSignalSDKWorker.js",
-  serviceWorkerParam: { scope: "/push/onesignal/" },
-  ```
-
-  Flag this choice in the final summary. (Combining OneSignal into the existing worker file via `importScripts` is also documented, but prefer the separate-scope approach — see [OneSignal service worker](https://documentation.onesignal.com/docs/onesignal-service-worker).)
+* **No existing worker (the common case):** place `OneSignalSDKWorker.js` at the location from A.2 so it is served from the origin root. No extra settings are needed.
+* **Existing worker at root scope (e.g. a PWA):** don't overwrite or merge into it. Place `OneSignalSDKWorker.js` in a subdirectory of the static dir (e.g. `push/onesignal/`). With Typical Site, the official guide sets the path **in the dashboard, not in code**: tell the developer to open **Settings → Push & In-App → Web → Advanced Push Settings**, enable **Customize service worker paths and filenames**, and set the path and registration scope to `/push/onesignal/` and the filename to `OneSignalSDKWorker.js`. Don't set `serviceWorkerPath` in code. Flag this in the summary.
 
 #### A.4 — Verify placement (mandatory — do not skip or delegate)
 
-After placing the file, verify it **yourself**. Do not hand this off to the developer when the project has runnable scripts:
+After placing the file, verify it **yourself** when the project has runnable scripts:
 
-* **Frameworks that copy static assets at build time** (Vite, CRA, Angular, SvelteKit, Astro, Gatsby): run the production build and confirm `OneSignalSDKWorker.js` exists at the **web root of the build output** (e.g. `dist/`, `build/`, `dist/<app>/browser/`). If it is missing, the placement is wrong — fix the placement; do not work around it.
-* **Frameworks that serve static files at runtime** (Next.js, Nuxt — `public/` is not copied into the build output): use a running dev server and confirm `curl -sI http://localhost:<port>/OneSignalSDKWorker.js` returns HTTP 200 with a JavaScript content-type (`application/javascript`, not `text/html`).
-* Confirm exactly **one** copy of the file exists in the repo — remove any stray copies left at wrong locations by earlier attempts.
+* **Frameworks that copy static assets at build time** (Vite, CRA, Angular, SvelteKit, Astro, Gatsby): run the production build and confirm `OneSignalSDKWorker.js` exists at the **web root of the build output** (e.g. `dist/`, `build/`, `dist/<app>/browser/`). If it is missing, fix the placement.
+* **Frameworks that serve static files at runtime** (Next.js, Nuxt): run a dev server and confirm `curl -sI http://localhost:<port>/OneSignalSDKWorker.js` returns HTTP 200 with a JavaScript content-type.
+* **Plain HTML:** serve the folder (for example `npx serve .` or `python3 -m http.server`) and run the same `curl -sI` check.
+* Confirm exactly **one** copy of the file exists in the repo.
 
-Only if the project has no build script and no way to run a dev server may verification be handed to the developer — and then the final summary must state that placement is **unverified** and give the exact URL to check.
+Only if there is no way to serve the site may verification be handed to the developer — and then the summary must say placement is **unverified** and give the exact URL to check.
 
 ---
 
 ## Step B — SDK Initialization
 
-Initialize OneSignal exactly once, as early as possible. Use the approach that matches the detected framework.
+Initialize OneSignal exactly once, as early as possible. Initialization only: no login, email, SMS, tag, or permission calls (see **Scope: initialization only** in the shared guidelines). Replace `YOUR_APP_ID` with the App ID from Step 1.
+
+For local development on `localhost`, add `allowLocalhostAsSecureOrigin: true` to the `init` options, as the official guide says. Gate it behind an environment check (or tell the developer to remove it) for production.
 
 ### CDN snippet (plain HTML / any site without a first-party wrapper)
 
-Add to the `<head>` of the site's main HTML template:
+The official guide's snippet. Add it to the `<head>` of the site's main HTML template:
 
 ```html
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script>
   window.OneSignalDeferred = window.OneSignalDeferred || [];
-  OneSignalDeferred.push(async function (OneSignal) {
+  OneSignalDeferred.push(async function(OneSignal) {
     await OneSignal.init({
-      appId: "YOUR_ONESIGNAL_APP_ID",
-      // Only include the next line when running on localhost:
-      // allowLocalhostAsSecureOrigin: true,
+      appId: "YOUR_APP_ID",
+      // allowLocalhostAsSecureOrigin: true, // localhost only
     });
   });
 </script>
 ```
 
-> Add `allowLocalhostAsSecureOrigin: true` to the `init` options **only** for local development. Remove it (or gate it behind an environment check) for production.
+This snippet is the single place the site touches OneSignal; don't add a separate service module for initialization alone.
 
 ### React (Create React App or Vite)
 
 ```bash
-npm install --save react-onesignal
+npm install --save react-onesignal@X.Y.Z
 ```
 
-Initialize once at app startup (guard against React 18 StrictMode double-invocation):
+Initialize once at app startup. Guard against React StrictMode running effects twice in development; don't remove StrictMode.
 
 ```typescript
 // src/onesignal.ts
@@ -433,14 +479,12 @@ export async function initOneSignal(appId: string): Promise<void> {
 import { useEffect } from 'react';
 import { initOneSignal } from './onesignal';
 
-const ONESIGNAL_APP_ID = 'YOUR_ONESIGNAL_APP_ID';
-
 export default function App() {
   useEffect(() => {
-    void initOneSignal(ONESIGNAL_APP_ID);
+    void initOneSignal('YOUR_APP_ID');
   }, []);
 
-  return <YourAppContent />;
+  // ...existing app content
 }
 ```
 
@@ -452,13 +496,11 @@ Use `react-onesignal` from a **client** component (initialization must run in th
 'use client';
 
 import { useEffect } from 'react';
-import OneSignal from 'react-onesignal';
-
-const ONESIGNAL_APP_ID = 'YOUR_ONESIGNAL_APP_ID';
+import { initOneSignal } from '@/lib/onesignal'; // same module as the React example
 
 export function OneSignalProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    OneSignal.init({ appId: ONESIGNAL_APP_ID }).catch(console.error);
+    initOneSignal('YOUR_APP_ID').catch(console.error);
   }, []);
 
   return <>{children}</>;
@@ -470,7 +512,7 @@ Render `<OneSignalProvider>` in your root layout. In the Pages Router, initializ
 ### Vue 3
 
 ```bash
-npm install --save @onesignal/onesignal-vue3
+npm install --save @onesignal/onesignal-vue3@X.Y.Z
 ```
 
 ```typescript
@@ -481,7 +523,7 @@ import App from './App.vue';
 
 createApp(App)
   .use(OneSignalVuePlugin, {
-    appId: 'YOUR_ONESIGNAL_APP_ID',
+    appId: 'YOUR_APP_ID',
   })
   .mount('#app');
 ```
@@ -489,7 +531,7 @@ createApp(App)
 ### Angular
 
 ```bash
-npm install --save onesignal-ngx
+npm install --save onesignal-ngx@X.Y.Z
 ```
 
 ```typescript
@@ -502,175 +544,50 @@ export class AppComponent implements OnInit {
   constructor(private oneSignal: OneSignal) {}
 
   ngOnInit(): void {
-    this.oneSignal.init({ appId: 'YOUR_ONESIGNAL_APP_ID' });
+    this.oneSignal.init({ appId: 'YOUR_APP_ID' });
   }
 }
 ```
 
 Place `OneSignalSDKWorker.js` per Step A: modern Angular layouts drop it in `public/`; older `src/`-based layouts also need the `angular.json` assets entry.
 
----
+### Centralized access
 
-## Step C — Centralized OneSignal Access (Required)
-
-The shared guidelines require isolating OneSignal behind a single access point. How you satisfy that depends on the integration path.
-
-### Wrapper projects (React / Vue / Angular)
-
-The wrapper package **is** the centralized, typed interface — a singleton (`react-onesignal`), a plugin exposing `$OneSignal` / `useOneSignal()` (`@onesignal/onesignal-vue3`), or an injectable service (`onesignal-ngx`). Use it directly as shown in Step B, and keep usage consistent (the same singleton import, the same injected service). Because the wrappers ship their own types, wrapper-based code needs **no** `any` and no ambient declarations.
-
-**Do NOT add a module that re-exports or re-wraps the wrapper.** That indirection is clunky, fights the wrapper's own typings, and isn't how these packages are used in practice. Route app-specific concerns (identity, consent) through your existing app layers by calling the wrapper from them — don't build a parallel SDK facade.
-
-### CDN / global projects
-
-The raw `window.OneSignalDeferred` global has no typed, single entry point, so here you *do* create a small centralized module. In strict TypeScript projects (especially with `@typescript-eslint/no-explicit-any`), add a minimal ambient declaration for the surface you use instead of casting to `any`; plain-JS projects can skip the `.d.ts`.
-
-```typescript
-// src/types/onesignal.d.ts
-// Minimal typings for the CDN/global (window.OneSignalDeferred) path only.
-// Not needed when using a typed npm wrapper.
-
-export interface OneSignalPushSubscription {
-  readonly id: string | null | undefined;
-  readonly token: string | null | undefined;
-  readonly optedIn: boolean;
-  addEventListener(event: 'change', listener: (change?: unknown) => void): void;
-  removeEventListener(event: 'change', listener: (change?: unknown) => void): void;
-}
-
-export interface OneSignalUser {
-  addEmail(email: string): void;
-  addSms(sms: string): void;
-  addTag(key: string, value: string): void;
-  readonly PushSubscription: OneSignalPushSubscription;
-}
-
-export interface OneSignalApi {
-  init(options: { appId: string; allowLocalhostAsSecureOrigin?: boolean }): Promise<void>;
-  login(externalId: string): Promise<void>;
-  logout(): Promise<void>;
-  Notifications: { requestPermission(): Promise<void> };
-  User: OneSignalUser;
-}
-
-declare global {
-  interface Window {
-    OneSignalDeferred: Array<(oneSignal: OneSignalApi) => void>;
-  }
-}
-
-export {};
-```
-
-```typescript
-// src/services/oneSignalService.ts
-// CDN/global path only: resolve the SDK from the OneSignalDeferred queue,
-// typed via src/types/onesignal.d.ts.
-import type { OneSignalApi } from '../types/onesignal';
-
-function withOneSignal(fn: (oneSignal: OneSignalApi) => void): void {
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  window.OneSignalDeferred.push(fn);
-}
-
-export const OneSignalService = {
-  login(externalId: string): void {
-    withOneSignal((os) => os.login(externalId));
-  },
-  logout(): void {
-    withOneSignal((os) => os.logout());
-  },
-  addEmail(email: string): void {
-    withOneSignal((os) => os.User.addEmail(email));
-  },
-  addSms(phone: string): void {
-    withOneSignal((os) => os.User.addSms(phone));
-  },
-  addTag(key: string, value: string): void {
-    withOneSignal((os) => os.User.addTag(key, value));
-  },
-  requestPermission(): void {
-    withOneSignal((os) => os.Notifications.requestPermission());
-  },
-};
-```
-
-Keep the shape consistent with the codebase's existing service/module conventions.
+The wrapper package **is** the centralized, typed interface: a singleton (`react-onesignal`), a plugin (`@onesignal/onesignal-vue3`), or an injectable service (`onesignal-ngx`). Use it directly as shown, from one place. **Don't add a module that re-exports or re-wraps the wrapper.**
 
 ---
 
-## Push Subscription Verification Dialog (Web Adaptation)
+## Push Permission Request
 
-The shared guidelines require a one-time "integration complete" confirmation that requests push permission on tap. Web differs from mobile in an important way:
+Don't request push permission in code. Following the official guide, the developer configures permission prompts in the OneSignal dashboard (Typical Site), and the SDK shows them after `init`. Don't add a verification dialog, a custom modal, or `Notifications.requestPermission()`.
 
-> **On web, a push subscription ID is normally only assigned *after* the user grants permission.** So we cannot wait for a real subscription ID before requesting permission — that would be circular. Instead, on web the dialog is shown once **OneSignal has initialized**, its "Got it" button drives the permission request, and a push subscription observer then **confirms** registration by reading `OneSignal.User.PushSubscription.id` once the user opts in.
+In the Changes Summary, tell the developer to set up a prompt (for example the Slidedown) under the web settings: https://documentation.onesignal.com/docs/en/permission-requests. Without one, no prompt appears.
 
-> **Detecting registration on web:** The public `OneSignal.User.PushSubscription.id` getter returns `undefined` while the ID is still the SDK's internal `local-` placeholder, and only exposes a real, server-assigned UUID once the device is registered. On web you therefore never check for the `local-` prefix yourself — **a non-null `id` means registered.** (The getter filters local IDs in the Website SDK's `PushSubscriptionNamespace`/`IDManager`.)
+If the developer skipped the App ID, include this alert at the top of the Changes Summary, next to the App ID reminder:
 
-Show an **in-page modal** (not a mobile-style native alert — web has none). Build a minimal accessible modal with your framework, or fall back to `window.confirm` only if the project has no UI layer.
-
-```typescript
-let dialogShown = false;
-
-function showIntegrationCompleteModal(onAcknowledge: () => void): void {
-  // Replace with a framework-native modal. Minimal fallback:
-  const ok = window.confirm(
-    'Your OneSignal SDK integration is complete!\n\n' +
-      'You can now send Push Notifications & In-App Messages through OneSignal. ' +
-      'Press OK to enable push notifications.'
-  );
-  if (ok) onAcknowledge();
-}
-
-export function setupVerificationDialog(): void {
-  // `OneSignal` is typed as OneSignalApi via src/types/onesignal.d.ts — no `any`.
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  window.OneSignalDeferred.push((OneSignal) => {
-    // The SDK is initialized here — show the one-time confirmation.
-    if (!dialogShown) {
-      dialogShown = true;
-      showIntegrationCompleteModal(() => {
-        OneSignal.Notifications.requestPermission();
-      });
-    }
-
-    // Confirm registration once the user opts in. `id` is undefined until a real,
-    // server-assigned ID exists — the SDK never exposes the internal `local-`
-    // placeholder — so a non-null check is sufficient.
-    OneSignal.User.PushSubscription.addEventListener('change', () => {
-      const id = OneSignal.User.PushSubscription.id;
-      if (id) {
-        console.log('OneSignal push subscription registered:', id);
-      }
-    });
-  });
-}
-```
-
-Wire `setupVerificationDialog()` in right after initialization. Keep the title, message, and single **"Got it"** button text from the shared guidelines when building a real modal.
+> **OneSignal won't initialize on your site until you set your App ID.** With the placeholder, `OneSignal.init` fails, no permission prompt appears, and no subscriptions are created.
 
 ---
 
 ## Definition of Done & Verification Handoff
 
-Web push cannot be fully verified from a coding agent: the parts that prove push actually works require a real browser, a secure origin (HTTPS or `localhost`), and dashboard state you cannot touch. Be honest about this boundary — report the integration as **code-complete and building**, not as "push works," and hand off the runtime checklist.
+Web push cannot be fully verified from a coding agent: proving push works needs a real browser, a secure origin, and dashboard state you cannot touch. Report the integration as **code-complete and building**, not as "push works," and hand off the runtime checklist.
 
 ### What the agent can and should verify
 
 - [ ] Project type-checks / builds without errors (`npm run build` or equivalent)
-- [ ] `OneSignalSDKWorker.js` exists with the exact one-line contents and is emitted to the build output's web root (e.g. `public/` → `/`)
-- [ ] If a dev server is running, the worker is reachable and served as JavaScript — e.g. `curl -sI http://localhost:<port>/OneSignalSDKWorker.js` shows `content-type: application/javascript` (not `text/html`)
+- [ ] `OneSignalSDKWorker.js` exists with the exact one-line contents and is emitted to the build output's web root
+- [ ] If the site can be served, the worker is reachable and served as JavaScript (`curl -sI .../OneSignalSDKWorker.js` → 200, `application/javascript`)
 - [ ] SDK is initialized exactly once, as early as possible, with the App ID
-- [ ] All OneSignal access goes through a single point (wrapper package, or the CDN service module)
-- [ ] Push permission is requested **only** from the verification dialog's "Got it" button
+- [ ] No permission request, login, email, SMS, or tag calls in code
 
-### What only the developer can verify (report as a handoff, do not claim done)
+### What only the developer can verify (official guide's test steps)
 
-- [ ] Dashboard app configured as **Custom Code** with **Site URL** matching the exact origin (separate app for localhost)
-- [ ] Loaded over HTTPS (or `localhost`) in a normal, non-incognito window
-- [ ] SDK loads from the CDN at runtime and the permission prompt appears from "Got it"
-- [ ] A real subscription appears under **Audience → Subscriptions** (status *Subscribed*) — this is the runtime equivalent of the non-null `PushSubscription.id`
-- [ ] A test push (dashboard or API) is received on the device
+1. Dashboard: Typical Site, **Site URL** matching the exact origin (separate app for localhost), and a permission prompt configured.
+2. Open the site in Chrome, Firefox, Edge, or Safari over HTTPS (or `localhost`). Not Incognito or private browsing.
+3. The prompt appears based on the permission prompt configuration. Click **Allow** on the native prompt.
+4. In **Audience → Users & subscriptions → Subscriptions**, a new entry shows **Subscribed**.
+5. Send a test push.
 
 State clearly in the final summary which items you verified and which are the developer's to complete.
 
@@ -680,21 +597,22 @@ State clearly in the final summary which items you verified and which are the de
 
 | Issue | Solution |
 |-------|----------|
-| SDK never initializes | Confirm the site is on HTTPS (or `localhost`), not incognito |
+| SDK never initializes | Confirm the site is on HTTPS (or `localhost` with `allowLocalhostAsSecureOrigin: true`), not incognito, and the App ID is set |
 | "Site URL mismatch" / no prompt | Dashboard **Site URL** must exactly match the origin; localhost needs its own app |
-| Service worker 404 | The `OneSignalSDKWorker.js` file isn't reachable at the configured path on the origin |
+| Prompt never appears | Configure a permission prompt in the dashboard; check the browser isn't blocking notifications for the site |
+| Service worker 404 | `OneSignalSDKWorker.js` isn't reachable at the root (or at the dashboard's custom path) |
 | Worker served as `text/html` | Ensure the host serves `.js` with `content-type: application/javascript` |
 | Worker works locally but not in prod | Confirm the build copies the file to the deploy root (e.g. `public/` → `/`) |
-| Existing PWA / service worker stops working, or OneSignal worker never activates | Only one service worker can control a scope — move the OneSignal worker to a scoped subdirectory with `serviceWorkerPath` + `serviceWorkerParam` (see Step A.3) |
-| Permission prompt never appears | Permission is requested only from the "Got it" button; also check the browser isn't blocking notifications |
+| Existing PWA / service worker stops working | Only one service worker can control a scope — move the OneSignal worker to a subdirectory and set the path in the dashboard (Step A.3) |
+| SDK initializes twice in React dev | StrictMode runs effects twice; keep the `initialized` guard |
 | iOS Safari not subscribing | iOS needs 16.4+, a `manifest.json`, and the user must add the site to their home screen — see the iOS web push docs |
 
 ---
 
 ## Constraints Recap (Web-Specific)
 
-* Do NOT hardcode a demo/fallback App ID — use the one from the user's prompt.
-* Do NOT request push permission on page load — only from the verification dialog.
+* Do NOT hardcode a demo/fallback App ID — use the one from Step 1, or the `YOUR_APP_ID` placeholder if skipped.
+* Do NOT request push permission in code — prompts come from the dashboard.
 * Do NOT host the service worker on a CDN or a different origin.
 * Do NOT pin the CDN URL to a build number — use the `v16` path.
-* Keep OneSignal access consistent — call the wrapper package directly (do NOT re-wrap it), or the CDN service module for the global path.
+* Keep OneSignal access in one place — the wrapper package directly (do NOT re-wrap it), or the CDN snippet.

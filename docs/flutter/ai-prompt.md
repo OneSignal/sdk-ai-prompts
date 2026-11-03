@@ -31,9 +31,22 @@ Your task is to **fully integrate the OneSignal SDK** into this repository using
 
 ## App ID
 
-The App ID is provided in the user's prompt — the same message that linked you to this file. Use **that** App ID for all OneSignal SDK initialization and any REST calls in the verification scaffolding.
+The App ID is usually provided in the user's prompt — the same message that linked you to this file. Use **that** App ID for all OneSignal SDK initialization and any REST calls in the verification scaffolding.
 
-If no App ID is present in the user's prompt, ask the user to provide one before proceeding. **Never** hardcode a demo or fallback App ID.
+If no App ID is present in the user's prompt, ask for it in Step 1, together with any other questions. Ask it as an open text question, not multiple choice. Only use buttons if an option can hold typed text, labeled **Here it is: [App ID]** and **Skip for now**.
+
+> **What's your OneSignal App ID?**
+> Find it in the OneSignal dashboard under **Settings → Keys & IDs** ([guide](https://documentation.onesignal.com/docs/en/keys-and-ids)).
+>
+> * **Here it is:** paste your App ID as your reply
+> * **Skip for now:** reply "skip". No users or devices will register with OneSignal until you add it.
+
+Handling the answer:
+
+* **App ID provided:** an App ID is a UUID (for example `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`). If the value doesn't look like one, it is probably a REST API key or an Organization key. Ask again, and don't put API keys in the app.
+* **Skipped:** complete the integration with a single, clearly named placeholder (`YOUR_APP_ID`, as in the official docs) defined in one place, inside the centralized OneSignal wrapper. Tell the user the device won't register with OneSignal until a real App ID is set. Start the Changes Summary with this follow-up and name the file and line to update.
+
+**Never** invent, hardcode, or reuse a demo or fallback App ID.
 
 ---
 
@@ -76,6 +89,14 @@ Inspect the project and note:
    - **Option B: Current branch** — Write all changes directly to the current branch without stashing or creating a new branch
    - If no git repository is detected, skip this question and proceed
 
+4. **What's your OneSignal App ID?** (only if it wasn't in the user's prompt; see **App ID** above for the exact wording)
+
+5. **Is there a `google-services.json`?** (only when the integration builds for Android and the file isn't detected; see **Android Firebase Configuration** below for the wording)
+
+6. **Platform-specific questions** from the platform integration file, if any
+
+Ask all applicable questions together in one round, not one at a time. If any question needs typed text (such as the App ID) and your tool can't attach text to an option, ask the whole round as a chat message so the user can answer everything in one reply.
+
 ### Bundle ID and application ID (Required)
 
 * **Use the iOS bundle identifier and Android applicationId / package name already defined in the project.** Do not invent, rename, or "improve" them (including swapping to example or OneSignal-owned IDs) unless the user explicitly asks.
@@ -91,26 +112,15 @@ Inspect the project and note:
 
 ---
 
-## Push Subscription Verification Dialog (Required)
+## Push Permission Request (Required)
 
-After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully.
+Request push permission **exactly where and how the platform integration file says**. Each platform file follows its official setup guide:
 
-### Requirements (All Platforms)
-
-1. **Register a push subscription observer** immediately after OneSignal is initialized.
-
-2. **Retain the observer for the lifetime of the screen/component that owns it.** OneSignal stores push subscription observers weakly — a local-only variable is deallocated immediately and the dialog never appears. Store it in framework-retained state (for example SwiftUI `@State`, a UIKit view-controller property, React `useRef` / component field, Flutter `State` field, or an Android/`Application`-scoped reference).
-
-3. **Treat the device as registered only when the push subscription ID is a real, server-assigned value** — non-empty and **not** prefixed with `local-`. The SDK assigns a `local-` placeholder ID during initialization (before the device registers with OneSignal's servers); that placeholder does **not** mean the device is registered.
-
-4. **Evaluate the current subscription ID both on change and immediately at observer-registration time.** The ID may already be server-assigned before your observer attaches, so reacting only to the change event can miss the transition and the dialog would never appear.
-
-5. **When a real subscription ID is present, show a dialog exactly once** (guard with a "shown once" flag) — a platform-native alert on mobile, or an in-page modal on web — with:
-   - **Title:** "Your OneSignal SDK integration is complete!"
-   - **Message:** "You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications."
-   - **Single button:** **"Got it"**
-
-6. **On button tap**, request push permission.
+* **Mobile (Android, iOS, Flutter, React Native, Expo, Unity):** request permission at launch, right after initialization, through the wrapper, with the call the official guide uses. Don't add a verification dialog or any other custom UI.
+* **Web:** don't request permission in code. The official guide configures the permission prompt in the OneSignal dashboard (see the Web integration file).
+* In the Changes Summary, mention the official guides' advice: in production, consider prompting with an in-app message instead, for better opt-in rates.
+* **If the App ID was skipped** (mobile; Web has its own alert in the Web file), still add the permission request, and put this alert at the top of the Changes Summary, next to the App ID reminder:
+  > **The app will show the push permission prompt at launch, but the device won't register with OneSignal until you set your App ID.** Users who accept now won't be reachable until a build with your real App ID ships.
 
 ### Verification without duplicate subscriptions
 
@@ -119,11 +129,50 @@ When building, launching, or re-checking the integration:
 * **Do NOT** clear app data, wipe the emulator/simulator, or uninstall/reinstall the app solely to re-verify setup.
 * Clearing storage / reinstalling resets the install identity. The platform then mints a new push token and OneSignal creates a **new** subscription, leaving the previous one orphaned — so the dashboard shows duplicates for the same test flow.
 * Prefer a normal rebuild + relaunch (or install over the existing app) that **preserves** app storage.
-* One successful server-assigned subscription and one verification dialog is enough. Do not deliberately create a second subscription to prove the integration works.
+* One successful server-assigned subscription is enough. Do not deliberately create a second subscription to prove the integration works.
 
-> **Platform note:** Registration timing differs across platforms. On the mobile SDKs the device can register (and receive a real subscription ID) *before* push permission is granted, so the dialog gates the permission request. On **web**, a push subscription ID is typically only assigned *after* the user opts in, so the web integration file adapts this flow — see it for the exact, platform-correct implementation.
+---
 
-See platform-specific integration files for implementation examples.
+## Android Firebase Configuration (All Platforms That Build for Android)
+
+On the Current SDK versions, the official docs recommend adding the app's own Firebase configuration for every platform that builds for Android. Treat it as part of the integration, not an optional feature. The platform integration file says where the file goes and how the build processes it. Reference: https://documentation.onesignal.com/docs/en/android-firebase-credentials
+
+Skip this section for iOS-only and Web integrations, and for cross-platform projects where the developer didn't select Android.
+
+### Rules
+
+* **Never create, generate, or edit `google-services.json`.** It comes from the developer's Firebase project.
+* Its `package_name` must match the app's Android package name (`applicationId`, or `android.package` on Expo).
+* It must come from the **same Firebase project** as the FCM Service Account uploaded to OneSignal. Compare `project_info.project_id` in the file with the Firebase Project ID in the OneSignal dashboard. A mismatch causes subscription status `-6`.
+* Complete the platform's processing step. Without it the file does nothing, and the build gives no warning.
+* After building, confirm the file took effect as the platform file describes. A successful build alone doesn't prove it.
+* Don't add Firebase SDKs (Analytics, Crashlytics, etc.) or call `FirebaseMessaging` APIs for OneSignal. OneSignal owns the push token lifecycle.
+
+### If the file is not detected
+
+Ask during Step 1, together with the other questions. Fill in the app's real Android package name. Use a multiple-choice question if your tool supports it:
+
+> **I couldn't find a `google-services.json` file in your project.**
+> OneSignal recommends adding it for Android. Download it from the **same Firebase project** you use to generate the FCM Service Account file for OneSignal, check that its package name is `{package name}`, and place it in `{expected location}`. How to get both files: https://documentation.onesignal.com/docs/en/android-firebase-credentials
+>
+> * **I've added it, check again**
+> * **Skip for now.** I understand that adding it later may affect push delivery for my existing Android users.
+
+Handling the answer:
+
+* **"I've added it":** check the expected location again and confirm the `package_name` matches. If it is still missing or doesn't match, say what you found and ask again.
+* **Found in the wrong place:** if a `google-services.json` with a matching `package_name` is elsewhere in the project, or at a path the developer mentions, tell the developer where you found it and add this option to the question:
+  * **Copy it from there** (`{path}`)
+
+  On that answer, copy the file to the expected location unchanged and confirm the `package_name` matches. Don't search outside the project unless the developer points you to a location.
+* **Skipped:** don't add the file or its build step. Finish the integration and list the Firebase configuration as a follow-up in the Changes Summary, with the link above.
+* **Skipped, and Firebase Installation ID registration is on** (the merged manifest has `firebase_messaging_installation_id_enabled` set to boolean `true`): tell the user plainly that push won't work on Android (subscription status `-32`) until the Firebase configuration is added. Start the Changes Summary with this; don't present it as an optional follow-up.
+
+### After setup: FCM credentials in OneSignal
+
+Once the SDK is set up in the app, tell the developer in the Changes Summary (don't ask about it in Step 1):
+
+> **Push won't reach Android devices until your OneSignal app has FCM credentials.** In OneSignal, go to **Settings → Push & In-App → Google Android (FCM)** and upload your Firebase Service Account JSON. It should come from the same Firebase project as your `google-services.json`. Guide: https://documentation.onesignal.com/docs/en/android-firebase-credentials
 
 ---
 
@@ -139,12 +188,14 @@ See platform-specific integration files for implementation examples.
 * The official JSON endpoint above has both **Stable** and **Current** versions for all platforms
 * iOS note: `OneSignal-XCFramework` (the SPM repo) shares version tags with `OneSignal-iOS-SDK` — the same version number applies to both
 
-Use the **Stable** track unless the user specifically requested Current. Always pin that exact version from the releases JSON (SPM `exactVersion`, exact npm/pub version, exact CocoaPods version like `'5.2.0'`). Do not invent or widen version ranges.
+Always use the **Current** track (`channels.current.version`). Do not use Stable unless the user specifically asks for it.
+
+Write the dependency the way the platform integration file says, which follows the official setup guide. Where it gives a range (for example Android `[5.6.1, 5.99.99]` or CocoaPods `'>= 5.2.9', '< 6.0'`), copy the range exactly and make sure the Current version falls inside it. Where it gives no range, use the Current version (npm exact version, pub caret `^X.Y.Z`, SPM "Up to Next Major Version" from X.Y.Z). Don't invent or widen ranges. Report the resolved version in the Changes Summary.
 
 When using the JSON source, read the exact version from:
 `<sdk entry>.channels.<track>.version`
 
-Find the SDK entry by matching the requested platform against the entry's `name` or `displayName`. For example, for iOS Stable, find the entry with `name: "iOS"` and use `channels.stable.version`. Do not infer the Stable version from the newest tag, GitHub release order, GitHub `prerelease` status, or semantic-version sorting.
+Find the SDK entry by matching the requested platform against the entry's `name` or `displayName`. For example, for iOS, find the entry with `name: "iOS"` and use `channels.current.version`. Do not infer the version from the newest tag, GitHub release order, GitHub `prerelease` status, or semantic-version sorting.
 
 ---
 
@@ -165,17 +216,21 @@ Create a **single, centralized class/module** that wraps all OneSignal SDK inter
 ### Responsibilities
 
 * Initialize the SDK
-* Manage user identity (login/logout)
-* Handle email and SMS subscriptions
-* Manage user tags
+* Request push permission (see **Push Permission Request**)
 * Control logging levels
 * Isolate all direct OneSignal SDK calls
+
+### Scope: initialization only
+
+Follow the official setup guide, which covers installing and initializing the SDK. **Do NOT add login/logout, External ID, email, SMS, or tag calls**, even if the app has a login screen or collects emails. If a platform file shows them for reference, don't implement them.
+
+In the Changes Summary, recommend the next step from the official docs: assign an External ID with `OneSignal.login("user_id")` when users sign in, so their subscriptions are unified across devices. Link the platform's SDK setup guide.
 
 ### Rules
 
 * **No direct OneSignal SDK calls outside this wrapper**
 * All OneSignal interactions go through the centralized class/module
-* Some platform-file code examples (e.g. the Push Subscription Verification Dialog) show direct SDK calls for brevity — when implementing them, route those calls through the wrapper
+* Official-guide snippets call the SDK directly; when you copy them, route those calls through the wrapper
 * Makes testing and future SDK updates easier
 
 See platform integration files for specific implementation patterns and method signatures.
@@ -207,7 +262,7 @@ Do NOT automatically create a PR — let the user copy it.
 * Architecture decisions and where OneSignal logic is placed
 * For cross-platform SDKs: which mobile platforms were selected and status for each (shared code, iOS native, Android native)
 * Bundle ID / applicationId used from the project (do not invent new ones in the summary either)
-* Step-by-step verification instructions (simulator is fine for build/launch and the verification dialog path; on Apple Silicon, sandbox APNs in Simulator is also valid — see Shared iOS Push Infrastructure)
+* Step-by-step verification instructions (simulator is fine for build/launch and the permission prompt; on Apple Silicon, sandbox APNs in Simulator is also valid — see Shared iOS Push Infrastructure)
 * Any follow-ups, limitations, or known risks relevant to the code changes made
 
 ---
@@ -216,7 +271,7 @@ Do NOT automatically create a PR — let the user copy it.
 
 * **Do NOT refactor unrelated code**
 * **Do NOT add optional OneSignal features** unless required. Anything the platform integration file marks as **Required** (e.g. the iOS Notification Service Extension and App Group) is part of the core integration — NOT an optional feature — and MUST be implemented
-* **Do NOT add push-notification features beyond SDK initialization, the Push Subscription Verification Dialog, and the sections the platform integration file marks as Required.** The dialog's on-tap permission request (Step 6 of the verification requirements) is required and is the **only** place push permission may be requested — do NOT prompt for permission at app launch or anywhere else
+* **Do NOT add push-notification features beyond SDK initialization, the push permission request, and the sections the platform integration file marks as Required.** Request push permission **only** where the platform integration file says (see **Push Permission Request**): at launch on mobile, and through the dashboard-configured prompt on web. Don't request it anywhere else.
 * **Do NOT clear app data, wipe the emulator/simulator, or uninstall/reinstall solely to re-verify** — that creates duplicate OneSignal subscriptions (see Verification without duplicate subscriptions)
 * **Keep changes scoped, clean, and reviewable**
 * **Favor consistency** with the existing codebase
@@ -737,12 +792,25 @@ If the project does not already reference the OneSignal package, add an `XCRemot
 
 Skip the SPM objects above. Add an NSE target block to the `Podfile` and run `pod install`, which generates the linking:
 
-```ruby
-target 'OneSignalNotificationServiceExtension' do
-  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
-  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
-end
-```
+Use the NSE block from the platform integration file. For Flutter and React Native, the NSE must request **the same `OneSignalXCFramework` subspecs as the plugin's podspec**. If the sets differ, CocoaPods builds the framework twice and Xcode fails with `Multiple commands produce '.../XCFrameworkIntermediates/OneSignalXCFramework/...'`.
+
+* **Default (location module enabled):** the plugins depend on the aggregate pod, so the NSE does too:
+  ```ruby
+  target 'OneSignalNotificationServiceExtension' do
+    pod 'OneSignalXCFramework', '>= 5.0.0', '< 6.0'
+  end
+  ```
+* **`ONESIGNAL_DISABLE_LOCATION=true`:** the plugins depend on two subspecs, so list the same two:
+  ```ruby
+  target 'OneSignalNotificationServiceExtension' do
+    pod 'OneSignalXCFramework/OneSignal', '>= 5.0.0', '< 6.0'
+    pod 'OneSignalXCFramework/OneSignalInAppMessages', '>= 5.0.0', '< 6.0'
+  end
+  ```
+
+Don't pin the NSE to an exact version: the plugin chooses the native iOS version, and a different exact pin fails `pod install`. Expo and Unity write their own NSE Podfile block; verify it exists, but don't rewrite it.
+
+The official Flutter and React Native guides show `pod 'OneSignalXCFramework/OneSignal'` alone for the default case. That doesn't match the plugins' aggregate dependency and fails the build; use the blocks above.
 
 ## Verify the iOS Infrastructure
 
@@ -782,6 +850,8 @@ end
 * [Pub.dev Package](https://pub.dev/packages/onesignal_flutter)
 * [GitHub Repository](https://github.com/OneSignal/OneSignal-Flutter-SDK)
 
+If this file and the official [Flutter SDK setup](https://documentation.onesignal.com/docs/en/flutter-sdk-setup) page disagree, follow the official page.
+
 ---
 
 ## Pre-Flight Checklist
@@ -790,16 +860,30 @@ Before considering the integration complete, verify ALL of the following:
 
 ### Flutter Configuration
 
-- [ ] Minimum Flutter SDK version 2.0.0 or higher
-- [ ] Dart SDK version 2.12.0 or higher (null safety)
+- [ ] Flutter 3.29.0 or higher, per the official setup guide. If the project's Flutter is older, report it in the summary; don't upgrade it.
 
 ### Android Sub-Project
 
-- [ ] `minSdkVersion` 21+ in `android/app/build.gradle`
-- [ ] `compileSdkVersion` 33+ in `android/app/build.gradle`
+- [ ] Keep the project's `minSdkVersion` (Flutter's default `flutter.minSdkVersion` is fine). Only if Firebase Installation ID registration is on (see shared **Android Firebase Configuration**) does it need 23+, because `firebase-messaging` 25.x requires it.
+- [ ] Don't change the Android Gradle Plugin version. If the build reports an incompatible AGP, recommend updating Android Studio (or ask before lowering AGP).
 - [ ] INTERNET permission in `android/app/src/main/AndroidManifest.xml`
 
-Note: Do NOT add the Google Services Gradle plugin or a `google-services.json` file for OneSignal — the SDK registers for FCM itself and these files are not required.
+### Android Firebase Configuration
+
+Follow **Android Firebase Configuration** in the shared guidelines (rules, the Step 1 question, and handling the answer). Flutter specifics, from the official [Flutter SDK setup](https://documentation.onesignal.com/docs/en/flutter-sdk-setup) and [Android Firebase credentials](https://documentation.onesignal.com/docs/en/android-firebase-credentials) pages:
+
+- [ ] Expected location: `android/app/google-services.json`. Takes effect from `onesignal_flutter` 5.7.2.
+- [ ] `android/settings.gradle` lists `google()` under `pluginManagement { repositories }`. Otherwise the build fails with `Plugin [id: 'com.google.gms.google-services'] was not found`.
+- [ ] Declare the plugin in `android/settings.gradle`:
+  ```groovy
+  plugins {
+      id "com.google.gms.google-services" version "[4.4.2, 4.99.99]" apply false
+  }
+  ```
+  With `settings.gradle.kts`, use `id("com.google.gms.google-services") version "[4.4.2, 4.99.99]" apply false`.
+- [ ] Apply it in `android/app/build.gradle` with `apply plugin: 'com.google.gms.google-services'`. With `build.gradle.kts`, add `id("com.google.gms.google-services")` to its `plugins` block. **This step is required:** the OneSignal Flutter plugin can't apply it, and without it the file does nothing.
+- [ ] Only apply the plugin once the file is present; otherwise the build fails.
+- [ ] Confirm the file took effect: from `android/`, run `./gradlew :app:processDebugGoogleServices`, then check that `google_app_id` and `project_id` appear under `android/app/build/generated/res/`.
 
 ### iOS Sub-Project
 
@@ -807,13 +891,18 @@ Note: Do NOT add the Google Services Gradle plugin or a `google-services.json` f
 - [ ] Background Modes capability with Remote notifications
 - [ ] App Groups capability configured on BOTH Runner and `OneSignalNotificationServiceExtension`
 - [ ] `OneSignalNotificationServiceExtension` target added and configured
-- [ ] Minimum deployment target iOS 12.0+
+- [ ] Minimum deployment target iOS 15.0+ on Runner and the NSE (official guide); don't lower an existing higher target
 - [ ] CocoaPods projects: `pod install` succeeds for Runner + NSE; SPM projects: NSE links/builds without adding an NSE-only Podfile
 
 ### Initialization
 
-- [ ] OneSignal initialized in `main()` before `runApp()`
+- [ ] OneSignal initialized in `main()`, right after `runApp()`, as in the official setup guide
+- [ ] Push permission requested right after initialization with `requestPermission(false)` (see **Push Permission Request**)
 - [ ] Apply native iOS and/or Android project work only for the platforms selected in Step 1
+
+### Notification Icons (Android, Recommended)
+
+- [ ] Recommend in the summary adding a small icon named `ic_stat_onesignal_default` under `android/app/src/main/res/drawable-*`. Guide: https://documentation.onesignal.com/docs/en/notification-icons. Don't generate icons unless asked.
 
 ---
 
@@ -837,10 +926,11 @@ If the app already uses CocoaPods (`ios/Podfile` present):
 
 ```ruby
 target 'OneSignalNotificationServiceExtension' do
-  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
-  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
+  pod 'OneSignalXCFramework', '>= 5.0.0', '< 6.0'
 end
 ```
+
+This must match what `onesignal_flutter`'s podspec requests: the aggregate pod by default, or `OneSignalXCFramework/OneSignal` plus `OneSignalXCFramework/OneSignalInAppMessages` when `ONESIGNAL_DISABLE_LOCATION=true` (see the shared **CocoaPods projects — Podfile block**). A mismatch fails the build with "Multiple commands produce".
 
 Prefer nesting the NSE target under the main app target with `inherit! :search_paths` when that matches the project's Podfile style and avoids duplicate OneSignal framework copies.
 
@@ -907,44 +997,17 @@ lib/
 
 ---
 
-## Threading Model
-
-Flutter handles threading differently - most OneSignal operations are already async.
-Use `Future`s and `async/await` for all OneSignal calls:
-
-```dart
-class OneSignalService {
-  Future<void> initialize(String appId) async {
-    // Set log level for debugging (remove in production)
-    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-    // Initialize OneSignal
-    OneSignal.initialize(appId);
-  }
-  
-  Future<bool> requestPermission() async {
-    return await OneSignal.Notifications.requestPermission(true);
-  }
-}
-```
-
-For heavy computation, use `compute()` or `Isolate`:
-
-```dart
-// If you need to process notification data
-final result = await compute(processNotificationData, data);
-```
-
----
-
 ## Code Examples
 
 ### Dependency (pubspec.yaml)
+
+Use the Current version from releases.json (Step 2) with a caret constraint, as the official guide does (`^5.7.2` at the time of writing):
 
 ```yaml
 dependencies:
   flutter:
     sdk: flutter
-  onesignal_flutter: ^5.0.0
+  onesignal_flutter: ^X.Y.Z
 ```
 
 Then run:
@@ -952,40 +1015,11 @@ Then run:
 flutter pub get
 ```
 
-### Main Entry Point (main.dart)
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Set log level for debugging (remove in production)
-  OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-  // Initialize OneSignal
-  OneSignal.initialize("YOUR_ONESIGNAL_APP_ID");
-
-  // Do NOT request push permission here — the verification dialog
-  // (see "Push Subscription Verification Dialog") requests it on tap.
-
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'My App',
-      home: const HomeScreen(),
-    );
-  }
-}
-```
+Report the resolved version from `pubspec.lock` in the summary.
 
 ### Centralized Service (onesignal_service.dart)
+
+Wraps every OneSignal call. Initialization only: no login, email, SMS, or tag methods (see **Scope: initialization only** in the shared guidelines).
 
 ```dart
 import 'package:onesignal_flutter/onesignal_flutter.dart';
@@ -994,199 +1028,81 @@ class OneSignalService {
   static final OneSignalService _instance = OneSignalService._internal();
   factory OneSignalService() => _instance;
   OneSignalService._internal();
-  
+
   bool _isInitialized = false;
-  
+
   void initialize(String appId) {
     if (_isInitialized) return;
-    
-    // Set log level for debugging (remove in production)
+
+    // Enable verbose logging for debugging (remove in production)
     OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-    // Initialize OneSignal
     OneSignal.initialize(appId);
     _isInitialized = true;
   }
-  
-  void login(String externalId) {
-    OneSignal.login(externalId);
+
+  /// Shows the native prompt. false = don't fall back to Settings, as in the official guide.
+  void requestPushPermission() {
+    OneSignal.Notifications.requestPermission(false);
   }
-  
-  void logout() {
-    OneSignal.logout();
-  }
-  
-  void setEmail(String email) {
-    OneSignal.User.addEmail(email);
-  }
-  
-  void setSmsNumber(String number) {
-    OneSignal.User.addSms(number);
-  }
-  
-  void setTag(String key, String value) {
-    OneSignal.User.addTagWithKey(key, value);
-  }
-  
-  Future<bool> requestPermission() async {
-    return await OneSignal.Notifications.requestPermission(true);
-  }
-  
+
   void setLogLevel(OSLogLevel level) {
     OneSignal.Debug.setLogLevel(level);
   }
-  
-  // Listen for notification events
-  void setNotificationClickListener(void Function(OSNotificationClickEvent) handler) {
-    OneSignal.Notifications.addClickListener(handler);
-  }
-  
-  void setNotificationForegroundListener(void Function(OSNotificationWillDisplayEvent) handler) {
-    OneSignal.Notifications.addForegroundWillDisplayListener(handler);
-  }
 }
 ```
 
-### Provider Pattern (notification_provider.dart)
+### Main Entry Point (main.dart)
 
-```dart
-import 'package:flutter/foundation.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
-
-class NotificationProvider extends ChangeNotifier {
-  final OneSignalService _oneSignalService = OneSignalService();
-  
-  bool _isPermissionGranted = false;
-  bool get isPermissionGranted => _isPermissionGranted;
-  
-  void initialize(String appId) {
-    _oneSignalService.initialize(appId);
-    _setupListeners();
-  }
-  
-  void _setupListeners() {
-    _oneSignalService.setNotificationClickListener((event) {
-      // Handle notification click
-      debugPrint('Notification clicked: ${event.notification.title}');
-    });
-  }
-  
-  Future<void> requestPermission() async {
-    _isPermissionGranted = await _oneSignalService.requestPermission();
-    notifyListeners();
-  }
-  
-  void setUserDetails(String email, String phone) {
-    _oneSignalService.setEmail(email);
-    _oneSignalService.setSmsNumber(phone);
-  }
-}
-```
-
----
-
-## Push Subscription Verification Dialog
-
-After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully. When the subscription ID is received, show a dialog and request push permission on tap.
-
-### Material
+Follows the official setup guide: initialize and request permission in `main()`, right after `runApp()`. Replace `YOUR_APP_ID` with the App ID from Step 1.
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'services/onesignal_service.dart';
 
-bool _dialogShown = false;
+void main() {
+  runApp(const MyApp());
 
-// A real, server-assigned subscription ID is non-empty and not the local- placeholder
-bool _isRegistered(String? id) =>
-    id != null && id.isNotEmpty && !id.startsWith('local-');
-
-void _maybeShowIntegrationCompleteDialog(BuildContext context, String? subscriptionId) {
-  if (_isRegistered(subscriptionId) && !_dialogShown) {
-    _dialogShown = true;
-    showIntegrationCompleteDialog(context);
-  }
-}
-
-void setupPushSubscriptionObserver(BuildContext context) {
-  OneSignal.User.pushSubscription.addObserver((state) {
-    _maybeShowIntegrationCompleteDialog(context, state.current.id);
-  });
-
-  // The ID may already be assigned before the observer attaches,
-  // so evaluate the current value immediately as well.
-  _maybeShowIntegrationCompleteDialog(context, OneSignal.User.pushSubscription.id);
-}
-
-void showIntegrationCompleteDialog(BuildContext context) {
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => AlertDialog(
-      title: const Text('Your OneSignal SDK integration is complete!'),
-      content: const Text('You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.'),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-            OneSignal.Notifications.requestPermission(true);
-          },
-          child: const Text('Got it'),
-        ),
-      ],
-    ),
-  );
+  OneSignalService().initialize("YOUR_APP_ID");
+  OneSignalService().requestPushPermission();
 }
 ```
 
-### Cupertino
+Keep the project's existing `main()` contents (for example `WidgetsFlutterBinding.ensureInitialized()` or other setup); only add the two OneSignal calls after `runApp()`.
 
-```dart
-import 'package:flutter/cupertino.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
+---
 
-bool _dialogShown = false;
+## Push Permission Request
 
-// A real, server-assigned subscription ID is non-empty and not the local- placeholder
-bool _isRegistered(String? id) =>
-    id != null && id.isNotEmpty && !id.startsWith('local-');
+Follow the official setup guide: request push permission in `main()`, right after initialization, through the service, with `requestPermission(false)`. Don't add a verification dialog, and don't request permission anywhere else.
 
-void _maybeShowIntegrationCompleteDialog(BuildContext context, String? subscriptionId) {
-  if (_isRegistered(subscriptionId) && !_dialogShown) {
-    _dialogShown = true;
-    showIntegrationCompleteDialog(context);
-  }
-}
+In the Changes Summary, mention the official guide's advice: in production, consider prompting with an in-app message instead, for better opt-in rates.
 
-void setupPushSubscriptionObserver(BuildContext context) {
-  OneSignal.User.pushSubscription.addObserver((state) {
-    _maybeShowIntegrationCompleteDialog(context, state.current.id);
-  });
+If the developer skipped the App ID, still add the permission request, and include this alert at the top of the Changes Summary, next to the App ID reminder:
 
-  // The ID may already be assigned before the observer attaches,
-  // so evaluate the current value immediately as well.
-  _maybeShowIntegrationCompleteDialog(context, OneSignal.User.pushSubscription.id);
-}
+> **The app will show the push permission prompt at launch, but the device won't register with OneSignal until you set your App ID.** Users who accept now won't be reachable until a build with your real App ID ships.
 
-void showIntegrationCompleteDialog(BuildContext context) {
-  showCupertinoDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => CupertinoAlertDialog(
-      title: const Text('Your OneSignal SDK integration is complete!'),
-      content: const Text('You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.'),
-      actions: [
-        CupertinoDialogAction(
-          onPressed: () {
-            Navigator.pop(context);
-            OneSignal.Notifications.requestPermission(true);
-          },
-          child: const Text('Got it'),
-        ),
-      ],
-    ),
-  );
-}
-```
+---
+
+## Verification
+
+Give the developer these steps in the Changes Summary, following the official guide:
+
+1. Run the app on a device or emulator (`flutter run`). Android needs a device or emulator with Google Play Services.
+2. In the OneSignal dashboard, open **Audience → Users & subscriptions → Subscriptions**. The new Subscription shows **Never Subscribed**.
+3. Accept the permission prompt in the app.
+4. Refresh the dashboard. The status changes to **Subscribed**.
+5. Send a test push. This needs FCM credentials (Android) and APNs credentials (iOS) in the OneSignal dashboard.
+
+Do **not** reinstall or wipe the app just to re-check; that creates a second OneSignal subscription. See shared guidelines: **Verification without duplicate subscriptions**.
+
+---
+
+## After Setup: Push Credentials in OneSignal
+
+In the Changes Summary, for each platform selected in Step 1:
+
+- **Android:** use the shared **After setup: FCM credentials in OneSignal** note.
+- **iOS:** > **Push won't reach iOS devices until your OneSignal app has APNs credentials.** In OneSignal, go to **Settings → Push & In-App → Apple iOS (APNs)** and add your p8 Auth Key (recommended) or p12 Certificate.
 
 ---
 
@@ -1195,9 +1111,12 @@ void showIntegrationCompleteDialog(BuildContext context) {
 | Issue | Solution |
 |-------|----------|
 | iOS build fails | Run `cd ios && pod install --repo-update` |
-| Android build fails | Check `minSdkVersion` is 21+ and sync gradle |
-| Permission not working on iOS | Verify Push Notification capability in Xcode |
+| `Multiple commands produce '.../XCFrameworkIntermediates/OneSignalXCFramework/...'` | The NSE and the app request different `OneSignalXCFramework` subspecs. Make the NSE block match the plugin's podspec (see **CocoaPods projects**), then `pod install` |
+| Android build fails | Sync Gradle and check the error; if it mentions `minSdkVersion`, raise it to what the error asks |
+| `Plugin [id: 'com.google.gms.google-services'] was not found` | Add `google()` to `pluginManagement { repositories }` in `android/settings.gradle` |
+| Incompatible AGP version | Update Android Studio; ask before lowering AGP |
+| Permission prompt never appears | Confirm `requestPushPermission()` runs after `initialize` in `main()`. If the user already answered, the OS won't prompt again |
 | iOS push received but no image | Verify the shared iOS Notification Service Extension and App Group setup |
 | iOS Confirmed Delivery missing | Verify the shared App Group matches byte-for-byte in Runner and NSE entitlements, and confirm the OneSignal plan supports dashboard display |
-| Notifications not received | Check both Android and iOS platform configurations |
+| Android subscription status -32 or -33 | google-services.json missing, or from a different Firebase project than the FCM Service Account in OneSignal |
 | Hot reload breaks OneSignal | Restart app completely after OneSignal changes |

@@ -511,12 +511,25 @@ If the project does not already reference the OneSignal package, add an `XCRemot
 
 Skip the SPM objects above. Add an NSE target block to the `Podfile` and run `pod install`, which generates the linking:
 
-```ruby
-target 'OneSignalNotificationServiceExtension' do
-  # Pin to the exact OneSignal iOS / XCFramework version selected from releases.json (same as the app) — do not use a version range.
-  pod 'OneSignalXCFramework/OneSignal', 'X.Y.Z'
-end
-```
+Use the NSE block from the platform integration file. For Flutter and React Native, the NSE must request **the same `OneSignalXCFramework` subspecs as the plugin's podspec**. If the sets differ, CocoaPods builds the framework twice and Xcode fails with `Multiple commands produce '.../XCFrameworkIntermediates/OneSignalXCFramework/...'`.
+
+* **Default (location module enabled):** the plugins depend on the aggregate pod, so the NSE does too:
+  ```ruby
+  target 'OneSignalNotificationServiceExtension' do
+    pod 'OneSignalXCFramework', '>= 5.0.0', '< 6.0'
+  end
+  ```
+* **`ONESIGNAL_DISABLE_LOCATION=true`:** the plugins depend on two subspecs, so list the same two:
+  ```ruby
+  target 'OneSignalNotificationServiceExtension' do
+    pod 'OneSignalXCFramework/OneSignal', '>= 5.0.0', '< 6.0'
+    pod 'OneSignalXCFramework/OneSignalInAppMessages', '>= 5.0.0', '< 6.0'
+  end
+  ```
+
+Don't pin the NSE to an exact version: the plugin chooses the native iOS version, and a different exact pin fails `pod install`. Expo and Unity write their own NSE Podfile block; verify it exists, but don't rewrite it.
+
+The official Flutter and React Native guides show `pod 'OneSignalXCFramework/OneSignal'` alone for the default case. That doesn't match the plugins' aggregate dependency and fails the build; use the blocks above.
 
 ## Verify the iOS Infrastructure
 
