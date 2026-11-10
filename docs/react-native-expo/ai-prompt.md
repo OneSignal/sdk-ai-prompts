@@ -142,7 +142,7 @@ Skip this section for iOS-only and Web integrations, and for cross-platform proj
 
 * **Never create, generate, or edit `google-services.json`.** It comes from the developer's Firebase project.
 * Its `package_name` must match the app's Android package name (`applicationId`, or `android.package` on Expo).
-* It must come from the **same Firebase project** as the FCM Service Account uploaded to OneSignal. Compare `project_info.project_id` in the file with the Firebase Project ID in the OneSignal dashboard. A mismatch causes subscription status `-6`.
+* It must come from the **same Firebase project** as the FCM Service Account uploaded to OneSignal. Compare `project_info.project_id` in the file with the Firebase Project ID in the OneSignal dashboard. A mismatch is usually silent rather than an error: on the default legacy token path the SDK registers through OneSignal's own Firebase project and logs `FCM legacy token registration is using OneSignal's FirebaseApp because its gcmSenderId (…) does not match …`, and push keeps working. It only produces subscription status `-6` under Firebase Installation ID registration. Diagnose a suspected mismatch from that log line, not from `-6`.
 * Complete the platform's processing step. Without it the file does nothing, and the build gives no warning.
 * After building, confirm the file took effect as the platform file describes. A successful build alone doesn't prove it.
 * Don't add Firebase SDKs (Analytics, Crashlytics, etc.) or call `FirebaseMessaging` APIs for OneSignal. OneSignal owns the push token lifecycle.
@@ -165,7 +165,7 @@ Handling the answer:
 
   On that answer, copy the file to the expected location unchanged and confirm the `package_name` matches. Don't search outside the project unless the developer points you to a location.
 * **Skipped:** don't add the file or its build step. Finish the integration and list the Firebase configuration as a follow-up in the Changes Summary, with the link above.
-* **Skipped, and Firebase Installation ID registration is on** (the merged manifest has `firebase_messaging_installation_id_enabled` set to boolean `true`): tell the user plainly that push won't work on Android (subscription status `-32`) until the Firebase configuration is added. Start the Changes Summary with this; don't present it as an optional follow-up.
+* **Skipped, and Firebase Installation ID registration is on** (the merged manifest has `firebase_messaging_installation_id_enabled` set to boolean `true`): tell the user plainly that push won't work on Android (subscription status `-32`) until either the Firebase configuration is added, or the flag is overridden to `false` in the application manifest with `tools:replace="android:value"` to restore the legacy token path. Offer both. The override needs nothing from the Firebase console, and is usually what the developer wants when a dependency turned the flag on rather than they themselves. Start the Changes Summary with this; don't present it as an optional follow-up.
 
 ### After setup: FCM credentials in OneSignal
 
