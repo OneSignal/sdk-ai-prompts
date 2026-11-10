@@ -8,15 +8,17 @@
 * [NPM Package](https://www.npmjs.com/package/react-native-onesignal)
 * [GitHub Repository](https://github.com/OneSignal/react-native-onesignal)
 
+If this file and the official [Expo SDK setup](https://documentation.onesignal.com/docs/en/react-native-expo-sdk-setup) page disagree, follow the official page.
+
 ---
 
 ## User Prompts
 
-Before beginning the integration, ask the user the following question:
+Ask this together with the Step 1 questions (one round):
 
 > **Language Preference**: Do you want the integration code in JavaScript or TypeScript?
 
-Use the user's response to determine which code examples to provide throughout the integration.
+If the project already uses TypeScript (`tsconfig.json`, `.tsx` files), don't ask; use TypeScript.
 
 ---
 
@@ -51,32 +53,48 @@ Before considering the integration complete, verify ALL of the following:
 - [ ] `onesignal-expo-plugin` is the **first** item in the `plugins` array
 - [ ] Development build created (not using Expo Go)
 - [ ] For iOS builds, the plugin is allowed to add the Notification Service Extension (`disableNSE` is not `true`)
-- [ ] OneSignal App ID is available (from the user prompt)
+- [ ] iOS deployment target 15.0+ (official guide). If the project sets `iPhoneDeploymentTarget`, it must be 15.0 or higher.
 
-Note: Do NOT add `expo.android.googleServicesFile` or a `google-services.json` file for OneSignal — the SDK registers for FCM itself and these files are not required.
+### Android Firebase Configuration
+
+Follow **Android Firebase Configuration** in the shared guidelines (rules, the Step 1 question, and handling the answer). Expo specifics, from the official [Expo SDK setup](https://documentation.onesignal.com/docs/en/react-native-expo-sdk-setup) and [Android Firebase credentials](https://documentation.onesignal.com/docs/en/android-firebase-credentials) pages:
+
+- [ ] Expected location: any path in the project (for example the project root), referenced by `android.googleServicesFile` in the app config. Takes effect from `react-native-onesignal` 5.5.16.
+  ```json
+  {
+    "expo": {
+      "android": {
+        "package": "com.example.app",
+        "googleServicesFile": "./google-services.json"
+      }
+    }
+  }
+  ```
+- [ ] The file's client entry matches `android.package`, and every package variant you build. Otherwise prebuild fails with `No matching client found for package name`.
+- [ ] Don't apply the Google Services plugin yourself: `npx expo prebuild` copies the file and applies it.
+- [ ] Requires a development build (`npx expo run:android`). Expo Go is not supported.
 
 ### Initialization
 
-- [ ] OneSignal initialized in `App.js` or `App.tsx` (root component)
-- [ ] Initialize before rendering main app content
+- [ ] OneSignal initialized inside a `useEffect` in the root component (`App.tsx` / `App.js`, or `app/_layout.tsx` for Expo Router), as in the official setup guide
+- [ ] Push permission requested right after initialization with `requestPermission(false)`
+
+### Notification Icons (Android, Recommended)
+
+- [ ] Recommend in the summary adding a small icon through the plugin's `smallIcons` option (named `ic_stat_onesignal_default`). Without it, notifications show a default bell icon. Guide: https://documentation.onesignal.com/docs/en/notification-icons. Don't generate icons unless asked.
 
 ---
 
 ## Installation
 
-Install the OneSignal SDK and Expo plugin:
+Install the Expo plugin at its Current version (releases.json entry for Expo) and `react-native-onesignal` at the React Native Current version, with the project's package manager:
 
 ```bash
-npx expo install onesignal-expo-plugin
-npm install --save react-native-onesignal
+npx expo install onesignal-expo-plugin@X.Y.Z
+npm install --save react-native-onesignal@A.B.C
 ```
 
-Or with Yarn:
-
-```bash
-npx expo install onesignal-expo-plugin
-yarn add react-native-onesignal
-```
+`react-native-onesignal` must be 5.5.16 or later for google-services.json to take effect.
 
 ---
 
@@ -224,302 +242,82 @@ Only use manual native edits as a fallback for generated projects where the plug
 
 ## SDK Initialization
 
-Initialize OneSignal in the root of the app. Use `App.tsx` / `App.js` for traditional Expo apps, or `app/_layout.tsx` / `app/_layout.js` for Expo Router.
+### Centralized Service (src/services/oneSignalService.ts)
 
-Do NOT request push permission during initialization. The verification dialog below requests permission when the user taps **Got it**.
+Wraps every OneSignal call. Initialization only: no login, email, SMS, or tag methods (see **Scope: initialization only** in the shared guidelines). For JavaScript, drop the type annotations and use `.js`.
 
-### Traditional App Entry
-
-```javascript
-import React, { useEffect } from 'react';
-import { View, Text } from 'react-native';
+```typescript
 import { OneSignal, LogLevel } from 'react-native-onesignal';
 
-const ONESIGNAL_APP_ID = 'YOUR_ONESIGNAL_APP_ID';
+// The App ID from Step 1, or the YOUR_APP_ID placeholder if it was skipped.
+const ONESIGNAL_APP_ID = 'YOUR_APP_ID';
 
-export default function App() {
-  useEffect(() => {
+let isInitialized = false;
+
+export const OneSignalService = {
+  initialize(): void {
+    if (isInitialized) return;
+    // Enable verbose logging for debugging (remove in production)
     OneSignal.Debug.setLogLevel(LogLevel.Verbose);
     OneSignal.initialize(ONESIGNAL_APP_ID);
+    isInitialized = true;
+  },
 
-    const clickListener = (event) => {
-      console.log('OneSignal: notification clicked:', event);
-    };
+  /** false = don't fall back to Settings, as in the official guide. */
+  requestPushPermission(): void {
+    OneSignal.Notifications.requestPermission(false);
+  },
 
-    const foregroundListener = (event) => {
-      console.log('OneSignal: foreground will display:', event);
-    };
-
-    OneSignal.Notifications.addEventListener('click', clickListener);
-    OneSignal.Notifications.addEventListener('foregroundWillDisplay', foregroundListener);
-
-    return () => {
-      OneSignal.Notifications.removeEventListener('click', clickListener);
-      OneSignal.Notifications.removeEventListener('foregroundWillDisplay', foregroundListener);
-    };
-  }, []);
-
-  return (
-    <View>
-      <Text>Your App Content</Text>
-    </View>
-  );
-}
+  setLogLevel(level: LogLevel): void {
+    OneSignal.Debug.setLogLevel(level);
+  },
+};
 ```
 
-### Expo Router
+### Root Component
 
-```javascript
+Follows the official setup guide: initialize and request permission in a `useEffect` in the root component. Use `App.tsx` / `App.js` for traditional Expo apps, or `app/_layout.tsx` / `app/_layout.js` for Expo Router. The App ID lives only in the service. Keep the component's existing content; only add the effect.
+
+```typescript
 import React, { useEffect } from 'react';
-import { Stack } from 'expo-router';
-import { OneSignal, LogLevel } from 'react-native-onesignal';
-
-const ONESIGNAL_APP_ID = 'YOUR_ONESIGNAL_APP_ID';
+import { Stack } from 'expo-router'; // Expo Router only
+import { OneSignalService } from '../src/services/oneSignalService';
 
 export default function RootLayout() {
   useEffect(() => {
-    OneSignal.Debug.setLogLevel(LogLevel.Verbose);
-    OneSignal.initialize(ONESIGNAL_APP_ID);
-
-    const clickListener = (event) => {
-      console.log('OneSignal: notification clicked:', event);
-    };
-
-    const foregroundListener = (event) => {
-      console.log('OneSignal: foreground will display:', event);
-    };
-
-    OneSignal.Notifications.addEventListener('click', clickListener);
-    OneSignal.Notifications.addEventListener('foregroundWillDisplay', foregroundListener);
-
-    return () => {
-      OneSignal.Notifications.removeEventListener('click', clickListener);
-      OneSignal.Notifications.removeEventListener('foregroundWillDisplay', foregroundListener);
-    };
+    OneSignalService.initialize();
+    // In production, consider an in-app message instead for better opt-in rates.
+    OneSignalService.requestPushPermission();
   }, []);
 
-  return <Stack />;
+  return <Stack />; // or the app's existing content
 }
 ```
 
-If a listener needs access to props or state, define it with `useCallback` so the same function reference is used for both `addEventListener` and `removeEventListener`.
+The official guide's snippet also adds `click` and `foregroundWillDisplay` listeners. They aren't needed for setup; mention them in the summary as an optional next step.
 
 ---
 
-## Push Subscription Verification Dialog
+## Verification
 
-After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully. When the subscription ID is received, show a dialog and request push permission on tap.
+Give the developer these steps in the Changes Summary, following the official guide:
 
-### JavaScript Version
+1. Build a development build (`npx expo run:ios` / `npx expo run:android`, or EAS Build) and launch it. Not Expo Go. The permission prompt appears at launch.
+2. Before accepting, open **Audience → Users & subscriptions → Subscriptions** in the OneSignal dashboard. The new Subscription shows **Never Subscribed**.
+3. Tap **Allow** on the prompt.
+4. Refresh the dashboard. The status changes to **Subscribed**.
+5. Send a test push. This needs FCM credentials (Android) and APNs credentials (iOS) in the OneSignal dashboard.
 
-```javascript
-import { Alert } from 'react-native';
-import { OneSignal } from 'react-native-onesignal';
-
-let dialogShown = false;
-
-// A real, server-assigned subscription ID is non-empty and not the local- placeholder
-function isRegistered(subscriptionId) {
-  return !!subscriptionId && !subscriptionId.startsWith('local-');
-}
-
-function maybeShowIntegrationCompleteDialog(subscriptionId) {
-  if (isRegistered(subscriptionId) && !dialogShown) {
-    dialogShown = true;
-    showIntegrationCompleteDialog();
-  }
-}
-
-function setupPushSubscriptionObserver() {
-  OneSignal.User.pushSubscription.addEventListener('change', (subscription) => {
-    maybeShowIntegrationCompleteDialog(subscription.current.id);
-  });
-
-  // The ID may already be assigned before the listener attaches,
-  // so evaluate the current value immediately as well.
-  OneSignal.User.pushSubscription.getIdAsync().then(maybeShowIntegrationCompleteDialog);
-}
-
-function showIntegrationCompleteDialog() {
-  Alert.alert(
-    'Your OneSignal SDK integration is complete!',
-    'You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.',
-    [
-      {
-        text: 'Got it',
-        onPress: () => {
-          OneSignal.Notifications.requestPermission(true);
-        },
-      },
-    ],
-    { cancelable: false }
-  );
-}
-```
-
-### TypeScript Version
-
-```typescript
-import { Alert } from 'react-native';
-import { OneSignal } from 'react-native-onesignal';
-
-let dialogShown = false;
-
-// A real, server-assigned subscription ID is non-empty and not the local- placeholder
-function isRegistered(subscriptionId: string | null | undefined): boolean {
-  return !!subscriptionId && !subscriptionId.startsWith('local-');
-}
-
-function maybeShowIntegrationCompleteDialog(subscriptionId: string | null | undefined): void {
-  if (isRegistered(subscriptionId) && !dialogShown) {
-    dialogShown = true;
-    showIntegrationCompleteDialog();
-  }
-}
-
-function setupPushSubscriptionObserver(): void {
-  OneSignal.User.pushSubscription.addEventListener('change', (subscription) => {
-    maybeShowIntegrationCompleteDialog(subscription.current.id);
-  });
-
-  // The ID may already be assigned before the listener attaches,
-  // so evaluate the current value immediately as well.
-  OneSignal.User.pushSubscription.getIdAsync().then(maybeShowIntegrationCompleteDialog);
-}
-
-function showIntegrationCompleteDialog(): void {
-  Alert.alert(
-    'Your OneSignal SDK integration is complete!',
-    'You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.',
-    [
-      {
-        text: 'Got it',
-        onPress: () => {
-          OneSignal.Notifications.requestPermission(true);
-        },
-      },
-    ],
-    { cancelable: false }
-  );
-}
-```
+Do **not** reinstall or wipe the app just to re-check; that creates a second OneSignal subscription.
 
 ---
 
-## Advanced Patterns (Optional)
+## After Setup: Push Credentials in OneSignal
 
-For larger applications, you may want to use one of these patterns:
+In the Changes Summary, for each platform selected in Step 1:
 
-### Context Provider Pattern
-
-```typescript
-// src/contexts/NotificationContext.tsx
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { OneSignal, LogLevel } from 'react-native-onesignal';
-
-interface NotificationContextType {
-  isInitialized: boolean;
-  hasPermission: boolean;
-  requestPermission: () => Promise<boolean>;
-  setUserEmail: (email: string) => void;
-  setUserPhone: (phone: string) => void;
-}
-
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
-
-interface ProviderProps {
-  children: ReactNode;
-  appId: string;
-}
-
-export const NotificationProvider: React.FC<ProviderProps> = ({ children, appId }) => {
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [hasPermission, setHasPermission] = useState(false);
-
-  useEffect(() => {
-    // Set log level for debugging (remove in production)
-    OneSignal.Debug.setLogLevel(LogLevel.Verbose);
-    // Initialize OneSignal
-    OneSignal.initialize(appId);
-    setIsInitialized(true);
-
-    OneSignal.Notifications.addEventListener('permissionChange', setHasPermission);
-
-    return () => {
-      OneSignal.Notifications.removeEventListener('permissionChange', setHasPermission);
-    };
-  }, [appId]);
-
-  const requestPermission = async (): Promise<boolean> => {
-    const granted = await OneSignal.Notifications.requestPermission(true);
-    setHasPermission(granted);
-    return granted;
-  };
-
-  const setUserEmail = (email: string): void => {
-    OneSignal.User.addEmail(email);
-  };
-
-  const setUserPhone = (phone: string): void => {
-    OneSignal.User.addSms(phone);
-  };
-
-  return (
-    <NotificationContext.Provider
-      value={{ isInitialized, hasPermission, requestPermission, setUserEmail, setUserPhone }}
-    >
-      {children}
-    </NotificationContext.Provider>
-  );
-};
-
-export const useNotifications = (): NotificationContextType => {
-  const context = useContext(NotificationContext);
-  if (!context) {
-    throw new Error('useNotifications must be used within NotificationProvider');
-  }
-  return context;
-};
-```
-
-### Custom Hook Pattern
-
-```typescript
-// src/hooks/useOneSignal.ts
-import { useEffect, useState, useCallback } from 'react';
-import { OneSignal, LogLevel } from 'react-native-onesignal';
-
-export const useOneSignal = (appId: string) => {
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [hasPermission, setHasPermission] = useState(false);
-
-  useEffect(() => {
-    // Set log level for debugging (remove in production)
-    OneSignal.Debug.setLogLevel(LogLevel.Verbose);
-    // Initialize OneSignal
-    OneSignal.initialize(appId);
-    setIsInitialized(true);
-
-    const checkPermission = async () => {
-      const permission = await OneSignal.Notifications.getPermissionAsync();
-      setHasPermission(permission);
-    };
-    checkPermission();
-  }, [appId]);
-
-  const requestPermission = useCallback(async () => {
-    const granted = await OneSignal.Notifications.requestPermission(true);
-    setHasPermission(granted);
-    return granted;
-  }, []);
-
-  return {
-    isInitialized,
-    hasPermission,
-    requestPermission,
-  };
-};
-```
+- **Android:** use the shared **After setup: FCM credentials in OneSignal** note.
+- **iOS:** > **Push won't reach iOS devices until your OneSignal app has APNs credentials.** In OneSignal, go to **Settings → Push & In-App → Apple iOS (APNs)** and add your p8 Auth Key (recommended) or p12 Certificate.
 
 ---
 

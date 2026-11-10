@@ -2,9 +2,11 @@
 
 ## Official Documentation
 
-* [OneSignal Unity SDK Setup](https://documentation.onesignal.com/docs/unity-sdk-setup)
+* [OneSignal Unity SDK Setup](https://documentation.onesignal.com/docs/en/unity-sdk-setup)
 * [Unity SDK API Reference](https://documentation.onesignal.com/docs/unity-sdk-api-reference)
 * [GitHub Repository](https://github.com/OneSignal/OneSignal-Unity-SDK)
+
+If this file and the official [Unity SDK setup](https://documentation.onesignal.com/docs/en/unity-sdk-setup) page disagree, follow the official page.
 
 ---
 
@@ -14,36 +16,58 @@ Before considering the integration complete, verify ALL of the following:
 
 ### Unity Configuration
 
-- [ ] Unity version 2021.3 LTS or newer (recommended)
-- [ ] Unity version 2018.4+ minimum supported
+- [ ] Unity 2022.3 or newer (official guide). If the project is older, report it in the summary; don't upgrade it.
 
 ### Package Installation
 
-- [ ] OneSignal Unity SDK installed via Unity Package Manager or `.unitypackage`
-- [ ] External Dependency Manager (EDM4U) installed **explicitly** — it is NOT bundled with or pulled in by the OneSignal packages (see "Install External Dependency Manager (EDM4U)" below)
+- [ ] OneSignal Unity SDK installed through the npmjs scoped registry (see **Installation**) or the Unity Asset Store
+- [ ] An External Dependency Manager present. The OneSignal UPM packages don't depend on one (see **Install External Dependency Manager**)
+- [ ] `Assets/OneSignal/link.xml` present (see **OneSignal SDK Setup window steps**), so IL2CPP code stripping doesn't remove the SDK's platform classes
 
 ### Android Build Settings
 
-- [ ] Minimum API Level 21 (Android 5.0) or higher
-- [ ] Target API Level 33+ recommended
-- [ ] Custom Main Manifest enabled if modifying AndroidManifest.xml
-- [ ] Custom Main Gradle Template enabled (Player Settings ▸ Publishing Settings) so EDM4U can resolve Android dependencies on JDK 17
-- [ ] Internet permission granted (automatic with OneSignal)
+Apply these yourself from files where a recipe is given; list the rest in the summary as developer steps.
 
-Note: Do NOT add the Google Services Gradle plugin or a `google-services.json` file for OneSignal — the SDK registers for FCM itself and these files are not required.
+- [ ] **Custom Main Gradle Template** and **Custom Gradle Properties Template** enabled (Player Settings ▸ Android ▸ Publishing Settings). From files: copy `mainTemplate.gradle` and `gradleTemplate.properties` from the Unity install's `PlaybackEngines/AndroidPlayer/Tools/GradleTemplates/` into `Assets/Plugins/Android/` (skip any that already exist), and set `useCustomMainGradleTemplate: 1` and `useCustomGradlePropertiesTemplate: 1` in `ProjectSettings/ProjectSettings.asset`.
+- [ ] Target API Level 33 or higher. `Automatic` (highest installed) is fine; don't change it.
+- [ ] `OneSignalConfig.androidlib` in `Assets/Plugins/Android` (see **OneSignal SDK Setup window steps**). Required if Minify is enabled, and the place for `google-services.xml` and icons.
+- [ ] Android dependencies resolved: tell the developer to run Assets ▸ External Dependency Manager ▸ Android Resolver ▸ **Force Resolve** after opening the project. With Custom Main Gradle Template on, dependencies also resolve during a normal Unity Android build.
+
+### Android Firebase Configuration
+
+Follow **Android Firebase Configuration** in the shared guidelines, with these Unity differences from the official [Unity SDK setup](https://documentation.onesignal.com/docs/en/unity-sdk-setup) and [Android Firebase credentials](https://documentation.onesignal.com/docs/en/android-firebase-credentials) pages. Requires OneSignal Unity SDK 5.4.2 or later.
+
+- [ ] Unity has **no** `com.google.gms.google-services` step. **Do not add `google-services.json` to the project.**
+- [ ] Instead, ship `res/values/google-services.xml` inside an `.androidlib` under `Assets/Plugins/Android`. Detect this file instead of `google-services.json`.
+- [ ] If it's missing, ask the Step 1 question, but ask the developer to keep `google-services.json` **outside `Assets/`** and tell you its path. Then either:
+  * use the Firebase Unity SDK to generate `google-services.xml`, if the project already uses it, or
+  * write `google-services.xml` with the four values the official guide names, from the developer's file: `google_app_id` (`client[].client_info.mobilesdk_app_id` for the matching package), `gcm_defaultSenderId` (`project_info.project_number`), `google_api_key` (`client[].api_key[0].current_key`), and `project_id` (`project_info.project_id`).
+- [ ] Put it in `Assets/Plugins/Android/OneSignalConfig.androidlib/src/main/res/values/google-services.xml`. If that `.androidlib` isn't there, create it yourself as described in **OneSignal SDK Setup window steps**; don't stop to ask. Use another existing `.androidlib` only if the project already has one.
+- [ ] The file format:
+  ```xml
+  <?xml version="1.0" encoding="utf-8"?>
+  <resources>
+      <string name="google_app_id" translatable="false">1:000000000000:android:0000000000000000</string>
+      <string name="gcm_defaultSenderId" translatable="false">000000000000</string>
+      <string name="google_api_key" translatable="false">AIza...</string>
+      <string name="project_id" translatable="false">your-project-id</string>
+  </resources>
+  ```
+
+### Notification Icons (Android, Recommended)
+
+- [ ] Recommend in the summary replacing the default icons in `Assets/Plugins/Android/OneSignalConfig.androidlib/src/main/res`. Without a small icon, notifications show a default bell icon. Guide: https://documentation.onesignal.com/docs/en/notification-icons. Don't generate icons unless asked.
 
 ### iOS Build Settings
 
-- [ ] Target minimum iOS version 12.0+
-- [ ] Verify the exported Xcode project has the Push Notifications and Background Modes (Remote notifications) capabilities (added automatically by the OneSignal build post-processor)
-- [ ] Verify the App Group `group.{bundle_id}.onesignal` is on BOTH the exported app target and `OneSignalNotificationServiceExtension` (added automatically)
-- [ ] Verify the `OneSignalNotificationServiceExtension` target exists in the exported Xcode project (added automatically)
-- [ ] A valid Apple Developer Team is selected (Automatically Sign in Player Settings, or signing configured in Xcode) so the App Group can be provisioned
+- [ ] Target minimum iOS version 15.0+ (official guide)
+- [ ] **Automatically Sign** checked (Player Settings ▸ Other Settings), or manual provisioning with the App Group `group.{bundle_id}.onesignal`, Push Notifications and App Groups enabled in the Apple Developer account
+- [ ] Verify the exported Xcode project has the Push Notifications and Background Modes (Remote notifications) capabilities, the App Group on BOTH targets, and the `OneSignalNotificationServiceExtension` target (all added automatically)
 
 ### Initialization
 
-- [ ] OneSignal initialized in a startup script or first scene
-- [ ] `RuntimeInitializeOnLoadMethod` or `Awake()` used for early initialization
+- [ ] OneSignal initialized in `Start()` of a `MonoBehaviour` early in the app's lifecycle, as in the official setup guide
+- [ ] Push permission requested right after initialization with `await OneSignal.Notifications.RequestPermissionAsync(true)`, as in the official setup guide
 
 ---
 
@@ -54,13 +78,15 @@ Unity exports an Xcode project for iOS, and the OneSignal Unity SDK includes an 
 * Enables the Push Notifications and Background Modes (Remote notifications) capabilities on the main target
 * Adds the App Group `group.{bundle_id}.onesignal` to the entitlements of BOTH the main target and the NSE
 * Creates the `OneSignalNotificationServiceExtension` target with `NotificationService.swift`, `Info.plist`, and entitlements
-* Appends a `target 'OneSignalNotificationServiceExtension'` block with `OneSignalXCFramework/OneSignalExtension` to the generated Podfile
+* Appends a `target 'OneSignalNotificationServiceExtension'` block to the generated Podfile
 
-Your job after export is to VERIFY this ran, using the "Shared iOS Push Infrastructure" section earlier in this document as the reference for what must be present (NSE target, App Group in both entitlements, Background Modes, Podfile block).
+Your job after export is to VERIFY this ran, using the "Shared iOS Push Infrastructure" section earlier in this document as the reference for what must be present (NSE target, App Group in both entitlements, Background Modes).
+
+The Podfile block is the exception: the post-processor writes `pod 'OneSignalXCFramework/OneSignalExtension', 'X.Y.Z'`, exactly pinned to the SDK's iOS version, plus `install! 'cocoapods', :disable_input_output_paths => true`. That is expected. Don't compare it with the shared Podfile block, and don't edit it; the next export overwrites it.
 
 Unity-specific notes:
 
-* Open and build the exported project via **`.xcworkspace`**, not `.xcodeproj`. CocoaPods (including OneSignal) is only linked through the workspace. Example:
+* Open and build the exported project via **`.xcworkspace`**, not `.xcodeproj`. CocoaPods (including OneSignal) is only linked through the workspace:
 
 ```bash
 cd <ExportedIosProject>
@@ -70,12 +96,10 @@ xcodebuild -workspace Unity-iPhone.xcworkspace -scheme Unity-iPhone \
   -destination 'platform=iOS Simulator,name=iPhone 16' build
 ```
 
-* Keep normal code signing enabled — see **Code signing (do not disable)** in the Shared iOS Push Infrastructure section (do not pass `CODE_SIGNING_ALLOWED=NO`).
-* Select a valid Apple Developer Team (Automatically Sign recommended) so Xcode can provision the App Group; with manual provisioning, the App Group and capabilities must already exist in the Apple Developer account
+* Keep normal code signing enabled — see **Code signing (do not disable)** in the Shared iOS Push Infrastructure section.
 * The post-processor does NOT run on Unity Cloud Build (`UNITY_CLOUD_BUILD`) — in that case, apply the shared iOS push infrastructure setup manually to the exported project
 * If a custom post-process script changes the bundle identifier, run it before OneSignal's post-processor (callback order 45) or the App Group name will be derived from the old bundle ID
 * Keep the existing Unity iOS bundle identifier from Player Settings / the exported project; do not invent a new one
-* Simulator builds are fine for verifying the export, NSE target presence, app launch, and the verification dialog; on Apple Silicon, sandbox APNs in Simulator is also valid
 
 ---
 
@@ -87,107 +111,15 @@ xcodebuild -workspace Unity-iPhone.xcworkspace -scheme Unity-iPhone \
 Assets/
 ├── Scripts/
 │   ├── Managers/
-│   │   └── OneSignalManager.cs     # Singleton manager
+│   │   └── OneSignalManager.cs     # Singleton manager, DontDestroyOnLoad
 │   └── ...
-├── Prefabs/
-│   └── Managers/
-│       └── OneSignalManager.prefab # DontDestroyOnLoad
 └── Scenes/
     └── ...
 ```
 
-### Service Locator Pattern
+### Service Locator / DI (Zenject, VContainer)
 
-```
-Assets/
-├── Scripts/
-│   ├── Services/
-│   │   ├── INotificationService.cs
-│   │   └── OneSignalNotificationService.cs
-│   ├── Core/
-│   │   └── ServiceLocator.cs
-│   └── ...
-```
-
-### Zenject/VContainer (DI Framework)
-
-```
-Assets/
-├── Scripts/
-│   ├── Installers/
-│   │   └── ProjectInstaller.cs     # Bind OneSignal service
-│   ├── Services/
-│   │   └── OneSignalService.cs
-│   └── ...
-```
-
----
-
-## Threading Model
-
-Unity is single-threaded for most operations. OneSignal SDK handles its own threading internally.
-
-### Main Thread Callbacks
-
-```csharp
-using OneSignalSDK;
-using OneSignalSDK.Notifications;
-
-// OneSignal callbacks are already on the main thread
-// Events use standard EventHandler<T> pattern with (object sender, EventArgs e) signature
-OneSignal.Notifications.Clicked += (sender, e) =>
-{
-    // Safe to access Unity objects here
-    // Use UnityEngine.Debug to avoid conflict with OneSignal.Debug
-    UnityEngine.Debug.Log($"Notification clicked: {e.Notification.Title}");
-};
-
-OneSignal.Notifications.ForegroundWillDisplay += (sender, e) =>
-{
-    UnityEngine.Debug.Log($"Notification received: {e.Notification.Title}");
-    // Call e.PreventDefault() to suppress the notification display
-};
-
-OneSignal.Notifications.PermissionChanged += (sender, e) =>
-{
-    UnityEngine.Debug.Log($"Permission changed: {e.Permission}");
-};
-```
-
-### Background Operations (if needed)
-
-```csharp
-using System.Threading.Tasks;
-
-public class OneSignalManager : MonoBehaviour
-{
-    public async Task<bool> InitializeAsync(string appId)
-    {
-        return await Task.Run(() =>
-        {
-            OneSignal.Initialize(appId);
-            return true;
-        });
-    }
-}
-```
-
-### UniTask (Recommended for Unity async)
-
-```csharp
-using Cysharp.Threading.Tasks;
-
-public class OneSignalManager : MonoBehaviour
-{
-    public async UniTaskVoid InitializeAsync(string appId)
-    {
-        await UniTask.SwitchToThreadPool();
-        OneSignal.Initialize(appId);
-        await UniTask.SwitchToMainThread();
-        Debug.Log("OneSignal initialized");
-    }
-}
-```
+Keep the same `OneSignalManager` and bind or register it through the project's existing container. Don't introduce a container the project doesn't already use.
 
 ---
 
@@ -195,127 +127,81 @@ public class OneSignalManager : MonoBehaviour
 
 ### Installation (Unity Package Manager)
 
-Add to `Packages/manifest.json`:
-```json
-{
-  "dependencies": {
-    "com.onesignal.unity.core": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=com.onesignal.unity.core#5.1.15",
-    "com.onesignal.unity.android": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=com.onesignal.unity.android#5.1.15",
-    "com.onesignal.unity.ios": "https://github.com/OneSignal/OneSignal-Unity-SDK.git?path=com.onesignal.unity.ios#5.1.15"
-  }
-}
-```
-
-> **Important:** Always include a version tag (e.g., `#5.1.15`) to ensure reproducible builds. `5.1.15` is shown only as an example — confirm the current **Stable** version from the releases page (see Step 2) before using it; do not copy this number blindly. The `core` package must be listed first as it is a dependency of the platform packages. Do not include a leading `/` in the path parameter.
-
-Or use the Unity Asset Store / .unitypackage from GitHub releases.
-
-### Install External Dependency Manager (EDM4U) — Required
-
-The three OneSignal UPM packages above declare their native Android/iOS libraries through EDM4U (via a `Dependencies.xml` manifest) but **do NOT depend on EDM4U themselves**. If you only add those packages, the resulting build contains **no `com.onesignal.OneSignal` native library** — initialization fails silently at runtime with a `ClassNotFoundException`. You must install EDM4U explicitly:
-
-**Option A — scoped registry (recommended).** Add Google's registry to `Packages/manifest.json`, then install the package:
+Follow the official guide: add the npmjs scoped registry, then install the OneSignal packages at the Current version from releases.json (Step 2). In `Packages/manifest.json`:
 
 ```json
 {
   "scopedRegistries": [
     {
-      "name": "Google",
-      "url": "https://unityregistry-pa.googleapis.com",
-      "scopes": ["com.google"]
+      "name": "npmjs",
+      "url": "https://registry.npmjs.org",
+      "scopes": ["com.onesignal"]
     }
   ],
   "dependencies": {
-    "com.google.external-dependency-manager": "1.2.186"
+    "com.onesignal.unity.core": "X.Y.Z",
+    "com.onesignal.unity.android": "X.Y.Z",
+    "com.onesignal.unity.ios": "X.Y.Z"
   }
 }
 ```
 
-> Pin `com.google.external-dependency-manager` to the current version published in that registry (the value above is an example — verify the latest). You can also add it via **Window ▸ Package Manager ▸ Google ▸ External Dependency Manager for Unity ▸ Install**, which selects the version for you.
+Install `com.onesignal.unity.android` and/or `com.onesignal.unity.ios` only for the platforms selected in Step 1; `core` is always required. Merge into the existing `scopedRegistries` and `dependencies` instead of replacing them.
 
-**Option B — `.unitypackage`.** Import the latest `external-dependency-manager-*.unitypackage` from [googlesamples/unity-jar-resolver](https://github.com/googlesamples/unity-jar-resolver).
+If the project already installed OneSignal from the Asset Store or a Git URL, keep that method and update the version instead.
 
-### Enable the Custom Main Gradle Template — Required for Android
+### OneSignal SDK Setup window steps
 
-On modern Unity, let EDM4U resolve Android dependencies **through Unity's build Gradle**, not its standalone resolver:
+The official guide says to open Window ▸ OneSignal SDK Setup and complete its checklist. Its steps are file operations, so do them yourself instead of stopping to ask:
 
-1. Open **Player Settings ▸ Publishing Settings** and enable **Custom Main Gradle Template**. This generates `Assets/Plugins/Android/mainTemplate.gradle`, which EDM4U patches with the OneSignal Android dependencies as part of the normal build.
-2. Do **NOT** rely on EDM4U's **"Force Resolve"** alone. Its standalone resolver runs Gradle 5.1.1, which crashes on JDK 17 (`GroovyBugError` / `ReflectionCache`) — and you cannot downgrade the JDK because Unity 6 + Android Gradle Plugin 8 require JDK 17.
+| Window step | What to do |
+|-------------|------------|
+| **Install EDM4U** | **Skip if any External Dependency Manager is present** (see below). The window only recognizes legacy EDM4U, so it shows this step as incomplete with Unity's EDM. Running it imports Google's archived `.unitypackage` next to Unity's EDM and duplicates the `Google.*` assemblies. Tell the developer to ignore that step. |
+| **Copy Android plugin to Assets** | Copy every non-`.meta` file from `com.onesignal.unity.android`'s `Editor/OneSignalConfig.androidlib/` to `Assets/Plugins/Android/OneSignalConfig.androidlib/`. The source is in `Library/PackageCache/com.onesignal.unity.android@<version>/` once Unity has resolved packages; before that, take it from the npm tarball for the Current version (`https://registry.npmjs.org/com.onesignal.unity.android/-/com.onesignal.unity.android-X.Y.Z.tgz`). Skip if it already exists. |
+| **Generate link.xml** | Copy `com.onesignal.unity.core`'s `Editor/link.xml` to `Assets/OneSignal/link.xml` (same source rules). It keeps IL2CPP stripping from removing the classes the SDK finds by reflection. |
+| **Sync example code bundle** | Optional; skip. |
 
-With the Custom Main Gradle Template enabled, the OneSignal native libraries resolve during the standard Unity Android build.
+Re-running the window's copy step later overwrites the package files in `OneSignalConfig.androidlib` but leaves an added `google-services.xml` alone.
 
-### Initialization Script
+### Install External Dependency Manager
 
-```csharp
-using UnityEngine;
-using OneSignalSDK;
-using OneSignalSDK.Debug.Models;
+The OneSignal UPM packages declare their native Android/iOS libraries through an External Dependency Manager but **do not depend on one themselves**. Without it the build has **no `com.onesignal.OneSignal` native library**, and initialization fails silently at runtime with a `ClassNotFoundException`.
 
-public class OneSignalInitializer : MonoBehaviour
+First detect any of these; if one is present, keep it and don't add another:
+- `com.unity.external-dependency-manager` in `Packages/manifest.json` (Unity's EDM)
+- `com.google.external-dependency-manager` in `Packages/manifest.json` (legacy EDM4U)
+- `Assets/ExternalDependencyManager/` (legacy EDM4U imported as a `.unitypackage`)
+
+If none is present, add Unity's EDM from the Unity registry (no scoped registry needed; requires Unity 2022.3+):
+
+```json
 {
-    [SerializeField] private string appId = "YOUR_ONESIGNAL_APP_ID";
-
-    private void Awake()
-    {
-        // Initialize OneSignal
-        OneSignal.Initialize(appId);
-
-        // Set log level for debugging (use PascalCase for enum values)
-        OneSignal.Debug.LogLevel = LogLevel.Verbose;
-        OneSignal.Debug.AlertLevel = LogLevel.None;
-
-        // Do NOT request push permission here — the verification dialog
-        // (see "Push Subscription Verification Dialog") requests it on tap.
-
-        // Keep this object alive across scenes
-        DontDestroyOnLoad(gameObject);
-    }
+  "dependencies": {
+    "com.unity.external-dependency-manager": "2.1.1"
+  }
 }
 ```
 
-> **Note:** The `LogLevel` enum is in the `OneSignalSDK.Debug.Models` namespace and uses PascalCase values: `None`, `Fatal`, `Error`, `Warn`, `Info`, `Debug`, `Verbose`.
+Use the latest version: read `dist-tags.latest` from `https://packages.unity.com/com.unity.external-dependency-manager`.
 
-> **Note:** The OneSignal **App ID is a public identifier, not a secret** — it ships inside the app binary and is safe to commit and hardcode. The "do not commit secrets" rule applies only to **REST API keys**, which must never be embedded in the app.
+Don't use Google's registry (`https://unityregistry-pa.googleapis.com`): it returns 404, and Google archived EDM4U on 2026-10-26 in favor of Unity's EDM. A manifest that references it blocks resolution of **every** package, including OneSignal's.
 
-### Using RuntimeInitializeOnLoadMethod
+### Centralized Manager (OneSignalManager.cs)
+
+Wraps every OneSignal call. Initialization only: no login, email, SMS, or tag methods (see **Scope: initialization only** in the shared guidelines). Follows the official guide: initialize in `Start()`, then request permission. Put the App ID from Step 1 in `AppId`. Add the component to a GameObject in the first scene; in a scene file, that means a new GameObject with this script attached, and the summary should name the scene.
 
 ```csharp
 using UnityEngine;
 using OneSignalSDK;
 using OneSignalSDK.Debug.Models;
-
-public static class OneSignalBootstrap
-{
-    private const string APP_ID = "YOUR_ONESIGNAL_APP_ID";
-
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-    private static void Initialize()
-    {
-        OneSignal.Initialize(APP_ID);
-        OneSignal.Debug.LogLevel = LogLevel.Verbose;
-    }
-}
-```
-
-### Centralized Manager
-
-```csharp
-using UnityEngine;
-using OneSignalSDK;
-using OneSignalSDK.Notifications;
-using OneSignalSDK.Notifications.Models;
-using OneSignalSDK.Debug.Models;
-using System;
 
 public class OneSignalManager : MonoBehaviour
 {
     public static OneSignalManager Instance { get; private set; }
 
-    [SerializeField] private string appId;
-
-    // Use correct interface types from OneSignalSDK.Notifications.Models
-    public event Action<IDisplayableNotification> OnNotificationReceived;
-    public event Action<INotificationClickResult> OnNotificationClicked;
+    // The App ID from Step 1, or the YOUR_APP_ID placeholder if it was skipped.
+    // A const, not a [SerializeField]: a serialized value in the scene would override this line.
+    private const string AppId = "YOUR_APP_ID";
 
     public bool IsInitialized { get; private set; }
 
@@ -329,69 +215,19 @@ public class OneSignalManager : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
-
-        Initialize();
     }
 
-    private void Initialize()
+    private async void Start()
     {
         if (IsInitialized) return;
 
-        if (string.IsNullOrEmpty(appId))
-        {
-            UnityEngine.Debug.LogError("OneSignal App ID is not set!");
-            return;
-        }
-
-        OneSignal.Initialize(appId);
-        SetupListeners();
+        // Enable verbose logging for debugging (remove in production)
+        OneSignal.Debug.LogLevel = LogLevel.Verbose;
+        OneSignal.Initialize(AppId);
         IsInitialized = true;
-    }
 
-    private void SetupListeners()
-    {
-        // Events use EventHandler<T> pattern: (object sender, TEventArgs e)
-        OneSignal.Notifications.ForegroundWillDisplay += (sender, e) =>
-        {
-            OnNotificationReceived?.Invoke(e.Notification);
-            // Call e.PreventDefault() to suppress the notification display
-        };
-
-        OneSignal.Notifications.Clicked += (sender, e) =>
-        {
-            OnNotificationClicked?.Invoke(e.Result);
-        };
-    }
-
-    public void Login(string externalId)
-    {
-        OneSignal.Login(externalId);
-    }
-
-    public void Logout()
-    {
-        OneSignal.Logout();
-    }
-
-    public void SetEmail(string email)
-    {
-        OneSignal.User.AddEmail(email);
-    }
-
-    public void SetSmsNumber(string number)
-    {
-        OneSignal.User.AddSms(number);
-    }
-
-    public void SetTag(string key, string value)
-    {
-        OneSignal.User.AddTag(key, value);
-    }
-
-    public async void RequestPermission(Action<bool> callback = null)
-    {
-        bool accepted = await OneSignal.Notifications.RequestPermissionAsync(true);
-        callback?.Invoke(accepted);
+        // As in the official guide. In production, consider an in-app message instead for better opt-in rates.
+        await OneSignal.Notifications.RequestPermissionAsync(true);
     }
 
     public void SetLogLevel(LogLevel level)
@@ -401,131 +237,35 @@ public class OneSignalManager : MonoBehaviour
 }
 ```
 
-> **Important Notes:**
-> - Use `UnityEngine.Debug.Log()` instead of `Debug.Log()` to avoid conflicts with `OneSignal.Debug`
-> - Event handlers use the standard `EventHandler<T>` signature: `(object sender, TEventArgs e)`
-> - The correct type is `INotificationClickResult` (not `INotificationClickedResult`)
-> - `IDisplayableNotification` is used for foreground notifications, `INotification` for clicked notifications
+> **Notes:**
+> - `LogLevel` is in `OneSignalSDK.Debug.Models`; the official snippet omits that `using`, but it's required.
+> - Use `UnityEngine.Debug.Log()` instead of `Debug.Log()` to avoid conflicts with `OneSignal.Debug`.
+> - The OneSignal **App ID is a public identifier, not a secret**; it's safe to commit. Never embed REST API keys in the app.
 
 ---
 
-## Push Subscription Verification Dialog
+## Verification
 
-After completing SDK initialization, add a push subscription observer so the app can confirm that the device registered successfully. When the subscription ID is received, show a dialog and request push permission on tap.
+Give the developer these steps in the Changes Summary, following the official guide:
 
-Unity has no native alert dialog, so this uses a lightweight IMGUI overlay. Attach this component to a GameObject in your first scene (or create it from `OneSignalManager`) after OneSignal is initialized.
+1. Build and run on a device or emulator. **Not the Editor:** in Play mode the OneSignal native layer is a no-op, so nothing registers and no prompt appears. If you test on an Android emulator, cold-boot it first. The permission prompt appears at launch.
+2. Before accepting, open **Audience → Users & subscriptions → Subscriptions** in the OneSignal dashboard. The new Subscription shows **Never Subscribed**.
+3. Tap **Allow** on the prompt.
+4. Refresh the dashboard. The status changes to **Subscribed**.
+5. Send a test push. This needs FCM credentials (Android) and APNs credentials (iOS) in the OneSignal dashboard.
 
-> **Wrapper-rule exception:** Step 4 requires routing OneSignal calls through your centralized wrapper. The verification dialog is a **sanctioned exception** — it may call `OneSignal.User.PushSubscription` and `OneSignal.Notifications.RequestPermissionAsync` directly. If you prefer to keep the rule strict, expose these through `OneSignalManager` (e.g. its `RequestPermission` method) and call that instead.
+On Android, OneSignal's logs go to `adb logcat -s OneSignal:V`, not the Unity Console.
 
-### IntegrationCompleteDialog.cs
-
-```csharp
-using UnityEngine;
-using OneSignalSDK;
-
-public class IntegrationCompleteDialog : MonoBehaviour
-{
-    private bool showDialog = false;
-    private bool dialogShown = false;
-
-    private void Start()
-    {
-        // Register the push subscription observer after OneSignal is initialized.
-        // Event handlers use the standard (object sender, TEventArgs e) signature.
-        OneSignal.User.PushSubscription.Changed += (sender, e) =>
-        {
-            MaybeShowDialog(e.State.Current.Id);
-        };
-
-        // The ID may already be assigned before the observer attaches,
-        // so evaluate the current value immediately as well.
-        MaybeShowDialog(OneSignal.User.PushSubscription.Id);
-    }
-
-    // A real, server-assigned subscription ID is non-empty and not the local- placeholder
-    private static bool IsRegistered(string subscriptionId) =>
-        !string.IsNullOrEmpty(subscriptionId) && !subscriptionId.StartsWith("local-");
-
-    private void MaybeShowDialog(string subscriptionId)
-    {
-        if (IsRegistered(subscriptionId) && !dialogShown)
-        {
-            dialogShown = true;
-            showDialog = true;
-        }
-    }
-
-    private void OnGUI()
-    {
-        if (!showDialog) return;
-
-        GUILayout.BeginArea(new Rect(Screen.width / 2 - 200, Screen.height / 2 - 100, 400, 200), GUI.skin.box);
-
-        GUILayout.Label("Your OneSignal SDK integration is complete!",
-            new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter });
-        GUILayout.Space(10);
-        GUILayout.Label("You can now send Push Notifications & In-App Messages through OneSignal. Tap below to enable push notifications.",
-            new GUIStyle(GUI.skin.label) { wordWrap = true, alignment = TextAnchor.MiddleCenter });
-        GUILayout.Space(20);
-
-        if (GUILayout.Button("Got it", GUILayout.Height(40)))
-        {
-            showDialog = false;
-            RequestPushPermission();
-        }
-
-        GUILayout.EndArea();
-    }
-
-    private async void RequestPushPermission()
-    {
-        await OneSignal.Notifications.RequestPermissionAsync(true);
-    }
-}
-```
-
-> **Verifying requires a real device or emulator build — it will NOT work in the Editor.**
->
-> - In **Editor Play mode the OneSignal native layer is a no-op**: the device never registers, no server-assigned subscription ID is issued, and the verification dialog will **never** appear. Build and run on a physical device or an Android emulator to see it. An empty Unity Console in the Editor does **not** mean the integration failed.
-> - On Android, OneSignal's logs go to **`adb logcat`**, not the Unity Console. Filter them with:
->
-> ```bash
-> adb logcat -s OneSignal:V
-> ```
+Do **not** reinstall or wipe the app just to re-check; that creates a second OneSignal subscription.
 
 ---
 
-## Testing
+## After Setup: Push Credentials in OneSignal
 
-> **Note:** Play Mode tests run in the Editor, where the OneSignal native layer is a no-op. They can verify your C#/MonoBehaviour wiring (manager creation, listener setup) but **cannot** verify push registration, subscription IDs, or the verification dialog — those require a device/emulator build (see the verification note above).
+In the Changes Summary, for each platform selected in Step 1:
 
-### Play Mode Tests
-
-```csharp
-using NUnit.Framework;
-using UnityEngine;
-using UnityEngine.TestTools;
-using System.Collections;
-
-public class OneSignalManagerTests
-{
-    [UnityTest]
-    public IEnumerator OneSignalManager_Initializes_Successfully()
-    {
-        // Arrange
-        var go = new GameObject("TestManager");
-        var manager = go.AddComponent<OneSignalManager>();
-        
-        yield return null;
-        
-        // Assert
-        Assert.IsNotNull(OneSignalManager.Instance);
-        
-        // Cleanup
-        Object.Destroy(go);
-    }
-}
-```
+- **Android:** use the shared **After setup: FCM credentials in OneSignal** note.
+- **iOS:** > **Push won't reach iOS devices until your OneSignal app has APNs credentials.** In OneSignal, go to **Settings → Push & In-App → Apple iOS (APNs)** and add your p8 Auth Key (recommended) or p12 Certificate.
 
 ---
 
@@ -534,21 +274,16 @@ public class OneSignalManagerTests
 | Issue | Solution |
 |-------|----------|
 | iOS build fails | Run EDM4U iOS Resolver, check Xcode capabilities |
-| iOS push received but no image | Verify the OneSignal build post-processor ran on export — the NSE target and App Group must be present (see iOS Push Infrastructure section) |
+| iOS push received but no image | Verify the OneSignal build post-processor ran on export — the NSE target and App Group must be present |
 | No Confirmed Delivery stat | Verify NSE + App Group setup in the exported Xcode project; dashboard display requires a paid OneSignal plan |
 | Xcode provisioning errors mentioning the App Group | Select a valid Team with Automatically Sign, refresh App Groups in Signing & Capabilities for BOTH targets, or pre-register the App Group in the Apple Developer portal |
-| Android build fails | Enable Custom Main Gradle Template (Player Settings ▸ Publishing Settings) so EDM4U patches `mainTemplate.gradle` |
-| `ClassNotFoundException` / no `com.onesignal.OneSignal` at runtime (silent init failure) | EDM4U is missing or Android deps never resolved — install EDM4U explicitly and enable Custom Main Gradle Template (see "Install External Dependency Manager") |
-| EDM4U "Force Resolve" fails with `GroovyBugError` / `ReflectionCache` | Its standalone resolver runs Gradle 5.1.1, which crashes on JDK 17 — resolve via Custom Main Gradle Template instead of Force Resolve |
-| Verification dialog never appears | Expected in the Editor (native layer is a no-op) — build to a device/emulator; check `adb logcat -s OneSignal:V` |
-| Notifications not received | Check App ID, platform build settings, and notification permission |
-| Permission not requested | Permission is requested when the user taps "Got it" on the verification dialog |
-| SDK not initializing | Check App ID is correct, verify internet connectivity |
-| Multiple instances | Ensure only one GameObject with OneSignal initialization |
-| `OneSignalSDK` namespace not found | Ensure packages have version tags in manifest.json (e.g., `#5.1.15`), remove leading `/` from paths |
+| `ClassNotFoundException` / no `com.onesignal.OneSignal` at runtime (silent init failure) | No External Dependency Manager, or Android deps never resolved — add `com.unity.external-dependency-manager`, enable Custom Main Gradle Template, then Force Resolve |
+| Package Manager fails to resolve; `OneSignalSDK` namespace missing | Check `Packages/manifest.json` for a scoped registry at `unityregistry-pa.googleapis.com`. It returns 404 and blocks every package; remove it and use `com.unity.external-dependency-manager` |
+| Duplicate `Google.*` assembly errors | Both Unity's EDM and legacy EDM4U (`Assets/ExternalDependencyManager`) are installed, often from the setup window's **Install EDM4U** step. Keep one |
+| "Could not find an implementation of OneSignal SDK" | IL2CPP stripped the platform classes; add `Assets/OneSignal/link.xml` (see **OneSignal SDK Setup window steps**) |
+| "Force Resolve" fails with `GroovyBugError` / `ReflectionCache` | The legacy standalone resolver can crash on JDK 17. With Custom Main Gradle Template enabled, the dependencies still resolve during the normal Unity Android build |
+| Permission prompt never appears | Expected in the Editor (native layer is a no-op). On a device, confirm `OneSignalManager` is in the first scene; check `adb logcat -s OneSignal:V` |
+| Multiple instances | Ensure only one GameObject with `OneSignalManager` |
+| `OneSignalSDK` namespace not found | Confirm the packages installed from the npmjs scoped registry and `com.onesignal.unity.core` is present |
 | `LogLevel` not found | Add `using OneSignalSDK.Debug.Models;` |
-| `INotification` not found | Add `using OneSignalSDK.Notifications.Models;` |
-| Event handler signature error | Use `(object sender, TEventArgs e)` pattern, not just `(e)` |
-| `Debug.Log` conflicts with `OneSignal.Debug` | Use `UnityEngine.Debug.Log()` explicitly |
-| "OneSignal not initialized" error | Ensure `OneSignal.Initialize()` is called before using other SDK methods |
-| Package resolution fails | Check version tag exists (use `5.1.15` not `5.2.8`), verify `core` package is listed first |
+| Android subscription status -32 or -33 | `google-services.xml` missing, or from a different Firebase project than the FCM Service Account in OneSignal |

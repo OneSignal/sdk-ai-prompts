@@ -79,20 +79,19 @@ script/
 
 When you use these prompts, the AI will:
 
-1. **Create a new branch** (`onesignal-integration`)
-2. **Add the correct SDK version** for your platform
+1. **Offer a new branch** (`onesignal-integration`) or use your current branch
+2. **Add the Current SDK version** for your platform, in the format the official setup guide uses
 3. **Follow your existing architecture** (MVVM, MVC, etc.)
 4. **Create a centralized OneSignal manager** class
-5. **Handle threading correctly** (off main thread)
-6. **Add unit tests** for the integration
-7. **Create a Pull Request** with all changes
-8. **Output a PR summary** for you to copy
+5. **Initialize the SDK** the way the official setup guide does, and nothing more (no login, email, SMS, or tags)
+6. **Add the Android Firebase configuration** (`google-services.json`) on platforms that build for Android
+7. **Output a PR summary** for you to copy, including dashboard steps and next steps
 
 ## App ID & Verification
 
-These prompts use **your own** OneSignal App ID — provide it in the same message that links the AI to the prompt. If you don't include one, the AI will ask for it before proceeding; it never hardcodes a demo or fallback App ID.
+These prompts use **your own** OneSignal App ID — provide it in the same message that links the AI to the prompt. If you don't include one, the AI asks for it along with its other setup questions. You can skip it; the AI then uses a single `YOUR_APP_ID` placeholder and reminds you to replace it. It never hardcodes a demo or fallback App ID.
 
-After the SDK is initialized, the AI wires up a lightweight **push subscription verification dialog**. Once the device registers with OneSignal (a real, server-assigned subscription ID), a native dialog confirms the integration succeeded and, on tap, requests push notification permission.
+The AI follows each platform's official setup guide. On mobile, it requests push permission at launch, right after initialization. On web, the permission prompt is configured in the OneSignal dashboard. You verify the integration in the dashboard: the new Subscription shows **Never Subscribed**, then **Subscribed** once you accept the prompt.
 
 ## Raw Markdown Access
 
