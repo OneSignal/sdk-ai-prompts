@@ -15,7 +15,7 @@ Before considering the integration complete, verify ALL of the following. For NS
 
 - [ ] Shared iOS Push Infrastructure required outcomes are all satisfied (NSE, App Group, entitlements, Background Modes, embed phase)
 - [ ] Push Notifications capability is enabled on the main app target (via entitlements / Signing & Capabilities)
-- [ ] Minimum deployment target is iOS 12.0 or higher (iOS 16.2+ recommended); do not lower an existing higher target
+- [ ] Minimum deployment target is iOS 15.0 or higher (iOS 16.2+ recommended); do not lower an existing higher target
 - [ ] `NSAppTransportSecurity` allows HTTPS (default; usually no changes)
 - [ ] Signed app entitlements verified (`codesign -d --entitlements -` shows `aps-environment` + App Group); do not disable code signing on CLI builds
 
