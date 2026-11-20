@@ -850,7 +850,7 @@ Before considering the integration complete, verify ALL of the following:
 ### Project Requirements
 
 - [ ] React Native 0.71 or higher
-- [ ] iOS minimum deployment target is iOS 12.0 or higher
+- [ ] iOS minimum deployment target is iOS 15.0 or higher
 - [ ] Android `minSdkVersion` is 21 or higher
 - [ ] Android `compileSdkVersion` is 33 or higher
 - [ ] OneSignal App ID is available (from the user prompt)
