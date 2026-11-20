@@ -809,7 +809,7 @@ Note: Do NOT add the Google Services Gradle plugin or a `google-services.json` f
 
 ### iOS Build Settings
 
-- [ ] Target minimum iOS version 12.0+
+- [ ] Target minimum iOS version 15.0+
 - [ ] Verify the exported Xcode project has the Push Notifications and Background Modes (Remote notifications) capabilities (added automatically by the OneSignal build post-processor)
 - [ ] Verify the App Group `group.{bundle_id}.onesignal` is on BOTH the exported app target and `OneSignalNotificationServiceExtension` (added automatically)
 - [ ] Verify the `OneSignalNotificationServiceExtension` target exists in the exported Xcode project (added automatically)

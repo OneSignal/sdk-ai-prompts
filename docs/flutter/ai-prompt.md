@@ -807,7 +807,7 @@ Note: Do NOT add the Google Services Gradle plugin or a `google-services.json` f
 - [ ] Background Modes capability with Remote notifications
 - [ ] App Groups capability configured on BOTH Runner and `OneSignalNotificationServiceExtension`
 - [ ] `OneSignalNotificationServiceExtension` target added and configured
-- [ ] Minimum deployment target iOS 12.0+
+- [ ] Minimum deployment target iOS 15.0+
 - [ ] CocoaPods projects: `pod install` succeeds for Runner + NSE; SPM projects: NSE links/builds without adding an NSE-only Podfile
 
 ### Initialization
